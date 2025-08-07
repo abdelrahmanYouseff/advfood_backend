@@ -33,59 +33,30 @@ class RestaurantController extends Controller
      */
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'address' => 'required|string|max:500',
-                'phone' => 'required|string|max:20',
-                'email' => 'nullable|email|max:255',
-                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-                'is_active' => 'boolean',
-                'opening_time' => 'required|date_format:H:i:s',
-                'closing_time' => 'required|date_format:H:i:s',
-                'delivery_fee' => 'required|numeric|min:0',
-                'delivery_time' => 'required|integer|min:1',
-            ]);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'address' => 'required|string|max:500',
+            'phone' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'is_active' => 'boolean',
+            'opening_time' => 'required|date_format:H:i:s',
+            'closing_time' => 'required|date_format:H:i:s',
+            'delivery_fee' => 'required|numeric|min:0',
+            'delivery_time' => 'required|integer|min:1',
+        ]);
 
-            // Handle logo upload with better error handling
-            if ($request->hasFile('logo')) {
-                $file = $request->file('logo');
-                
-                if (!$file->isValid()) {
-                    throw new \Exception('الملف غير صالح: ' . $file->getError());
-                }
-                
-                // Create directory if it doesn't exist
-                $uploadPath = storage_path('app/public/restaurants/logos');
-                if (!is_dir($uploadPath)) {
-                    mkdir($uploadPath, 0755, true);
-                }
-                
-                // Generate unique filename
-                $fileName = time() . '_' . $file->getClientOriginalName();
-                $fullPath = $uploadPath . '/' . $fileName;
-                
-                // Move file
-                if (!$file->move($uploadPath, $fileName)) {
-                    throw new \Exception('فشل في نقل الملف');
-                }
-                
-                $validated['logo'] = 'restaurants/logos/' . $fileName;
-            }
-
-            Restaurant::create($validated);
-
-            return redirect()->route('restaurants.index')
-                ->with('success', 'تم إضافة المطعم بنجاح');
-                
-        } catch (\Exception $e) {
-            \Log::error('Restaurant creation error: ' . $e->getMessage());
-            
-            return back()->withInput()->withErrors([
-                'error' => 'حدث خطأ أثناء إنشاء المطعم: ' . $e->getMessage()
-            ]);
+        // Handle logo upload
+        if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            $logoPath = $request->file('logo')->store('restaurants/logos', 'public');
+            $validated['logo'] = $logoPath;
         }
+
+        Restaurant::create($validated);
+
+        return redirect()->route('restaurants.index')
+            ->with('success', 'تم إضافة المطعم بنجاح');
     }
 
     /**
