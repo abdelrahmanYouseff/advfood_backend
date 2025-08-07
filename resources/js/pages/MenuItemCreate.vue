@@ -14,6 +14,7 @@ interface Props {
     restaurants: Array<{
         id: number;
         name: string;
+        logo: string;
         categories: Array<{
             id: number;
             name: string;
@@ -95,8 +96,28 @@ const submit = () => {
                         </div>
                         <div class="hidden md:block">
                             <div class="rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 p-4 text-white shadow-lg">
-                                <div class="text-sm font-medium">إجمالي المنتجات</div>
-                                <div class="text-2xl font-bold">{{ restaurants.length * 3 }}</div>
+                                <div v-if="selectedRestaurant && selectedRestaurant.logo && selectedRestaurant.logo !== ''" class="flex items-center space-x-3">
+                                    <div class="h-12 w-12 overflow-hidden rounded-lg border-2 border-white/20">
+                                        <img
+                                            :src="`/storage/${selectedRestaurant.logo}`"
+                                            :alt="`${selectedRestaurant.name} Logo`"
+                                            class="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-medium">المطعم</div>
+                                        <div class="text-lg font-bold">{{ selectedRestaurant.name }}</div>
+                                    </div>
+                                </div>
+                                <div v-else class="flex items-center space-x-3">
+                                    <div class="h-12 w-12 rounded-lg bg-white/20 flex items-center justify-center">
+                                        <Store class="h-6 w-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-medium">اختر المطعم</div>
+                                        <div class="text-lg font-bold">لإضافة المنتج</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -139,6 +160,26 @@ const submit = () => {
                                                 </div>
                                             </div>
                                             <InputError :message="form.errors.restaurant_id" />
+
+                                            <!-- Restaurant Preview -->
+                                            <div v-if="selectedRestaurant" class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700">
+                                                <div class="flex items-center space-x-3">
+                                                    <div v-if="selectedRestaurant.logo && selectedRestaurant.logo !== ''" class="h-10 w-10 overflow-hidden rounded-lg">
+                                                        <img
+                                                            :src="`/storage/${selectedRestaurant.logo}`"
+                                                            :alt="`${selectedRestaurant.name} Logo`"
+                                                            class="h-full w-full object-cover"
+                                                        />
+                                                    </div>
+                                                    <div v-else class="h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center dark:bg-gray-600">
+                                                        <Store class="h-5 w-5 text-gray-400" />
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedRestaurant.name }}</div>
+                                                        <div class="text-xs text-gray-500">{{ selectedRestaurant.categories.length }} فئة</div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div class="space-y-2">

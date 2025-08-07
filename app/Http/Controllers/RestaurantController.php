@@ -25,7 +25,7 @@ class RestaurantController extends Controller
      */
     public function create()
     {
-        //
+        return Inertia::render('RestaurantCreate');
     }
 
     /**
@@ -33,7 +33,30 @@ class RestaurantController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'address' => 'required|string|max:500',
+            'phone' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'is_active' => 'boolean',
+            'opening_time' => 'required|date_format:H:i:s',
+            'closing_time' => 'required|date_format:H:i:s',
+            'delivery_fee' => 'required|numeric|min:0',
+            'delivery_time' => 'required|integer|min:1',
+        ]);
+
+        // Handle logo upload
+        if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            $logoPath = $request->file('logo')->store('restaurants/logos', 'public');
+            $validated['logo'] = $logoPath;
+        }
+
+        Restaurant::create($validated);
+
+        return redirect()->route('restaurants.index')
+            ->with('success', 'تم إضافة المطعم بنجاح');
     }
 
     /**
@@ -41,7 +64,11 @@ class RestaurantController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $restaurant = Restaurant::with(['categories', 'menuItems'])->findOrFail($id);
+
+        return Inertia::render('RestaurantShow', [
+            'restaurant' => $restaurant,
+        ]);
     }
 
     /**
@@ -49,7 +76,11 @@ class RestaurantController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $restaurant = Restaurant::findOrFail($id);
+
+        return Inertia::render('RestaurantEdit', [
+            'restaurant' => $restaurant,
+        ]);
     }
 
     /**
@@ -57,7 +88,33 @@ class RestaurantController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $restaurant = Restaurant::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'address' => 'sometimes|string|max:500',
+            'phone' => 'sometimes|string|max:20',
+            'email' => 'sometimes|nullable|email|max:255',
+            'logo' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'is_active' => 'sometimes|boolean',
+            'opening_time' => 'sometimes|date_format:H:i:s',
+            'closing_time' => 'sometimes|date_format:H:i:s',
+            'delivery_fee' => 'sometimes|numeric|min:0',
+            'delivery_time' => 'sometimes|integer|min:1',
+        ]);
+
+        // Handle logo upload
+        if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            $logoPath = $request->file('logo')->store('restaurants/logos', 'public');
+            $validated['logo'] = $logoPath;
+        }
+
+        // Only update fields that were actually sent
+        $restaurant->update($validated);
+
+        return redirect()->route('restaurants.index')
+            ->with('success', 'تم تحديث المطعم بنجاح');
     }
 
     /**
@@ -65,6 +122,10 @@ class RestaurantController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $restaurant = Restaurant::findOrFail($id);
+        $restaurant->delete();
+
+        return redirect()->route('restaurants.index')
+            ->with('success', 'تم حذف المطعم بنجاح');
     }
 }

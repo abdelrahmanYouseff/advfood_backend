@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Store, Phone, Mail, Clock, MapPin } from 'lucide-vue-next';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Plus, Store, Phone, Mail, Clock, MapPin, Trash2 } from 'lucide-vue-next';
 
 interface Props {
     restaurants: Array<{
@@ -12,6 +12,7 @@ interface Props {
         address: string;
         phone: string;
         email: string;
+        logo: string;
         is_active: boolean;
         opening_time: string;
         closing_time: string;
@@ -47,6 +48,12 @@ const formatTime = (time: string) => {
         hour12: true,
     });
 };
+
+const deleteRestaurant = (restaurantId: number, restaurantName: string) => {
+    if (confirm(`هل أنت متأكد من حذف المطعم "${restaurantName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
+        router.delete(route('restaurants.destroy', restaurantId));
+    }
+};
 </script>
 
 <template>
@@ -73,8 +80,18 @@ const formatTime = (time: string) => {
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <div v-for="restaurant in restaurants" :key="restaurant.id" class="rounded-xl border bg-card p-6 shadow-sm">
                     <div class="flex items-start space-x-4">
-                        <div class="rounded-lg bg-green-100 p-3 dark:bg-green-900/20">
-                            <Store class="h-6 w-6 text-green-600 dark:text-green-400" />
+                        <!-- Restaurant Image/Logo -->
+                        <div class="flex-shrink-0">
+                            <div v-if="restaurant.logo && restaurant.logo !== ''" class="h-16 w-16 overflow-hidden rounded-lg">
+                                <img
+                                    :src="`/storage/${restaurant.logo}`"
+                                    :alt="`${restaurant.name} Logo`"
+                                    class="h-full w-full object-cover"
+                                />
+                            </div>
+                            <div v-else class="h-16 w-16 rounded-lg bg-green-100 p-3 dark:bg-green-900/20 flex items-center justify-center">
+                                <Store class="h-6 w-6 text-green-600 dark:text-green-400" />
+                            </div>
                         </div>
                         <div class="flex-1">
                             <div class="flex items-center space-x-2">
@@ -130,6 +147,13 @@ const formatTime = (time: string) => {
                         >
                             View
                         </Link>
+                        <button
+                            @click="deleteRestaurant(restaurant.id, restaurant.name)"
+                            class="rounded-lg border border-red-300 bg-white px-3 py-2 text-center text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-600 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                            title="حذف المطعم"
+                        >
+                            <Trash2 class="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
             </div>
