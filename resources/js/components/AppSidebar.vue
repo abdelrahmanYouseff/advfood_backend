@@ -5,7 +5,18 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import {
+    BookOpen,
+    Folder,
+    LayoutGrid,
+    Users,
+    Store,
+    ShoppingCart,
+    FileText,
+    Menu,
+    Tag,
+    Settings
+} from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -14,18 +25,43 @@ const mainNavItems: NavItem[] = [
         href: '/dashboard',
         icon: LayoutGrid,
     },
+    {
+        title: 'Users',
+        href: '/users',
+        icon: Users,
+    },
+    {
+        title: 'Restaurants',
+        href: '/restaurants',
+        icon: Store,
+    },
+    {
+        title: 'Categories',
+        href: '/categories',
+        icon: Tag,
+    },
+    {
+        title: 'Menu Items',
+        href: '/menu-items',
+        icon: Menu,
+    },
+    {
+        title: 'Orders',
+        href: '/orders',
+        icon: ShoppingCart,
+    },
+    {
+        title: 'Invoices',
+        href: '/invoices',
+        icon: FileText,
+    },
 ];
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
+        title: 'Settings',
+        href: '/settings/profile',
+        icon: Settings,
     },
 ];
 </script>
