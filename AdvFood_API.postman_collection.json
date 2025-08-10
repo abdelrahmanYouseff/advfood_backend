@@ -7,6 +7,34 @@
 	},
 	"item": [
 		{
+			"name": "User Registration",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"أحمد محمد\",\n    \"email\": \"ahmed@example.com\",\n    \"password\": \"12345678\",\n    \"password_confirmation\": \"12345678\",\n    \"phone_number\": \"+966501234567\",\n    \"address\": \"شارع الملك فهد، الرياض\",\n    \"country\": \"السعودية\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/auth/register",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"auth",
+						"register"
+					]
+				},
+				"description": "Register a new user with role 'user'"
+			},
+			"response": []
+		},
+		{
 			"name": "Get All Restaurants",
 			"request": {
 				"method": "GET",
