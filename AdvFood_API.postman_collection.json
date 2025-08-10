@@ -1,0 +1,35 @@
+{
+	"info": {
+		"_postman_id": "advfood-api-collection",
+		"name": "AdvFood API",
+		"description": "API collection for AdvFood application",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get All Restaurants",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/restaurants",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"restaurants"
+					]
+				},
+				"description": "Get all active restaurants with name and logo only"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000/api",
+			"type": "string"
+		}
+	]
+}
