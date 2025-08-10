@@ -21,7 +21,21 @@ curl -X POST https://advfoodapp.clarastars.com/api/auth/register \
   }'
 ```
 
-### 2. Get Restaurants
+### 2. User Login
+**POST** `/api/auth/login`
+
+Login with existing credentials
+
+```bash
+curl -X POST https://advfoodapp.clarastars.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "ahmed@example.com",
+    "password": "12345678"
+  }'
+```
+
+### 3. Get Restaurants
 **GET** `/api/restaurants`
 
 Get all active restaurants
@@ -58,6 +72,11 @@ curl -X POST http://127.0.0.1:8000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name":"Test User","email":"test@example.com","password":"12345678","password_confirmation":"12345678"}'
 
+# User Login
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"12345678"}'
+
 # Get Restaurants  
 curl -X GET http://127.0.0.1:8000/api/restaurants
 ```
@@ -68,6 +87,11 @@ curl -X GET http://127.0.0.1:8000/api/restaurants
 curl -X POST https://advfoodapp.clarastars.com/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name":"Test User","email":"test@example.com","password":"12345678","password_confirmation":"12345678"}'
+
+# User Login
+curl -X POST https://advfoodapp.clarastars.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"12345678"}'
 
 # Get Restaurants
 curl -X GET https://advfoodapp.clarastars.com/api/restaurants

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
@@ -73,6 +74,60 @@ class AuthController extends Controller
                 'message' => 'Registration failed',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Login user
+     */
+    public function login(Request $request)
+    {
+        // Validate the request
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Attempt to authenticate
+        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
+            $user = Auth::user();
+
+            // Generate token
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful',
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'phone_number' => $user->phone_number,
+                        'address' => $user->address,
+                        'country' => $user->country,
+                        'role' => $user->role,
+                        'created_at' => $user->created_at,
+                    ],
+                    'token' => $token,
+                    'token_type' => 'Bearer'
+                ]
+            ], 200);
+
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials',
+                'error' => 'Email or password is incorrect'
+            ], 401);
         }
     }
 }

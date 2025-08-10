@@ -25,3 +25,4 @@ Route::get('/restaurants', [RestaurantController::class, 'index']);
 
 // Authentication routes
 Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);

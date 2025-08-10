@@ -76,7 +76,72 @@ Register a new user with role 'user'.
 - Password is automatically hashed
 - Email must be unique in the system
 
-### 2. Get All Restaurants
+### 2. User Login
+**POST** `/auth/login`
+
+Login with existing user credentials.
+
+**Request Body:**
+```json
+{
+    "email": "ahmed@example.com",
+    "password": "12345678"
+}
+```
+
+**Response (Success - 200):**
+```json
+{
+    "success": true,
+    "message": "Login successful",
+    "data": {
+        "user": {
+            "id": 4,
+            "name": "أحمد محمد",
+            "email": "ahmed@example.com",
+            "phone_number": "+966501234567",
+            "address": "شارع الملك فهد، الرياض",
+            "country": "السعودية",
+            "role": "user",
+            "created_at": "2025-08-10T08:24:13.000000Z"
+        },
+        "token": "2|fqaWp3S0ucRIDSrH2RbBqZS7ZuvUvDiUrRHXAVTTba2d1d0c",
+        "token_type": "Bearer"
+    }
+}
+```
+
+**Response (Invalid Credentials - 401):**
+```json
+{
+    "success": false,
+    "message": "Invalid credentials",
+    "error": "Email or password is incorrect"
+}
+```
+
+**Response (Validation Error - 422):**
+```json
+{
+    "success": false,
+    "message": "Validation failed",
+    "errors": {
+        "email": ["The email field is required."],
+        "password": ["The password field is required."]
+    }
+}
+```
+
+**Validation Rules:**
+- `email`: required, email format
+- `password`: required, string
+
+**Notes:**
+- Returns user data and Sanctum token for authentication
+- Token can be used for subsequent authenticated requests
+- Invalid credentials return 401 status code
+
+### 3. Get All Restaurants
 **GET** `/restaurants`
 
 Returns a list of all active restaurants with basic information.
@@ -125,6 +190,16 @@ curl -X POST https://advfoodapp.clarastars.com/api/auth/register \
     "phone_number": "+966501234567",
     "address": "شارع الملك فهد، الرياض",
     "country": "السعودية"
+  }'
+```
+
+#### User Login
+```bash
+curl -X POST https://advfoodapp.clarastars.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "ahmed@example.com",
+    "password": "12345678"
   }'
 ```
 

@@ -35,6 +35,34 @@
 			"response": []
 		},
 		{
+			"name": "User Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"ahmed@example.com\",\n    \"password\": \"12345678\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/auth/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"auth",
+						"login"
+					]
+				},
+				"description": "Login with existing user credentials"
+			},
+			"response": []
+		},
+		{
 			"name": "Get All Restaurants",
 			"request": {
 				"method": "GET",
