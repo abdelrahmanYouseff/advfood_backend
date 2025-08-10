@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import InputError from '@/components/InputError.vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Save, Store, MapPin, Phone, Mail, Clock, DollarSign } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -50,6 +51,19 @@ const submit = () => {
         },
     });
 };
+
+// Computed property for logo preview URL
+const logoPreviewUrl = computed(() => {
+    if (form.logo && typeof window !== 'undefined' && window.URL) {
+        try {
+            return window.URL.createObjectURL(form.logo);
+        } catch (error) {
+            console.error('Error creating object URL:', error);
+            return null;
+        }
+    }
+    return null;
+});
 </script>
 
 <template>
@@ -204,9 +218,9 @@ const submit = () => {
                                         </Label>
                                         <div class="space-y-4">
                                             <!-- Logo Preview -->
-                                            <div v-if="form.logo && form.logo !== null" class="relative">
+                                            <div v-if="form.logo && form.logo !== null && logoPreviewUrl" class="relative">
                                                 <img
-                                                    :src="URL.createObjectURL(form.logo)"
+                                                    :src="logoPreviewUrl"
                                                     alt="Logo Preview"
                                                     class="h-32 w-full rounded-xl object-cover border border-gray-200"
                                                 />

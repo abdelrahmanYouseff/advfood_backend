@@ -2,7 +2,7 @@
 
 ## Base URL
 ```
-http://127.0.0.1:8000/api
+https://advfoodapp.clarastars.com/api
 ```
 
 ## Authentication
@@ -23,12 +23,12 @@ Returns a list of all active restaurants with basic information.
         {
             "id": 2,
             "name": "Delawa",
-            "logo": "http://127.0.0.1:8000/storage/restaurants/logos/1754565610_Screenshot 1447-02-13 at 2.05.54 PM.png"
+            "logo": "https://advfoodapp.clarastars.com/storage/restaurants/logos/1754565610_Screenshot 1447-02-13 at 2.05.54 PM.png"
         },
         {
             "id": 3,
             "name": "Bakiza",
-            "logo": "http://127.0.0.1:8000/storage/restaurants/logos/1754565656_Screenshot 1447-02-13 at 2.20.43 PM.png"
+            "logo": "https://advfoodapp.clarastars.com/storage/restaurants/logos/1754565656_Screenshot 1447-02-13 at 2.20.43 PM.png"
         }
     ]
 }
@@ -47,12 +47,12 @@ Returns a list of all active restaurants with basic information.
 
 ### Using cURL
 ```bash
-curl -X GET http://127.0.0.1:8000/api/restaurants
+curl -X GET https://advfoodapp.clarastars.com/api/restaurants
 ```
 
 ### Using Postman
 1. Create a new GET request
-2. Set URL to: `http://127.0.0.1:8000/api/restaurants`
+2. Set URL to: `https://advfoodapp.clarastars.com/api/restaurants`
 3. Send the request
 
 ## Future Endpoints

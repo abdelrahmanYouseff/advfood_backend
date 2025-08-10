@@ -64,6 +64,19 @@ const submit = () => {
         },
     });
 };
+
+// Computed property for image preview URL
+const imagePreviewUrl = computed(() => {
+    if (form.image && typeof window !== 'undefined' && window.URL) {
+        try {
+            return window.URL.createObjectURL(form.image);
+        } catch (error) {
+            console.error('Error creating object URL:', error);
+            return null;
+        }
+    }
+    return null;
+});
 </script>
 
 <template>
@@ -245,9 +258,9 @@ const submit = () => {
                                         </Label>
                                         <div class="space-y-4">
                                             <!-- Image Preview -->
-                                            <div v-if="form.image" class="relative">
+                                            <div v-if="form.image && imagePreviewUrl" class="relative">
                                                 <img
-                                                    :src="URL.createObjectURL(form.image)"
+                                                    :src="imagePreviewUrl"
                                                     alt="Preview"
                                                     class="h-48 w-full rounded-xl object-cover border border-gray-200"
                                                 />
