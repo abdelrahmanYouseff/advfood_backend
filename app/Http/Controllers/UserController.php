@@ -13,7 +13,16 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::latest()->get();
+        $users = User::select([
+            'id',
+            'name',
+            'email',
+            'phone_number',
+            'address',
+            'country',
+            'role',
+            'created_at'
+        ])->latest()->get();
 
         return Inertia::render('Users', [
             'users' => $users,

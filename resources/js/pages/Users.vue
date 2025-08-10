@@ -9,6 +9,10 @@ interface Props {
         id: number;
         name: string;
         email: string;
+        phone_number?: string;
+        address?: string;
+        country?: string;
+        role: string;
         created_at: string;
     }>;
 }
@@ -55,10 +59,30 @@ const breadcrumbs: BreadcrumbItem[] = [
                             <Users class="h-6 w-6 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div class="flex-1">
-                            <h3 class="font-semibold">{{ user.name }}</h3>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="font-semibold">{{ user.name }}</h3>
+                                <span v-if="user.role === 'admin'" class="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800 dark:bg-red-900/20 dark:text-red-400">
+                                    Admin
+                                </span>
+                                <span v-else class="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                    User
+                                </span>
+                            </div>
                             <div class="flex items-center space-x-2 text-sm text-muted-foreground">
                                 <Mail class="h-4 w-4" />
                                 <span>{{ user.email }}</span>
+                            </div>
+                            <div v-if="user.phone_number" class="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                </svg>
+                                <span>{{ user.phone_number }}</span>
+                            </div>
+                            <div v-if="user.country" class="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span>{{ user.country }}</span>
                             </div>
                             <div class="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
                                 <Calendar class="h-4 w-4" />
