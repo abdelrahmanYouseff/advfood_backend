@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'external_api' => [
+        'key' => env('EXTERNAL_API_KEY'),
+        'url' => env('EXTERNAL_API_URL', 'https://www.pointsys.clarastars.com/api/v1'),
+    ],
+
 ];
