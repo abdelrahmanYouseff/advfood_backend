@@ -105,6 +105,92 @@ class MobileAppController extends Controller
     }
 
     /**
+     * Get user points by email (public endpoint)
+     */
+    public function getPointsByEmail(Request $request)
+    {
+        try {
+            // Validate email parameter
+            $request->validate([
+                'email' => 'required|email'
+            ]);
+
+            $email = $request->input('email');
+
+            // Get API credentials
+            $apiKey = config('services.external_api.key');
+            $apiUrl = config('services.external_api.url');
+            
+            if (empty($apiKey)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'External API not configured'
+                ], 500);
+            }
+
+            // Try to get customers from external system
+            $response = Http::timeout(30)
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ])
+                ->get($apiUrl . '/customers');
+
+            $customerData = null;
+            
+            if ($response && $response->successful()) {
+                $customers = $response->json();
+                
+                // Find the customer with matching email
+                if (isset($customers['data']) && is_array($customers['data'])) {
+                    foreach ($customers['data'] as $customer) {
+                        if (isset($customer['email']) && $customer['email'] === $email) {
+                            $customerData = $customer;
+                            break;
+                        }
+                    }
+                }
+
+                if ($customerData) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Points retrieved successfully',
+                        'data' => [
+                            'customer_id' => $customerData['id'] ?? null,
+                            'email' => $email,
+                            'name' => $customerData['name'] ?? null,
+                            'points_balance' => $customerData['points_balance'] ?? 0,
+                            'tier' => $customerData['tier'] ?? 'bronze'
+                        ]
+                    ]);
+                }
+            }
+            
+            // If external API fails or user not found, return default values
+            return response()->json([
+                'success' => true,
+                'message' => 'Points retrieved (external system unavailable)',
+                'data' => [
+                    'customer_id' => null,
+                    'email' => $email,
+                    'name' => null,
+                    'points_balance' => 0,
+                    'tier' => 'bronze',
+                    'note' => 'External points system temporarily unavailable'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while retrieving points',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get user profile with points
      */
     public function getUserProfile(Request $request)

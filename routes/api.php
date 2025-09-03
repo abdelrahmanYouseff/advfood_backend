@@ -24,6 +24,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Public routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);
 
+// Points by email (public endpoint - no authentication required)
+Route::get('/points-by-email', [MobileAppController::class, 'getPointsByEmail']);
+
 // Authentication routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
