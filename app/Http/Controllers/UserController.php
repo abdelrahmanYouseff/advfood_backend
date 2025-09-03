@@ -99,24 +99,26 @@ class UserController extends Controller
                     'external_id' => $user->id, // Reference to our local user ID
                 ]);
 
-            if ($response->successful()) {
-                Log::info('User successfully registered in external system', [
-                    'user_id' => $user->id,
-                    'external_response' => $response->json()
-                ]);
-            } else {
-                Log::warning('Failed to register user in external system', [
-                    'user_id' => $user->id,
-                    'response_status' => $response->status(),
-                    'response_body' => $response->body()
-                ]);
-            }
+            // Temporarily disabled logging due to permission issues
+            // if ($response->successful()) {
+            //     Log::info('User successfully registered in external system', [
+            //         'user_id' => $user->id,
+            //         'external_response' => $response->json()
+            //     ]);
+            // } else {
+            //     Log::warning('Failed to register user in external system', [
+            //         'user_id' => $user->id,
+            //         'response_status' => $response->status(),
+            //         'response_body' => $response->body()
+            //     ]);
+            // }
         } catch (\Exception $e) {
-            Log::error('Exception occurred while registering user in external system', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // Temporarily disabled logging due to permission issues
+            // Log::error('Exception occurred while registering user in external system', [
+            //     'user_id' => $user->id,
+            //     'error' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
         }
     }
 
