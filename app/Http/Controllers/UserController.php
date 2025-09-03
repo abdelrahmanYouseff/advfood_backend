@@ -82,6 +82,11 @@ class UserController extends Controller
         try {
             $apiKey = config('services.external_api.key');
             $apiUrl = config('services.external_api.url');
+            
+            // Debug: Check if API key exists
+            if (empty($apiKey)) {
+                throw new \Exception('External API key is not configured');
+            }
 
             $response = Http::timeout(30)
                 ->withHeaders([
