@@ -88,42 +88,47 @@ class UserController extends Controller
                 throw new \Exception('External API key is not configured');
             }
 
+            // Debug: Log the data being sent
+            $postData = [
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone_number ?: '01000000000',
+                'address' => $user->address ?? '',
+                'country' => $user->country ?? '',
+                'role' => $user->role,
+                'external_id' => $user->id, // Reference to our local user ID
+            ];
+            
+            // Create a debug file to track API calls
+            file_put_contents(storage_path('logs/api_debug.log'), 
+                date('Y-m-d H:i:s') . " - Sending to external API:\n" . 
+                "URL: " . $apiUrl . "/customers/register\n" .
+                "Data: " . json_encode($postData) . "\n\n", 
+                FILE_APPEND | LOCK_EX
+            );
+
             $response = Http::timeout(30)
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $apiKey,
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
                 ])
-                ->post($apiUrl . '/customers/register', [
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone_number ?: '01000000000',
-                    'address' => $user->address ?? '',
-                    'country' => $user->country ?? '',
-                    'role' => $user->role,
-                    'external_id' => $user->id, // Reference to our local user ID
-                ]);
+                ->post($apiUrl . '/customers/register', $postData);
 
-            // Temporarily disabled logging due to permission issues
-            // if ($response->successful()) {
-            //     Log::info('User successfully registered in external system', [
-            //         'user_id' => $user->id,
-            //         'external_response' => $response->json()
-            //     ]);
-            // } else {
-            //     Log::warning('Failed to register user in external system', [
-            //         'user_id' => $user->id,
-            //         'response_status' => $response->status(),
-            //         'response_body' => $response->body()
-            //     ]);
-            // }
+            // Log the response to debug file
+            file_put_contents(storage_path('logs/api_debug.log'), 
+                date('Y-m-d H:i:s') . " - Response from external API:\n" . 
+                "Status: " . $response->status() . "\n" .
+                "Body: " . $response->body() . "\n\n", 
+                FILE_APPEND | LOCK_EX
+            );
         } catch (\Exception $e) {
-            // Temporarily disabled logging due to permission issues
-            // Log::error('Exception occurred while registering user in external system', [
-            //     'user_id' => $user->id,
-            //     'error' => $e->getMessage(),
-            //     'trace' => $e->getTraceAsString()
-            // ]);
+            // Log exception to debug file
+            file_put_contents(storage_path('logs/api_debug.log'), 
+                date('Y-m-d H:i:s') . " - Exception occurred:\n" . 
+                "Error: " . $e->getMessage() . "\n\n", 
+                FILE_APPEND | LOCK_EX
+            );
         }
     }
 
