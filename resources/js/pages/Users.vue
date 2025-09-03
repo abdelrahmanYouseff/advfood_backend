@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Users, Mail, Calendar } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { Plus, Users, Mail, Calendar, Trash2 } from 'lucide-vue-next';
 
 interface Props {
     users: Array<{
@@ -29,6 +29,19 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/users',
     },
 ];
+
+const deleteUser = (userId: number, userName: string) => {
+    if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
+        router.delete(route('users.destroy', userId), {
+            onSuccess: () => {
+                // Success message will be handled by the backend
+            },
+            onError: () => {
+                alert('Failed to delete user. Please try again.');
+            }
+        });
+    }
+};
 </script>
 
 <template>
@@ -103,6 +116,13 @@ const breadcrumbs: BreadcrumbItem[] = [
                         >
                             View
                         </Link>
+                        <button
+                            @click="deleteUser(user.id, user.name)"
+                            class="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                            title="Delete User"
+                        >
+                            <Trash2 class="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
             </div>

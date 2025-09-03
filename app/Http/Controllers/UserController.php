@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -74,6 +75,19 @@ class UserController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            $user = User::findOrFail($id);
+
+            // Prevent deleting the currently authenticated user
+            if (Auth::id() === $user->id) {
+                return back()->withErrors(['error' => 'You cannot delete your own account.']);
+            }
+
+            $user->delete();
+
+            return back()->with('success', 'User deleted successfully.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to delete user.']);
+        }
     }
 }
