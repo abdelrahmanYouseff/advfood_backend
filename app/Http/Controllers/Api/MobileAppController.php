@@ -18,7 +18,7 @@ class MobileAppController extends Controller
         try {
             // Get authenticated user
             $user = Auth::user();
-            
+
             if (!$user) {
                 return response()->json([
                     'success' => false,
@@ -29,7 +29,7 @@ class MobileAppController extends Controller
             // Get API credentials
             $apiKey = config('services.external_api.key');
             $apiUrl = config('services.external_api.url');
-            
+
             if (empty($apiKey)) {
                 return response()->json([
                     'success' => false,
@@ -40,7 +40,7 @@ class MobileAppController extends Controller
             // Try to find customer by ID first, then by email search
             $response = null;
             $customerData = null;
-            
+
             // First try to get customer by ID if we have external_id stored
             // For now, try to search for customer by email
             $response = Http::timeout(30)
@@ -53,7 +53,7 @@ class MobileAppController extends Controller
 
             if ($response && $response->successful()) {
                 $customers = $response->json();
-                
+
                 // Find the customer with matching email
                 if (isset($customers['data']) && is_array($customers['data'])) {
                     foreach ($customers['data'] as $customer) {
@@ -79,7 +79,7 @@ class MobileAppController extends Controller
                     ]);
                 }
             }
-            
+
             // If external API fails or user not found, return default values
             return response()->json([
                 'success' => true,
@@ -117,41 +117,10 @@ class MobileAppController extends Controller
 
             $email = $request->input('email');
 
-            // Temporary: Hard-coded data for testing specific emails
-            $testData = [
-                'abd9@gmail.com' => [
-                    'customer_id' => 99,
-                    'name' => 'Abd Test User',
-                    'points_balance' => 1250,
-                    'tier' => 'gold'
-                ],
-                'testapi@example.com' => [
-                    'customer_id' => 82,
-                    'name' => 'Test User API',
-                    'points_balance' => 500,
-                    'tier' => 'silver'
-                ]
-            ];
-
-            // Check if email has test data
-            if (isset($testData[$email])) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Points retrieved successfully (test data)',
-                    'data' => [
-                        'customer_id' => $testData[$email]['customer_id'],
-                        'email' => $email,
-                        'name' => $testData[$email]['name'],
-                        'points_balance' => $testData[$email]['points_balance'],
-                        'tier' => $testData[$email]['tier']
-                    ]
-                ]);
-            }
-
             // Get API credentials
             $apiKey = config('services.external_api.key');
             $apiUrl = config('services.external_api.url');
-            
+
             if (empty($apiKey)) {
                 return response()->json([
                     'success' => false,
@@ -159,45 +128,60 @@ class MobileAppController extends Controller
                 ], 500);
             }
 
-            // Try to get customers from external system
-            $response = Http::timeout(30)
+                        // First, try to find customer by email to get the ID
+            $customersResponse = Http::timeout(30)
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $apiKey,
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
                 ])
-                ->get($apiUrl . '/customers');
+                ->get($apiUrl . '/customers', ['email' => $email]);
 
             $customerData = null;
+            $customerId = null;
             
-            if ($response && $response->successful()) {
-                $customers = $response->json();
+            if ($customersResponse && $customersResponse->successful()) {
+                $customers = $customersResponse->json();
                 
                 // Find the customer with matching email
                 if (isset($customers['data']) && is_array($customers['data'])) {
                     foreach ($customers['data'] as $customer) {
                         if (isset($customer['email']) && $customer['email'] === $email) {
+                            $customerId = $customer['id'];
                             $customerData = $customer;
                             break;
                         }
                     }
                 }
+            }
 
-                if ($customerData) {
+            // If we found the customer ID, get their balance
+            if ($customerId) {
+                $balanceResponse = Http::timeout(30)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                    ])
+                    ->get($apiUrl . '/customers/' . $customerId . '/balance');
+
+                if ($balanceResponse && $balanceResponse->successful()) {
+                    $balanceData = $balanceResponse->json();
+                    
                     return response()->json([
                         'success' => true,
                         'message' => 'Points retrieved successfully',
                         'data' => [
-                            'customer_id' => $customerData['id'] ?? null,
+                            'customer_id' => $customerId,
                             'email' => $email,
                             'name' => $customerData['name'] ?? null,
-                            'points_balance' => $customerData['points_balance'] ?? 0,
-                            'tier' => $customerData['tier'] ?? 'bronze'
+                            'points_balance' => $balanceData['balance'] ?? $balanceData['points_balance'] ?? 0,
+                            'tier' => $balanceData['tier'] ?? $customerData['tier'] ?? 'bronze'
                         ]
                     ]);
                 }
             }
-            
+
             // If external API fails or user not found, return default values
             return response()->json([
                 'success' => true,
@@ -228,7 +212,7 @@ class MobileAppController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             if (!$user) {
                 return response()->json([
                     'success' => false,
