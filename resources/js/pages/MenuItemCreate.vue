@@ -400,7 +400,6 @@ const imagePreviewUrl = computed(() => {
                                 <div class="space-y-3">
                                     <div>
                                         <div class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedRestaurant.name }}</div>
-                                        <div class="text-sm text-gray-600 dark:text-gray-400">{{ selectedRestaurant.categories.length }} فئة</div>
                                     </div>
                                 </div>
                             </div>
@@ -442,8 +441,8 @@ const imagePreviewUrl = computed(() => {
                                         <span class="text-sm font-medium text-gray-900 dark:text-white">{{ restaurants.length }}</span>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <span class="text-sm text-gray-600 dark:text-gray-400">إجمالي الفئات</span>
-                                        <span class="text-sm font-medium text-gray-900 dark:text-white">{{ restaurants.reduce((total, r) => total + r.categories.length, 0) }}</span>
+                                        <span class="text-sm text-gray-600 dark:text-gray-400">إجمالي المنتجات</span>
+                                        <span class="text-sm font-medium text-gray-900 dark:text-white">0</span>
                                     </div>
                                     <div class="flex items-center justify-between">
                                         <span class="text-sm text-gray-600 dark:text-gray-400">المنتجات المميزة</span>
