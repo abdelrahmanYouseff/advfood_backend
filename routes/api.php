@@ -30,6 +30,15 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Protected mobile app routes
 Route::middleware('auth:sanctum')->group(function () {
+    // Test authentication
+    Route::get('/test-auth', function (Request $request) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Authentication working',
+            'user' => $request->user()
+        ]);
+    });
+    
     // User points and profile
     Route::get('/user/points', [MobileAppController::class, 'getUserPoints']);
     Route::get('/user/profile', [MobileAppController::class, 'getUserProfile']);
