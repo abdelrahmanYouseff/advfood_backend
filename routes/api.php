@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\MobileAppController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,3 +27,10 @@ Route::get('/restaurants', [RestaurantController::class, 'index']);
 // Authentication routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// Protected mobile app routes
+Route::middleware('auth:sanctum')->group(function () {
+    // User points and profile
+    Route::get('/user/points', [MobileAppController::class, 'getUserPoints']);
+    Route::get('/user/profile', [MobileAppController::class, 'getUserProfile']);
+});
