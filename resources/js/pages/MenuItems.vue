@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Menu, Store, DollarSign, Clock, Star, Filter } from 'lucide-vue-next';
+import { Plus, Menu, Store, DollarSign, Clock, Star, Filter, Tag } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 
 interface Props {
@@ -16,6 +16,10 @@ interface Props {
         is_featured: boolean;
         preparation_time: number;
         restaurant: {
+            id: number;
+            name: string;
+        } | null;
+        category: { // أضف هذا
             id: number;
             name: string;
         } | null;
@@ -170,6 +174,10 @@ const formatCurrency = (amount: number) => {
                             <div class="flex items-center space-x-1">
                                 <Store class="h-3 w-3" />
                                 <span class="line-clamp-1">{{ item.restaurant?.name || 'غير محدد' }}</span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <Tag class="h-3 w-3" />
+                                <span class="line-clamp-1">{{ item.category?.name || 'بدون فئة' }}</span>
                             </div>
                             <div class="flex items-center space-x-1">
                                 <Clock class="h-3 w-3" />
