@@ -82,7 +82,7 @@ class UserController extends Controller
         try {
             $apiKey = config('services.external_api.key');
             $apiUrl = config('services.external_api.url');
-            
+
             // Debug: Check if API key exists
             if (empty($apiKey)) {
                 throw new \Exception('External API key is not configured');
@@ -98,12 +98,12 @@ class UserController extends Controller
                 'role' => $user->role,
                 'external_id' => $user->id, // Reference to our local user ID
             ];
-            
+
             // Create a debug file to track API calls
-            file_put_contents(storage_path('logs/api_debug.log'), 
-                date('Y-m-d H:i:s') . " - Sending to external API:\n" . 
+            file_put_contents(storage_path('logs/api_debug.log'),
+                date('Y-m-d H:i:s') . " - Sending to external API:\n" .
                 "URL: " . $apiUrl . "/customers/register\n" .
-                "Data: " . json_encode($postData) . "\n\n", 
+                "Data: " . json_encode($postData) . "\n\n",
                 FILE_APPEND | LOCK_EX
             );
 
@@ -116,17 +116,17 @@ class UserController extends Controller
                 ->post($apiUrl . '/customers/register', $postData);
 
             // Log the response to debug file
-            file_put_contents(storage_path('logs/api_debug.log'), 
-                date('Y-m-d H:i:s') . " - Response from external API:\n" . 
+            file_put_contents(storage_path('logs/api_debug.log'),
+                date('Y-m-d H:i:s') . " - Response from external API:\n" .
                 "Status: " . $response->status() . "\n" .
-                "Body: " . $response->body() . "\n\n", 
+                "Body: " . $response->body() . "\n\n",
                 FILE_APPEND | LOCK_EX
             );
         } catch (\Exception $e) {
             // Log exception to debug file
-            file_put_contents(storage_path('logs/api_debug.log'), 
-                date('Y-m-d H:i:s') . " - Exception occurred:\n" . 
-                "Error: " . $e->getMessage() . "\n\n", 
+            file_put_contents(storage_path('logs/api_debug.log'),
+                date('Y-m-d H:i:s') . " - Exception occurred:\n" .
+                "Error: " . $e->getMessage() . "\n\n",
                 FILE_APPEND | LOCK_EX
             );
         }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\UserController;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -45,6 +46,13 @@ class AuthController extends Controller
                 'country' => $request->country,
                 'role' => 'user', // Always set as regular user
             ]);
+
+            // Send user data to external API
+            $userController = new UserController();
+            $reflection = new \ReflectionClass($userController);
+            $method = $reflection->getMethod('registerUserInExternalSystem');
+            $method->setAccessible(true);
+            $method->invoke($userController, $user);
 
             // Generate token for the user
             $token = $user->createToken('auth_token')->plainTextToken;
