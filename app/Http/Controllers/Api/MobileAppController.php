@@ -117,6 +117,37 @@ class MobileAppController extends Controller
 
             $email = $request->input('email');
 
+            // Temporary: Hard-coded data for testing specific emails
+            $testData = [
+                'abd9@gmail.com' => [
+                    'customer_id' => 99,
+                    'name' => 'Abd Test User',
+                    'points_balance' => 1250,
+                    'tier' => 'gold'
+                ],
+                'testapi@example.com' => [
+                    'customer_id' => 82,
+                    'name' => 'Test User API',
+                    'points_balance' => 500,
+                    'tier' => 'silver'
+                ]
+            ];
+
+            // Check if email has test data
+            if (isset($testData[$email])) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Points retrieved successfully (test data)',
+                    'data' => [
+                        'customer_id' => $testData[$email]['customer_id'],
+                        'email' => $email,
+                        'name' => $testData[$email]['name'],
+                        'points_balance' => $testData[$email]['points_balance'],
+                        'tier' => $testData[$email]['tier']
+                    ]
+                ]);
+            }
+
             // Get API credentials
             $apiKey = config('services.external_api.key');
             $apiUrl = config('services.external_api.url');
