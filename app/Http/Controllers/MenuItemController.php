@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MenuItem;
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class MenuItemController extends Controller
@@ -98,6 +99,16 @@ class MenuItemController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $menuItem = MenuItem::findOrFail($id);
+        
+        // Delete the image file if it exists
+        if ($menuItem->image && Storage::disk('public')->exists($menuItem->image)) {
+            Storage::disk('public')->delete($menuItem->image);
+        }
+        
+        $menuItem->delete();
+
+        return redirect()->route('menu-items.index')
+            ->with('success', 'تم حذف المنتج بنجاح');
     }
 }

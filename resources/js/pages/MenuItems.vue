@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
-import { Plus, Menu, Store, DollarSign, Clock, Star, Filter, Tag } from 'lucide-vue-next';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Plus, Menu, Store, DollarSign, Clock, Star, Filter, Tag, Trash2 } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 
 interface Props {
@@ -31,6 +31,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const page = usePage() as any;
 
 // Filter state
 const selectedRestaurantId = ref('');
@@ -68,6 +69,21 @@ const formatCurrency = (amount: number) => {
         currency: 'SAR',
     }).format(amount);
 };
+
+// Delete function with confirmation
+const deleteMenuItem = (item: any) => {
+    if (confirm(`هل أنت متأكد من حذف "${item.name}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+        router.delete(route('menu-items.destroy', item.id), {
+            onSuccess: () => {
+                // Success message will be handled by the controller
+            },
+            onError: (errors) => {
+                console.error('Error deleting menu item:', errors);
+                alert('حدث خطأ أثناء حذف المنتج. يرجى المحاولة مرة أخرى.');
+            }
+        });
+    }
+};
 </script>
 
 <template>
@@ -75,6 +91,36 @@ const formatCurrency = (amount: number) => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
+            <!-- Success/Error Messages -->
+            <div v-if="page.props.flash?.success" class="rounded-lg bg-green-50 border border-green-200 p-4 dark:bg-green-900/20 dark:border-green-800">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="mr-3">
+                        <p class="text-sm font-medium text-green-800 dark:text-green-200">
+                            {{ page.props.flash.success }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="page.props.flash?.error" class="rounded-lg bg-red-50 border border-red-200 p-4 dark:bg-red-900/20 dark:border-red-800">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="mr-3">
+                        <p class="text-sm font-medium text-red-800 dark:text-red-200">
+                            {{ page.props.flash.error }}
+                        </p>
+                    </div>
+                </div>
+            </div>
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
@@ -199,6 +245,13 @@ const formatCurrency = (amount: number) => {
                             >
                                 تعديل
                             </Link>
+                            <button
+                                @click="deleteMenuItem(item)"
+                                class="rounded-lg bg-red-500 px-2 py-1.5 text-center text-xs font-medium text-white transition-colors hover:bg-red-600"
+                                title="حذف المنتج"
+                            >
+                                <Trash2 class="h-3 w-3" />
+                            </button>
                         </div>
                     </div>
                 </div>
