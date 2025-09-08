@@ -15,7 +15,7 @@ class MenuItemController extends Controller
      */
     public function index()
     {
-        $menuItems = MenuItem::with(['restaurant', 'category'])->latest()->get();
+        $menuItems = MenuItem::with(['restaurant'])->latest()->get();
 
         return Inertia::render('MenuItems', [
             'menuItems' => $menuItems,
@@ -28,7 +28,7 @@ class MenuItemController extends Controller
      */
     public function create()
     {
-        $restaurants = Restaurant::with('categories')->get();
+        $restaurants = Restaurant::all();
 
         return Inertia::render('MenuItemCreate', [
             'restaurants' => $restaurants,
@@ -42,7 +42,6 @@ class MenuItemController extends Controller
     {
         $validated = $request->validate([
             'restaurant_id' => 'required|exists:restaurants,id',
-            'category_id' => 'required|exists:categories,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
@@ -71,7 +70,7 @@ class MenuItemController extends Controller
      */
     public function show(string $id)
     {
-        $menuItem = MenuItem::with(['restaurant', 'category'])->findOrFail($id);
+        $menuItem = MenuItem::with(['restaurant'])->findOrFail($id);
 
         return Inertia::render('MenuItemShow', [
             'menuItem' => $menuItem,

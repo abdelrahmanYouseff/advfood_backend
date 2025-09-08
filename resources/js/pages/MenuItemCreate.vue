@@ -15,10 +15,6 @@ interface Props {
         id: number;
         name: string;
         logo: string;
-        categories: Array<{
-            id: number;
-            name: string;
-        }>;
     }>;
 }
 
@@ -41,7 +37,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const form = useForm({
     restaurant_id: '',
-    category_id: '',
     name: '',
     description: '',
     price: '',
@@ -192,31 +187,6 @@ const imagePreviewUrl = computed(() => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        <!-- Category Selection -->
-                                        <div class="space-y-2">
-                                            <Label for="category_id" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                الفئة <span class="text-red-500">*</span>
-                                            </Label>
-                                            <div class="relative">
-                                                <select
-                                                    id="category_id"
-                                                    v-model="form.category_id"
-                                                    class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50"
-                                                    required
-                                                    :disabled="!selectedRestaurant"
-                                                >
-                                                    <option value="">اختر الفئة</option>
-                                                    <option v-if="selectedRestaurant" v-for="category in selectedRestaurant.categories" :key="category.id" :value="category.id">
-                                                        {{ category.name }}
-                                                    </option>
-                                                </select>
-                                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                                                    <Tag class="h-4 w-4 text-gray-400" />
-                                                </div>
-                                            </div>
-                                            <InputError :message="form.errors.category_id" />
                                         </div>
                                     </div>
 

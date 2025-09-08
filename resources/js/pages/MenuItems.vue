@@ -19,10 +19,6 @@ interface Props {
             id: number;
             name: string;
         } | null;
-        category: { // أضف هذا
-            id: number;
-            name: string;
-        } | null;
     }>;
     restaurants: Array<{
         id: number;
@@ -220,10 +216,6 @@ const deleteMenuItem = (item: any) => {
                             <div class="flex items-center space-x-1">
                                 <Store class="h-3 w-3" />
                                 <span class="line-clamp-1">{{ item.restaurant?.name || 'غير محدد' }}</span>
-                            </div>
-                            <div class="flex items-center space-x-1">
-                                <Tag class="h-3 w-3" />
-                                <span class="line-clamp-1">{{ item.category?.name || 'بدون فئة' }}</span>
                             </div>
                             <div class="flex items-center space-x-1">
                                 <Clock class="h-3 w-3" />

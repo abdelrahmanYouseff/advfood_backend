@@ -21,9 +21,6 @@ interface Props {
             address: string;
             phone: string;
         };
-        category: {
-            name: string;
-        };
     };
 }
 
