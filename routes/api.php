@@ -26,6 +26,41 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Public routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);
 
+// Simple API to get restaurant items by restaurant ID
+Route::get('/restaurant/{id}/items', function($id) {
+    try {
+        $restaurant = \App\Models\Restaurant::find($id);
+        if (!$restaurant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'المطعم غير موجود'
+            ], 404);
+        }
+
+        $items = \App\Models\MenuItem::where('restaurant_id', $id)
+            ->where('is_available', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'restaurant' => [
+                'id' => $restaurant->id,
+                'name' => $restaurant->name,
+                'description' => $restaurant->description
+            ],
+            'items_count' => $items->count(),
+            'items' => $items
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'حدث خطأ في الخادم'
+        ], 500);
+    }
+});
+
 // Public menu items routes
 Route::get('/menu-items', [MenuItemController::class, 'index']);
 Route::get('/menu-items/featured', [MenuItemController::class, 'getFeatured']);
