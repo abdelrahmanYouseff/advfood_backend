@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileAppController;
+use App\Http\Controllers\AddressController;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,4 +46,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // User points and profile
     Route::get('/user/points', [MobileAppController::class, 'getUserPoints']);
     Route::get('/user/profile', [MobileAppController::class, 'getUserProfile']);
+    
+    // Address management
+    Route::apiResource('addresses', AddressController::class);
+    Route::post('/addresses/{address}/set-default', [AddressController::class, 'setDefault']);
+    Route::get('/addresses-default', [AddressController::class, 'getDefault']);
 });

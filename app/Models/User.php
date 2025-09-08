@@ -63,6 +63,11 @@ class User extends Authenticatable
         return $this->hasMany(Invoice::class);
     }
 
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
     /**
      * Check if user is admin
      */
