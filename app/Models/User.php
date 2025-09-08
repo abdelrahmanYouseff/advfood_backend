@@ -63,9 +63,9 @@ class User extends Authenticatable
         return $this->hasMany(Invoice::class);
     }
 
-    public function addresses(): HasMany
+    public function locations(): HasMany
     {
-        return $this->hasMany(Address::class);
+        return $this->hasMany(Location::class);
     }
 
     /**

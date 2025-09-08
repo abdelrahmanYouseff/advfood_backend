@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Address;
+use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-class AddressController extends Controller
+class LocationController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $addresses = Auth::user()->addresses()->active()->get();
-        
+        $locations = Auth::user()->locations()->active()->get();
+
         return response()->json([
             'success' => true,
-            'data' => $addresses
+            'data' => $locations
         ]);
     }
 
@@ -40,49 +40,49 @@ class AddressController extends Controller
 
         $validated['user_id'] = Auth::id();
 
-        // إذا كان العنوان الجديد هو الافتراضي، قم بإلغاء الافتراضي من العناوين الأخرى
+        // إذا كان الموقع الجديد هو الافتراضي، قم بإلغاء الافتراضي من المواقع الأخرى
         if ($validated['is_default'] ?? false) {
-            Auth::user()->addresses()->update(['is_default' => false]);
+            Auth::user()->locations()->update(['is_default' => false]);
         }
 
-        $address = Address::create($validated);
+        $location = Location::create($validated);
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إضافة العنوان بنجاح',
-            'data' => $address
+            'message' => 'تم إضافة الموقع بنجاح',
+            'data' => $location
         ], 201);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Address $address)
+    public function show(Location $location)
     {
-        // تأكد من أن العنوان يخص المستخدم الحالي
-        if ($address->user_id !== Auth::id()) {
+        // تأكد من أن الموقع يخص المستخدم الحالي
+        if ($location->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح بالوصول لهذا العنوان'
+                'message' => 'غير مصرح بالوصول لهذا الموقع'
             ], 403);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $address
+            'data' => $location
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Address $address)
+    public function update(Request $request, Location $location)
     {
-        // تأكد من أن العنوان يخص المستخدم الحالي
-        if ($address->user_id !== Auth::id()) {
+        // تأكد من أن الموقع يخص المستخدم الحالي
+        if ($location->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح بالوصول لهذا العنوان'
+                'message' => 'غير مصرح بالوصول لهذا الموقع'
             ], 403);
         }
 
@@ -98,77 +98,77 @@ class AddressController extends Controller
             'is_default' => 'boolean',
         ]);
 
-        // إذا كان العنوان الجديد هو الافتراضي، قم بإلغاء الافتراضي من العناوين الأخرى
+        // إذا كان الموقع الجديد هو الافتراضي، قم بإلغاء الافتراضي من المواقع الأخرى
         if ($validated['is_default'] ?? false) {
-            Auth::user()->addresses()->where('id', '!=', $address->id)->update(['is_default' => false]);
+            Auth::user()->locations()->where('id', '!=', $location->id)->update(['is_default' => false]);
         }
 
-        $address->update($validated);
+        $location->update($validated);
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديث العنوان بنجاح',
-            'data' => $address
+            'message' => 'تم تحديث الموقع بنجاح',
+            'data' => $location
         ]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Address $address)
+    public function destroy(Location $location)
     {
-        // تأكد من أن العنوان يخص المستخدم الحالي
-        if ($address->user_id !== Auth::id()) {
+        // تأكد من أن الموقع يخص المستخدم الحالي
+        if ($location->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح بالوصول لهذا العنوان'
+                'message' => 'غير مصرح بالوصول لهذا الموقع'
             ], 403);
         }
 
-        $address->delete();
+        $location->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف العنوان بنجاح'
+            'message' => 'تم حذف الموقع بنجاح'
         ]);
     }
 
     /**
-     * Set an address as default.
+     * Set a location as default.
      */
-    public function setDefault(Address $address)
+    public function setDefault(Location $location)
     {
-        // تأكد من أن العنوان يخص المستخدم الحالي
-        if ($address->user_id !== Auth::id()) {
+        // تأكد من أن الموقع يخص المستخدم الحالي
+        if ($location->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'غير مصرح بالوصول لهذا العنوان'
+                'message' => 'غير مصرح بالوصول لهذا الموقع'
             ], 403);
         }
 
-        // إلغاء الافتراضي من جميع العناوين
-        Auth::user()->addresses()->update(['is_default' => false]);
+        // إلغاء الافتراضي من جميع المواقع
+        Auth::user()->locations()->update(['is_default' => false]);
 
-        // تعيين العنوان الحالي كافتراضي
-        $address->update(['is_default' => true]);
+        // تعيين الموقع الحالي كافتراضي
+        $location->update(['is_default' => true]);
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تعيين العنوان كافتراضي بنجاح',
-            'data' => $address
+            'message' => 'تم تعيين الموقع كافتراضي بنجاح',
+            'data' => $location
         ]);
     }
 
     /**
-     * Get user's default address.
+     * Get user's default location.
      */
     public function getDefault()
     {
-        $defaultAddress = Auth::user()->addresses()->default()->active()->first();
+        $defaultLocation = Auth::user()->locations()->default()->active()->first();
 
         return response()->json([
             'success' => true,
-            'data' => $defaultAddress
+            'data' => $defaultLocation
         ]);
     }
 }

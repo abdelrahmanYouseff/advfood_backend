@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Address extends Model
+class Location extends Model
 {
     use HasFactory;
+
+    protected $table = 'locations';
 
     protected $fillable = [
         'user_id',
@@ -32,7 +34,7 @@ class Address extends Model
     ];
 
     /**
-     * Get the user that owns the address.
+     * Get the user that owns the location.
      */
     public function user(): BelongsTo
     {
@@ -40,7 +42,7 @@ class Address extends Model
     }
 
     /**
-     * Scope a query to only include active addresses.
+     * Scope a query to only include active locations.
      */
     public function scopeActive($query)
     {
@@ -48,7 +50,7 @@ class Address extends Model
     }
 
     /**
-     * Scope a query to only include default addresses.
+     * Scope a query to only include default locations.
      */
     public function scopeDefault($query)
     {
