@@ -31,10 +31,6 @@ class Restaurant extends Model
         'delivery_fee' => 'decimal:2',
     ];
 
-    public function categories(): HasMany
-    {
-        return $this->hasMany(Category::class);
-    }
 
     public function menuItems(): HasMany
     {

@@ -23,8 +23,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Restaurants
     Route::resource('restaurants', RestaurantController::class);
 
-    // Categories
-    Route::resource('categories', CategoryController::class);
 
     // Menu Items
     Route::resource('menu-items', MenuItemController::class);

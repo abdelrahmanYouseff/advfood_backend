@@ -36,11 +36,6 @@ const mainNavItems: NavItem[] = [
         icon: Store,
     },
     {
-        title: 'Categories',
-        href: '/categories',
-        icon: Tag,
-    },
-    {
         title: 'Menu Items',
         href: '/menu-items',
         icon: Menu,

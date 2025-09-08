@@ -18,12 +18,6 @@ interface Props {
         closing_time: string;
         delivery_fee: number;
         delivery_time: number;
-        categories: Array<{
-            id: number;
-            name: string;
-            description: string;
-            is_active: boolean;
-        }>;
         menuItems: Array<{
             id: number;
             name: string;
