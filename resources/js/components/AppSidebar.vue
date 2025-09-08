@@ -15,7 +15,8 @@ import {
     FileText,
     Menu,
     Tag,
-    Settings
+    Settings,
+    Megaphone
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
@@ -49,6 +50,11 @@ const mainNavItems: NavItem[] = [
         title: 'Invoices',
         href: '/invoices',
         icon: FileText,
+    },
+    {
+        title: 'Ads',
+        href: '/ads',
+        icon: Megaphone,
     },
 ];
 

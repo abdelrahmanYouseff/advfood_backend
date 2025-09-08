@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
@@ -32,6 +33,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Invoices
     Route::resource('invoices', InvoiceController::class);
+
+    // Ads
+    Route::resource('ads', AdController::class);
+    Route::post('/ads/{ad}/toggle-status', [AdController::class, 'toggleStatus'])->name('ads.toggle-status');
 });
 
 require __DIR__.'/settings.php';

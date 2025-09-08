@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileAppController;
 use App\Http\Controllers\Api\MenuItemController;
+use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\LocationController;
 
 /*
@@ -101,3 +102,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/menu-items/{menuItem}', [MenuItemController::class, 'destroy']);
     Route::post('/menu-items/{menuItem}/toggle-availability', [MenuItemController::class, 'toggleAvailability']);
 });
+
+// Public Ads API routes
+Route::get('/ads', [AdController::class, 'index']);
+Route::get('/ads/featured', [AdController::class, 'getFeatured']);
+Route::get('/ads/type/{type}', [AdController::class, 'getByType']);
+Route::get('/ads/{ad}', [AdController::class, 'show']);
+Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
