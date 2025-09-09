@@ -305,16 +305,29 @@
         let messageCount = 0;
         let autoOpenTimer;
 
+        let isInitialized = false;
+        let autoOpenTimer = null;
+
         // Force initialization - multiple approaches
         function forceInit() {
+            if (isInitialized) {
+                console.log('Chat already initialized, skipping...');
+                return;
+            }
+            
             console.log('Force initializing chat...');
             initializeChat();
+            isInitialized = true;
             
-            // Auto-open after 10 seconds
-            setTimeout(() => {
-                console.log('Auto-opening chat...');
-                openChat();
-            }, 10000);
+            // Auto-open after 10 seconds (only once)
+            if (!autoOpenTimer) {
+                autoOpenTimer = setTimeout(() => {
+                    console.log('Auto-opening chat after 10 seconds...');
+                    if (!chatOpen) {
+                        openChat();
+                    }
+                }, 10000);
+            }
         }
 
         // Try multiple initialization methods
@@ -504,6 +517,7 @@
             // Clear auto-open timer
             if (autoOpenTimer) {
                 clearTimeout(autoOpenTimer);
+                autoOpenTimer = null;
             }
 
             // Focus on input
