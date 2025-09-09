@@ -278,18 +278,11 @@
                             <i class="fas fa-credit-card mr-2"></i>Payment Method
                         </label>
                         <div class="space-y-3">
-                            <div class="payment-method rounded-lg p-4 cursor-pointer" onclick="selectPaymentMethod('card')">
+                            <div class="payment-method rounded-lg p-4 cursor-pointer selected" onclick="selectPaymentMethod('card')">
                                 <div class="flex items-center">
                                     <input type="radio" name="payment_method" value="card" class="mr-3" checked>
                                     <i class="fas fa-credit-card text-white mr-3"></i>
                                     <span class="text-white">Credit/Debit Card</span>
-                                </div>
-                            </div>
-                            <div class="payment-method rounded-lg p-4 cursor-pointer" onclick="selectPaymentMethod('cash')">
-                                <div class="flex items-center">
-                                    <input type="radio" name="payment_method" value="cash" class="mr-3">
-                                    <i class="fas fa-money-bill-wave text-white mr-3"></i>
-                                    <span class="text-white">Cash on Delivery</span>
                                 </div>
                             </div>
                         </div>
@@ -417,56 +410,36 @@
 
         function selectPaymentMethod(method) {
             selectedPaymentMethod = method;
-
-            // Update radio buttons
-            document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
-                radio.checked = radio.value === method;
-            });
-
-            // Update visual selection
-            document.querySelectorAll('.payment-method').forEach(el => {
-                el.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-
-            // Show/hide card details
-            const cardDetails = document.getElementById('cardDetails');
-            if (method === 'card') {
-                cardDetails.style.display = 'block';
-            } else {
-                cardDetails.style.display = 'none';
-            }
+            // Card details are always shown since we only have card payment
         }
 
         function processPayment(event) {
             event.preventDefault();
-
-            if (selectedPaymentMethod === 'card') {
-                // Validate card details
-                const cardNumber = document.querySelector('input[name="card_number"]').value;
-                const expiryDate = document.querySelector('input[name="expiry_date"]').value;
-                const cvv = document.querySelector('input[name="cvv"]').value;
-                const cardholderName = document.querySelector('input[name="cardholder_name"]').value;
-
-                if (!cardNumber || !expiryDate || !cvv || !cardholderName) {
-                    alert('Please fill in all card details');
-                    return;
-                }
+            
+            // Validate card details
+            const cardNumber = document.querySelector('input[name="card_number"]').value;
+            const expiryDate = document.querySelector('input[name="expiry_date"]').value;
+            const cvv = document.querySelector('input[name="cvv"]').value;
+            const cardholderName = document.querySelector('input[name="cardholder_name"]').value;
+            
+            if (!cardNumber || !expiryDate || !cvv || !cardholderName) {
+                alert('Please fill in all card details');
+                return;
             }
-
+            
             // Get customer data and cart data
             const customerData = JSON.parse(sessionStorage.getItem('customerData') || '{}');
             const cartData = JSON.parse(sessionStorage.getItem('cartData') || '[]');
             const cartTotal = parseFloat(sessionStorage.getItem('cartTotal') || '0');
-
+            
             if (cartData.length === 0) {
                 alert('Your cart is empty!');
                 return;
             }
-
+            
             // Show processing message
             alert('Processing payment...');
-
+            
             // Save order to database
             saveOrderToDatabase(customerData, cartData, cartTotal);
         }
