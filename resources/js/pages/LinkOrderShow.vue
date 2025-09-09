@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import {
+import { 
     ArrowLeft,
-    Clock,
-    CheckCircle,
-    ChefHat,
-    Truck,
+    Clock, 
+    CheckCircle, 
+    ChefHat, 
+    Truck, 
     XCircle,
     Calendar,
     User,
@@ -16,7 +16,7 @@ import {
     Building,
     Layers,
     DoorOpen,
-    Road,
+    Navigation,
     StickyNote,
     ShoppingCart,
     Utensils
@@ -200,7 +200,7 @@ const breadcrumbs = [
                             <div>
                                 <label class="text-sm font-medium text-muted-foreground">Street</label>
                                 <p class="text-sm font-medium flex items-center gap-1">
-                                    <Road class="h-4 w-4" />
+                                    <Navigation class="h-4 w-4" />
                                     {{ order.street }}
                                 </p>
                             </div>
