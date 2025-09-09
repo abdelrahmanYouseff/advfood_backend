@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\User;
 
 class PointsService
 {
@@ -45,7 +46,7 @@ class PointsService
 
             if ($response && $response->successful()) {
                 $responseData = $response->json();
-                
+
                 Log::info('Customer created in points system', [
                     'user_email' => $userData['email'],
                     'response' => $responseData
@@ -123,7 +124,7 @@ class PointsService
 
             if ($response && $response->successful()) {
                 $customers = $response->json();
-                
+
                 if (isset($customers['data']) && is_array($customers['data'])) {
                     foreach ($customers['data'] as $customer) {
                         if (isset($customer['email']) && $customer['email'] === $email) {
@@ -141,6 +142,76 @@ class PointsService
                 'error' => $e->getMessage()
             ]);
             return null;
+        }
+    }
+
+    /**
+     * Update user points locally from external system
+     */
+    public function updateUserPointsLocally($userId)
+    {
+        try {
+            $user = User::find($userId);
+            
+            if (!$user || !$user->point_customer_id) {
+                return false;
+            }
+
+            $pointsData = $this->getCustomerPoints($user->point_customer_id);
+            
+            if ($pointsData && isset($pointsData['data'])) {
+                $user->update([
+                    'points' => $pointsData['data']['points_balance'] ?? 0,
+                    'points_tier' => $pointsData['data']['tier'] ?? 'bronze'
+                ]);
+                
+                Log::info('User points updated locally', [
+                    'user_id' => $userId,
+                    'points' => $pointsData['data']['points_balance'] ?? 0,
+                    'tier' => $pointsData['data']['tier'] ?? 'bronze'
+                ]);
+                
+                return true;
+            }
+
+            return false;
+
+        } catch (\Exception $e) {
+            Log::error('Exception while updating user points locally', [
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Sync all users points from external system
+     */
+    public function syncAllUsersPoints()
+    {
+        try {
+            $users = User::whereNotNull('point_customer_id')->get();
+            $updatedCount = 0;
+
+            foreach ($users as $user) {
+                if ($this->updateUserPointsLocally($user->id)) {
+                    $updatedCount++;
+                }
+            }
+
+            Log::info('Bulk points sync completed', [
+                'total_users' => $users->count(),
+                'updated_users' => $updatedCount
+            ]);
+
+            return $updatedCount;
+
+        } catch (\Exception $e) {
+            Log::error('Exception during bulk points sync', [
+                'error' => $e->getMessage()
+            ]);
+            return 0;
         }
     }
 }

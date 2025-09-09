@@ -86,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // User points
     Route::get('/user/points', [MobileAppController::class, 'getUserPoints']);
+    Route::post('/user/points/update', [MobileAppController::class, 'updateUserPoints']);
 
 
     // Location management

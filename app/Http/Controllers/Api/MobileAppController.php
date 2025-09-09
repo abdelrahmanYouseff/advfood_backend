@@ -27,50 +27,75 @@ class MobileAppController extends Controller
                 ], 401);
             }
 
-            // Check if user has point_customer_id
-            if (!$user->point_customer_id) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'User not registered in points system',
-                    'data' => [
-                        'points_balance' => 0,
-                        'tier' => 'bronze',
-                        'note' => 'User not registered in points system'
-                    ]
-                ]);
-            }
-
-            // Get points from external system
-            $pointsService = new PointsService();
-            $pointsData = $pointsService->getCustomerPoints($user->point_customer_id);
-
-            if ($pointsData) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Points retrieved successfully',
-                    'data' => [
-                        'points_balance' => $pointsData['data']['points_balance'] ?? 0,
-                        'tier' => $pointsData['data']['tier'] ?? 'bronze',
-                        'customer_id' => $user->point_customer_id
-                    ]
-                ]);
-            } else {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Points system unavailable',
-                    'data' => [
-                        'points_balance' => 0,
-                        'tier' => 'bronze',
-                        'customer_id' => $user->point_customer_id,
-                        'note' => 'Points system temporarily unavailable'
-                    ]
-                ]);
-            }
+            // Return points from local database
+            return response()->json([
+                'success' => true,
+                'message' => 'Points retrieved successfully',
+                'data' => [
+                    'points_balance' => $user->points ?? 0,
+                    'tier' => $user->points_tier ?? 'bronze',
+                    'customer_id' => $user->point_customer_id,
+                    'last_updated' => $user->updated_at
+                ]
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while retrieving points',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update user points from external system
+     */
+    public function updateUserPoints(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            if (!$user->point_customer_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not registered in points system'
+                ], 400);
+            }
+
+            $pointsService = new PointsService();
+            $updated = $pointsService->updateUserPointsLocally($user->id);
+
+            if ($updated) {
+                $user->refresh(); // Refresh user data
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Points updated successfully',
+                    'data' => [
+                        'points_balance' => $user->points,
+                        'tier' => $user->points_tier,
+                        'customer_id' => $user->point_customer_id,
+                        'last_updated' => $user->updated_at
+                    ]
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update points from external system'
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating points',
                 'error' => $e->getMessage()
             ], 500);
         }
