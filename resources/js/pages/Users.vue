@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Users, Mail, Calendar, Trash2, Edit, Eye, Phone, MapPin, Globe } from 'lucide-vue-next';
+import { Plus, Users, Mail, Calendar, Trash2, Edit, Eye, Phone, MapPin, Globe, Star, Award } from 'lucide-vue-next';
 
 interface Props {
     users: Array<{
@@ -13,6 +13,9 @@ interface Props {
         address?: string;
         country?: string;
         role: string;
+        point_customer_id?: string;
+        points?: number;
+        points_tier?: string;
         created_at: string;
     }>;
 }
@@ -97,6 +100,18 @@ const deleteUser = (userId: number, userName: string) => {
                                 </th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
+                                        <Star class="h-4 w-4" />
+                                        Points
+                                    </div>
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                    <div class="flex items-center gap-2">
+                                        <Award class="h-4 w-4" />
+                                        Tier
+                                    </div>
+                                </th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                                    <div class="flex items-center gap-2">
                                         <Calendar class="h-4 w-4" />
                                         Joined
                                     </div>
@@ -143,6 +158,30 @@ const deleteUser = (userId: number, userName: string) => {
                                 <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                                     <span v-if="user.country">{{ user.country }}</span>
                                     <span v-else class="text-gray-400 dark:text-gray-500">-</span>
+                                </td>
+
+                                <!-- Points -->
+                                <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                    <div class="flex items-center gap-1">
+                                        <Star class="h-4 w-4 text-yellow-500" />
+                                        <span class="font-semibold">{{ user.points || 0 }}</span>
+                                    </div>
+                                </td>
+
+                                <!-- Tier -->
+                                <td class="px-6 py-4">
+                                    <span v-if="user.points_tier === 'gold'" class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
+                                        <Award class="mr-1 h-3 w-3" />
+                                        Gold
+                                    </span>
+                                    <span v-else-if="user.points_tier === 'silver'" class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">
+                                        <Award class="mr-1 h-3 w-3" />
+                                        Silver
+                                    </span>
+                                    <span v-else class="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
+                                        <Award class="mr-1 h-3 w-3" />
+                                        Bronze
+                                    </span>
                                 </td>
 
                                 <!-- Join Date -->

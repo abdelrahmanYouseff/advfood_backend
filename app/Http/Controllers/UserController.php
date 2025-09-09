@@ -26,6 +26,9 @@ class UserController extends Controller
             'address',
             'country',
             'role',
+            'point_customer_id',
+            'points',
+            'points_tier',
             'created_at'
         ])->latest()->get();
 

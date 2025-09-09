@@ -152,25 +152,25 @@ class PointsService
     {
         try {
             $user = User::find($userId);
-            
+
             if (!$user || !$user->point_customer_id) {
                 return false;
             }
 
             $pointsData = $this->getCustomerPoints($user->point_customer_id);
-            
+
             if ($pointsData && isset($pointsData['data'])) {
                 $user->update([
                     'points' => $pointsData['data']['points_balance'] ?? 0,
                     'points_tier' => $pointsData['data']['tier'] ?? 'bronze'
                 ]);
-                
+
                 Log::info('User points updated locally', [
                     'user_id' => $userId,
                     'points' => $pointsData['data']['points_balance'] ?? 0,
                     'tier' => $pointsData['data']['tier'] ?? 'bronze'
                 ]);
-                
+
                 return true;
             }
 
