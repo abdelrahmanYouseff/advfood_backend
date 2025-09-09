@@ -59,9 +59,6 @@ class AuthController extends Controller
             // Update user with customer ID if registration was successful
             if ($customerId) {
                 $user->update(['point_customer_id' => $customerId]);
-                
-                // Update points locally from external system
-                $pointsService->updateUserPointsLocally($user->id);
             }
 
             // Send user data to external API (existing functionality)

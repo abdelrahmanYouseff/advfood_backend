@@ -29,8 +29,6 @@ class User extends Authenticatable
         'address',
         'country',
         'point_customer_id',
-        'points',
-        'points_tier',
     ];
 
     /**

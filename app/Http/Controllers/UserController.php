@@ -28,12 +28,10 @@ class UserController extends Controller
             'country',
             'role',
             'point_customer_id',
-            'points',
-            'points_tier',
             'created_at'
         ])->latest()->get();
 
-        // Fetch points from pointsys for each user
+        // Fetch points ONLY from pointsys for each user
         $pointsService = new PointsService();
         $usersWithPoints = $users->map(function ($user) use ($pointsService) {
             if ($user->point_customer_id) {
@@ -42,14 +40,14 @@ class UserController extends Controller
                     $user->points = $pointsData['points'] ?? 0;
                     $user->points_tier = $pointsData['tier'] ?? 'bronze';
                 } else {
-                    // Fallback: use local points if external system fails
-                    $user->points = $user->points ?? 0;
-                    $user->points_tier = $user->points_tier ?? 'bronze';
+                    // No points from pointsys - set to 0
+                    $user->points = 0;
+                    $user->points_tier = 'bronze';
                 }
             } else {
-                // No customer ID, use local points
-                $user->points = $user->points ?? 0;
-                $user->points_tier = $user->points_tier ?? 'bronze';
+                // No customer ID - no points
+                $user->points = 0;
+                $user->points_tier = 'bronze';
             }
             return $user;
         });
@@ -103,9 +101,6 @@ class UserController extends Controller
         // Update user with customer ID if registration was successful
         if ($customerId) {
             $user->update(['point_customer_id' => $customerId]);
-            
-            // Update points locally from external system
-            $pointsService->updateUserPointsLocally($user->id);
         }
 
         // Send user data to external API (existing functionality)
