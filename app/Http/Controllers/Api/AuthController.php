@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\UserController;
 use App\Models\User;
+use App\Services\PointsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -47,7 +48,20 @@ class AuthController extends Controller
                 'role' => 'user', // Always set as regular user
             ]);
 
-            // Send user data to external API
+            // Register user in points system and get customer ID
+            $pointsService = new PointsService();
+            $customerId = $pointsService->createCustomer([
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone_number' => $user->phone_number,
+            ]);
+
+            // Update user with customer ID if registration was successful
+            if ($customerId) {
+                $user->update(['point_customer_id' => $customerId]);
+            }
+
+            // Send user data to external API (existing functionality)
             $userController = new UserController();
             $reflection = new \ReflectionClass($userController);
             $method = $reflection->getMethod('registerUserInExternalSystem');

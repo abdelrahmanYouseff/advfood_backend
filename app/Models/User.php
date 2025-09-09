@@ -28,6 +28,7 @@ class User extends Authenticatable
         'phone_number',
         'address',
         'country',
+        'point_customer_id',
     ];
 
     /**
