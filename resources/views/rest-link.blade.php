@@ -455,15 +455,18 @@
             addMessage('user', message);
             chatInput.value = '';
             
-            // Check if message is a number (order ID) - DIRECT CHECK
-            if (/^\d+$/.test(message)) {
+            // Check if message is an order number (starts with # or just numbers) - DIRECT CHECK
+            if (/^#?\d+$/.test(message)) {
                 // Show typing indicator
                 const typingMessage = addMessage('bot', '', true);
+                
+                // Extract order ID (remove # if present)
+                const orderId = message.replace('#', '');
                 
                 // Check order status directly
                 setTimeout(async () => {
                     typingMessage.remove();
-                    const response = await checkOrderStatus(message);
+                    const response = await checkOrderStatus(orderId);
                     addMessage('bot', response);
                 }, 1500);
                 return;
@@ -513,7 +516,7 @@
             if (option === 'order') {
                 addMessage('user', 'Where is my order?');
                 setTimeout(() => {
-                    addMessage('bot', 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number so I can check the status for you.');
+                    addMessage('bot', 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number (like #0005 or just 5) so I can check the status for you.');
                 }, 1000);
             } else if (option === 'menu') {
                 addMessage('user', 'Browse restaurants');
@@ -535,15 +538,16 @@
             console.log('Bot received message:', message);
             console.log('Is number?', /^\d+$/.test(message.trim()));
             
-            // Check if message is a number (order ID) - THIS MUST BE FIRST!
-            if (/^\d+$/.test(message.trim())) {
+            // Check if message is an order number (starts with # or just numbers) - THIS MUST BE FIRST!
+            if (/^#?\d+$/.test(message.trim())) {
                 console.log('Processing order number:', message.trim());
-                return await checkOrderStatus(message.trim());
+                const orderId = message.trim().replace('#', '');
+                return await checkOrderStatus(orderId);
             }
             
             // Order tracking
             if (lowerMessage.includes('order') && (lowerMessage.includes('where') || lowerMessage.includes('track') || lowerMessage.includes('status'))) {
-                return 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number so I can check the status for you.';
+                return 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number (like #0005 or just 5) so I can check the status for you.';
             }
             
             // Greeting responses
