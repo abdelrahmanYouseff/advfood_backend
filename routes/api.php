@@ -84,8 +84,6 @@ Route::middleware('auth:sanctum')->group(function () {
         ]);
     });
 
-
-
     // Location management
     Route::apiResource('locations', LocationController::class);
     Route::post('/locations/{location}/set-default', [LocationController::class, 'setDefault']);
@@ -105,3 +103,6 @@ Route::get('/ads/featured', [AdController::class, 'getFeatured']);
 Route::get('/ads/type/{type}', [AdController::class, 'getByType']);
 Route::get('/ads/{ad}', [AdController::class, 'show']);
 Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
+
+// Public Points API routes
+Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'getPointsByCustomerId']);
