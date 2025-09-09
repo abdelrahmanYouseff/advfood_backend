@@ -149,7 +149,7 @@
         </div>
 
         <!-- Chat Window -->
-        <div id="chatWindow" class="hidden absolute bottom-20 right-0 w-96 h-[500px] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden backdrop-blur-sm">
+        <div id="chatWindow" class="hidden absolute bottom-20 right-0 w-[450px] h-[600px] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden backdrop-blur-sm">
             <!-- Chat Header -->
             <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 text-white p-5 flex items-center justify-between relative">
                 <!-- Background pattern -->
@@ -176,25 +176,25 @@
             </div>
 
             <!-- Chat Messages -->
-            <div id="chatMessages" class="h-80 overflow-y-auto p-5 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+            <div id="chatMessages" class="h-96 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
                 <!-- Messages will be added here -->
             </div>
 
             <!-- Chat Input -->
-            <div class="border-t border-gray-200 p-5 bg-white">
-                <div class="flex items-center space-x-3">
+            <div class="border-t border-gray-200 p-6 bg-white">
+                <div class="flex items-center space-x-4">
                     <div class="flex-1 relative">
                         <input type="text" id="chatInput" placeholder="Type your message..." 
-                               class="w-full border-2 border-gray-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white">
-                        <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
-                            <i class="fas fa-smile text-gray-400 hover:text-blue-500 cursor-pointer transition-colors"></i>
+                               class="w-full border-2 border-gray-200 rounded-2xl px-6 py-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white">
+                        <div class="absolute right-4 top-1/2 transform -translate-y-1/2">
+                            <i class="fas fa-smile text-gray-400 hover:text-blue-500 cursor-pointer transition-colors text-lg"></i>
                         </div>
                     </div>
-                    <button id="sendMessage" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl w-12 h-12 flex items-center justify-center hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 hover:scale-105">
-                        <i class="fas fa-paper-plane text-sm"></i>
+                    <button id="sendMessage" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl w-14 h-14 flex items-center justify-center hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 hover:scale-105">
+                        <i class="fas fa-paper-plane text-base"></i>
                     </button>
                 </div>
-                <div class="flex items-center justify-between mt-3 text-xs text-gray-500">
+                <div class="flex items-center justify-between mt-4 text-sm text-gray-500">
                     <span>Press Enter to send</span>
                     <span>Powered by AdvFood AI</span>
                 </div>
