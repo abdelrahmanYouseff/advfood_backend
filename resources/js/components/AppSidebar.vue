@@ -16,7 +16,8 @@ import {
     Menu,
     Tag,
     Settings,
-    Megaphone
+    Megaphone,
+    Link as LinkIcon
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
@@ -55,6 +56,11 @@ const mainNavItems: NavItem[] = [
         title: 'Ads',
         href: '/ads',
         icon: Megaphone,
+    },
+    {
+        title: 'Link Orders',
+        href: '/link-orders',
+        icon: LinkIcon,
     },
 ];
 

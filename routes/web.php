@@ -7,6 +7,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\RestLinkController;
+use App\Http\Controllers\LinkOrderController;
 use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Invoices
     Route::resource('invoices', InvoiceController::class);
+
+    // Link Orders
+    Route::resource('link-orders', LinkOrderController::class)->only(['index', 'show']);
+    Route::post('link-orders/{linkOrder}/update-status', [LinkOrderController::class, 'updateStatus'])->name('link-orders.update-status');
 
     // Ads
     Route::resource('ads', AdController::class);

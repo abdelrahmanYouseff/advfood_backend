@@ -26,7 +26,7 @@ class LinkOrder extends Model
 
     protected $casts = [
         'cart_items' => 'array',
-        'total' => 'decimal:2',
+        'total' => 'float',
     ];
 
     public function restaurant(): BelongsTo
