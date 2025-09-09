@@ -316,6 +316,7 @@
 
         // Start auto-open when page loads
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing chat...');
             startAutoOpen();
             initializeChat();
         });
@@ -326,6 +327,14 @@
             const closeChat = document.getElementById('closeChat');
             const sendButton = document.getElementById('sendMessage');
             const chatInput = document.getElementById('chatInput');
+
+            console.log('Chat elements found:', {
+                chatToggle: !!chatToggle,
+                chatWindow: !!chatWindow,
+                closeChat: !!closeChat,
+                sendButton: !!sendButton,
+                chatInput: !!chatInput
+            });
 
             // Add initial welcome message with quick options
             addMessage('bot', 'Hello! 👋 Welcome to AdvFood! I\'m here to help you find the perfect restaurant. How can I assist you today?');
@@ -346,6 +355,7 @@
         }
 
         function toggleChat() {
+            console.log('Toggle chat clicked, current state:', chatOpen);
             if (chatOpen) {
                 closeChatWindow();
             } else {
@@ -354,9 +364,15 @@
         }
 
         function openChat() {
+            console.log('Opening chat...');
             const chatWindow = document.getElementById('chatWindow');
             const chatToggle = document.getElementById('chatToggle');
             const notificationDot = document.getElementById('notificationDot');
+
+            if (!chatWindow) {
+                console.error('Chat window not found!');
+                return;
+            }
 
             chatWindow.classList.remove('hidden');
             chatToggle.style.transform = 'scale(0.8)';
@@ -365,6 +381,7 @@
                 notificationDot.style.display = 'none';
             }
             chatOpen = true;
+            console.log('Chat opened successfully');
 
             // Clear auto-open timer
             if (autoOpenTimer) {
