@@ -52,7 +52,7 @@ class PointsService
                     'response' => $responseData
                 ]);
 
-                return $responseData['data']['id'] ?? $responseData['id'] ?? null;
+                return $responseData['data']['customer_id'] ?? null;
             } else {
                 Log::error('Failed to create customer in points system', [
                     'user_email' => $userData['email'],
@@ -91,13 +91,13 @@ class PointsService
 
             if ($response && $response->successful()) {
                 $responseData = $response->json();
-                
+
                 // Log the response for debugging
                 Log::info('Points API Response', [
                     'customer_id' => $customerId,
                     'response' => $responseData
                 ]);
-                
+
                 // Check if response has error status
                 if (isset($responseData['status']) && $responseData['status'] === 'error') {
                     Log::warning('Points API returned error', [
@@ -106,7 +106,7 @@ class PointsService
                     ]);
                     return null;
                 }
-                
+
                 return $responseData;
             }
 
