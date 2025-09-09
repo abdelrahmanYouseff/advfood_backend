@@ -306,6 +306,89 @@
         let isInitialized = false;
         let autoOpenTimer = null;
 
+        // Define global functions immediately
+        window.toggleChat = function() {
+            console.log('Toggle chat clicked, current state:', chatOpen);
+            if (chatOpen) {
+                closeChatWindow();
+            } else {
+                openChat();
+            }
+        };
+
+        window.closeChatWindow = function() {
+            console.log('Closing chat...');
+            const chatWindow = document.getElementById('chatWindow');
+            const chatToggle = document.getElementById('chatToggle');
+            const notificationDot = document.getElementById('notificationDot');
+            
+            chatWindow.classList.add('hidden');
+            chatToggle.style.transform = 'scale(1)';
+            chatToggle.style.opacity = '1';
+            if (notificationDot) {
+                notificationDot.style.display = 'flex';
+            }
+            chatOpen = false;
+        };
+
+        window.sendMessage = function() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            
+            if (message === '') return;
+            
+            // Add user message
+            addMessage('user', message);
+            chatInput.value = '';
+            
+            // Check if message is an order number (starts with # or just numbers) - DIRECT CHECK
+            if (/^#?\d+$/.test(message)) {
+                // Show typing indicator
+                const typingMessage = addMessage('bot', '', true);
+                
+                // Extract order ID (remove # if present)
+                const orderId = message.replace('#', '');
+                
+                // Check order status directly
+                setTimeout(async () => {
+                    typingMessage.remove();
+                    const response = await checkOrderStatus(orderId);
+                    
+                    // Handle multiple messages
+                    if (Array.isArray(response)) {
+                        response.forEach((msg, index) => {
+                            setTimeout(() => {
+                                addMessage('bot', msg);
+                            }, index * 800); // 800ms delay between messages
+                        });
+                    } else {
+                        addMessage('bot', response);
+                    }
+                }, 1500);
+                return;
+            }
+            
+            // Show typing indicator
+            const typingMessage = addMessage('bot', '', true);
+            
+            // Simulate bot response
+            setTimeout(async () => {
+                typingMessage.remove();
+                const response = await getBotResponse(message);
+                
+                // Handle multiple messages
+                if (Array.isArray(response)) {
+                    response.forEach((msg, index) => {
+                        setTimeout(() => {
+                            addMessage('bot', msg);
+                        }, index * 800); // 800ms delay between messages
+                    });
+                } else {
+                    addMessage('bot', response);
+                }
+            }, 1500);
+        };
+
         // Force initialization - multiple approaches
         function forceInit() {
             if (isInitialized) {
@@ -400,88 +483,6 @@
             console.log('Chat initialized successfully!');
         }
 
-        // Make functions global
-        window.toggleChat = function() {
-            console.log('Toggle chat clicked, current state:', chatOpen);
-            if (chatOpen) {
-                closeChatWindow();
-            } else {
-                openChat();
-            }
-        };
-
-        window.closeChatWindow = function() {
-            console.log('Closing chat...');
-            const chatWindow = document.getElementById('chatWindow');
-            const chatToggle = document.getElementById('chatToggle');
-            const notificationDot = document.getElementById('notificationDot');
-
-            chatWindow.classList.add('hidden');
-            chatToggle.style.transform = 'scale(1)';
-            chatToggle.style.opacity = '1';
-            if (notificationDot) {
-                notificationDot.style.display = 'flex';
-            }
-            chatOpen = false;
-        };
-
-        window.sendMessage = function() {
-            const chatInput = document.getElementById('chatInput');
-            const message = chatInput.value.trim();
-
-            if (message === '') return;
-
-            // Add user message
-            addMessage('user', message);
-            chatInput.value = '';
-
-            // Check if message is an order number (starts with # or just numbers) - DIRECT CHECK
-            if (/^#?\d+$/.test(message)) {
-                // Show typing indicator
-                const typingMessage = addMessage('bot', '', true);
-
-                // Extract order ID (remove # if present)
-                const orderId = message.replace('#', '');
-
-                // Check order status directly
-                setTimeout(async () => {
-                    typingMessage.remove();
-                    const response = await checkOrderStatus(orderId);
-                    
-                    // Handle multiple messages
-                    if (Array.isArray(response)) {
-                        response.forEach((msg, index) => {
-                            setTimeout(() => {
-                                addMessage('bot', msg);
-                            }, index * 800); // 800ms delay between messages
-                        });
-                    } else {
-                        addMessage('bot', response);
-                    }
-                }, 1500);
-                return;
-            }
-
-            // Show typing indicator
-            const typingMessage = addMessage('bot', '', true);
-
-            // Simulate bot response
-            setTimeout(async () => {
-                typingMessage.remove();
-                const response = await getBotResponse(message);
-                
-                // Handle multiple messages
-                if (Array.isArray(response)) {
-                    response.forEach((msg, index) => {
-                        setTimeout(() => {
-                            addMessage('bot', msg);
-                        }, index * 800); // 800ms delay between messages
-                    });
-                } else {
-                    addMessage('bot', response);
-                }
-            }, 1500);
-        };
 
         function openChat() {
             console.log('Opening chat...');
@@ -772,39 +773,39 @@
                 messages.push(`**المبلغ الإجمالي: ${order.total.toFixed(2)} رس**`);
                 
                 // Message 4: Status and details
-                let statusMessage = `**حالة الطلب:** ${statusMessage}\n\n`;
+                let finalStatusMessage = `**حالة الطلب:** ${statusMessage}\n\n`;
                 
                 if (order.status === 'pending' || order.status === 'preparing') {
-                    statusMessage += `**ما يحدث الآن:**\n`;
-                    statusMessage += `• طلبك قيد التحضير من قبل طهامتنا\n`;
-                    statusMessage += `• نتأكد من أن كل شيء طازج ولذيذ\n`;
-                    statusMessage += `• وقت التوصيل المتوقع: 30-45 دقيقة\n\n`;
-                    statusMessage += `**الخطوات التالية:**\n`;
-                    statusMessage += `• سنخبرك عندما يكون طلبك جاهز\n`;
-                    statusMessage += `• فريق التوصيل سيجلب الطلب إلى بابك\n`;
-                    statusMessage += `• يمكنك تتبع طلبك في الوقت الفعلي\n\n`;
-                    statusMessage += `شكرا لاختيارك AdvFood!`;
+                    finalStatusMessage += `**ما يحدث الآن:**\n`;
+                    finalStatusMessage += `• طلبك قيد التحضير من قبل طهامتنا\n`;
+                    finalStatusMessage += `• نتأكد من أن كل شيء طازج ولذيذ\n`;
+                    finalStatusMessage += `• وقت التوصيل المتوقع: 30-45 دقيقة\n\n`;
+                    finalStatusMessage += `**الخطوات التالية:**\n`;
+                    finalStatusMessage += `• سنخبرك عندما يكون طلبك جاهز\n`;
+                    finalStatusMessage += `• فريق التوصيل سيجلب الطلب إلى بابك\n`;
+                    finalStatusMessage += `• يمكنك تتبع طلبك في الوقت الفعلي\n\n`;
+                    finalStatusMessage += `شكرا لاختيارك AdvFood!`;
                 } else if (order.status === 'ready') {
-                    statusMessage += `**أخبار رائعة!**\n`;
-                    statusMessage += `• طلبك جاهز ومغلف\n`;
-                    statusMessage += `• فريق التوصيل في الطريق\n`;
-                    statusMessage += `• يجب أن تستلمه خلال 15-20 دقيقة\n\n`;
-                    statusMessage += `**تابع تحديثات التوصيل!**`;
+                    finalStatusMessage += `**أخبار رائعة!**\n`;
+                    finalStatusMessage += `• طلبك جاهز ومغلف\n`;
+                    finalStatusMessage += `• فريق التوصيل في الطريق\n`;
+                    finalStatusMessage += `• يجب أن تستلمه خلال 15-20 دقيقة\n\n`;
+                    finalStatusMessage += `**تابع تحديثات التوصيل!**`;
                 } else if (order.status === 'delivered') {
-                    statusMessage += `**تم تسليم الطلب!**\n`;
-                    statusMessage += `• وصلت وجبتك اللذيذة\n`;
-                    statusMessage += `• نتمنى أن تستمتع بكل قضمة\n`;
-                    statusMessage += `• شكرا لاختيارك AdvFood\n\n`;
-                    statusMessage += `**قيم تجربتك وساعدنا على التحسن!**`;
+                    finalStatusMessage += `**تم تسليم الطلب!**\n`;
+                    finalStatusMessage += `• وصلت وجبتك اللذيذة\n`;
+                    finalStatusMessage += `• نتمنى أن تستمتع بكل قضمة\n`;
+                    finalStatusMessage += `• شكرا لاختيارك AdvFood\n\n`;
+                    finalStatusMessage += `**قيم تجربتك وساعدنا على التحسن!**`;
                 } else if (order.status === 'confirmed') {
-                    statusMessage += `**تم تأكيد الطلب!**\n`;
-                    statusMessage += `• استلمنا طلبك\n`;
-                    statusMessage += `• مطبخنا يبدأ التحضير\n`;
-                    statusMessage += `• ستحصل على تحديثات مع تقدمنا\n\n`;
-                    statusMessage += `**استعد لوجبة رائعة!**`;
+                    finalStatusMessage += `**تم تأكيد الطلب!**\n`;
+                    finalStatusMessage += `• استلمنا طلبك\n`;
+                    finalStatusMessage += `• مطبخنا يبدأ التحضير\n`;
+                    finalStatusMessage += `• ستحصل على تحديثات مع تقدمنا\n\n`;
+                    finalStatusMessage += `**استعد لوجبة رائعة!**`;
                 }
-                
-                messages.push(statusMessage);
+
+                messages.push(finalStatusMessage);
                 
                 return messages;
 
