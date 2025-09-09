@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Users, Mail, Calendar, Trash2, Edit, Eye, Phone, MapPin, Globe, Star, Award } from 'lucide-vue-next';
+import { Plus, Users, Mail, Calendar, Trash2, Edit, Eye, Phone, MapPin, Globe, Star, Award, RefreshCw } from 'lucide-vue-next';
 
 interface Props {
     users: Array<{
@@ -21,6 +21,10 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const refreshPoints = () => {
+    router.reload({ only: ['users'] });
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -58,13 +62,22 @@ const deleteUser = (userId: number, userName: string) => {
                     <h1 class="text-2xl font-bold">Users</h1>
                     <p class="text-muted-foreground">Manage all registered users</p>
                 </div>
-                <Link
-                    :href="route('users.create')"
-                    class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                    <Plus class="h-4 w-4" />
-                    Add User
-                </Link>
+                <div class="flex gap-2">
+                    <button
+                        @click="refreshPoints"
+                        class="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                    >
+                        <RefreshCw class="h-4 w-4" />
+                        Refresh Points
+                    </button>
+                    <Link
+                        :href="route('users.create')"
+                        class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                        <Plus class="h-4 w-4" />
+                        Add User
+                    </Link>
+                </div>
             </div>
 
             <!-- Users Table -->

@@ -33,8 +33,29 @@ class UserController extends Controller
             'created_at'
         ])->latest()->get();
 
+        // Fetch points from pointsys for each user
+        $pointsService = new PointsService();
+        $usersWithPoints = $users->map(function ($user) use ($pointsService) {
+            if ($user->point_customer_id) {
+                $pointsData = $pointsService->getCustomerPoints($user->point_customer_id);
+                if ($pointsData) {
+                    $user->points = $pointsData['points'] ?? 0;
+                    $user->points_tier = $pointsData['tier'] ?? 'bronze';
+                } else {
+                    // Fallback: use local points if external system fails
+                    $user->points = $user->points ?? 0;
+                    $user->points_tier = $user->points_tier ?? 'bronze';
+                }
+            } else {
+                // No customer ID, use local points
+                $user->points = $user->points ?? 0;
+                $user->points_tier = $user->points_tier ?? 'bronze';
+            }
+            return $user;
+        });
+
         return Inertia::render('Users', [
-            'users' => $users,
+            'users' => $usersWithPoints,
         ]);
     }
 
