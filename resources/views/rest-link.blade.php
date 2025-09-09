@@ -305,34 +305,33 @@
         let messageCount = 0;
         let autoOpenTimer;
 
-        // Auto-open chat after 10 seconds
-        function startAutoOpen() {
+        // Simple and reliable initialization
+        window.addEventListener('load', function() {
+            console.log('Page fully loaded, starting chat...');
+            
+            // Initialize immediately
+            initializeChat();
+            
+            // Start auto-open timer
             autoOpenTimer = setTimeout(() => {
+                console.log('Auto-opening chat after 10 seconds...');
                 if (!chatOpen) {
                     openChat();
                 }
-            }, 10000); // 10 seconds
-        }
-
-        // Start auto-open when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, initializing chat...');
-            
-            // Wait a bit for all elements to be ready
-            setTimeout(() => {
-                startAutoOpen();
-                initializeChat();
-            }, 100);
+            }, 10000);
         });
 
         function initializeChat() {
+            console.log('Initializing chat...');
+            
+            // Get elements
             const chatToggle = document.getElementById('chatToggle');
             const chatWindow = document.getElementById('chatWindow');
             const closeChat = document.getElementById('closeChat');
             const sendButton = document.getElementById('sendMessage');
             const chatInput = document.getElementById('chatInput');
 
-            console.log('Chat elements found:', {
+            console.log('Elements found:', {
                 chatToggle: !!chatToggle,
                 chatWindow: !!chatWindow,
                 closeChat: !!closeChat,
@@ -340,13 +339,38 @@
                 chatInput: !!chatInput
             });
 
-            // Check if all elements exist
-            if (!chatToggle || !chatWindow || !closeChat || !sendButton || !chatInput) {
-                console.error('Some chat elements are missing!');
-                return;
+            // Add event listeners
+            if (chatToggle) {
+                chatToggle.addEventListener('click', function() {
+                    console.log('Chat toggle clicked!');
+                    toggleChat();
+                });
             }
 
-            // Add initial welcome message with quick options
+            if (closeChat) {
+                closeChat.addEventListener('click', function() {
+                    console.log('Close chat clicked!');
+                    closeChatWindow();
+                });
+            }
+
+            if (sendButton) {
+                sendButton.addEventListener('click', function() {
+                    console.log('Send button clicked!');
+                    sendMessage();
+                });
+            }
+
+            if (chatInput) {
+                chatInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        console.log('Enter pressed!');
+                        sendMessage();
+                    }
+                });
+            }
+
+            // Add initial message
             addMessage('bot', 'Hello! 👋 Welcome to AdvFood! I\'m here to help you find the perfect restaurant. How can I assist you today?');
 
             // Add quick options
@@ -354,14 +378,7 @@
                 addQuickOptions();
             }, 1000);
 
-            chatToggle.addEventListener('click', toggleChat);
-            closeChat.addEventListener('click', closeChatWindow);
-            sendButton.addEventListener('click', sendMessage);
-            chatInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    sendMessage();
-                }
-            });
+            console.log('Chat initialized successfully!');
         }
 
         function toggleChat() {
@@ -375,6 +392,7 @@
 
         function openChat() {
             console.log('Opening chat...');
+            
             const chatWindow = document.getElementById('chatWindow');
             const chatToggle = document.getElementById('chatToggle');
             const notificationDot = document.getElementById('notificationDot');
@@ -384,14 +402,22 @@
                 return;
             }
 
+            // Show chat window
             chatWindow.classList.remove('hidden');
-            chatToggle.style.transform = 'scale(0.8)';
-            chatToggle.style.opacity = '0.7';
+            
+            // Update toggle button
+            if (chatToggle) {
+                chatToggle.style.transform = 'scale(0.8)';
+                chatToggle.style.opacity = '0.7';
+            }
+            
+            // Hide notification dot
             if (notificationDot) {
                 notificationDot.style.display = 'none';
             }
+            
             chatOpen = true;
-            console.log('Chat opened successfully');
+            console.log('Chat opened successfully!');
 
             // Clear auto-open timer
             if (autoOpenTimer) {
@@ -400,7 +426,10 @@
 
             // Focus on input
             setTimeout(() => {
-                document.getElementById('chatInput').focus();
+                const chatInput = document.getElementById('chatInput');
+                if (chatInput) {
+                    chatInput.focus();
+                }
             }, 100);
         }
 
