@@ -129,10 +129,19 @@ class MobileAppController extends Controller
                 ], 500);
             }
 
-            // Since /customers endpoint doesn't exist, we'll try known customer IDs
-            // For now, let's try customer ID 99 (abd9) as we know it exists
-            $customerId = 99; // This is a known working customer ID
-            $customerData = ['name' => 'abd9', 'email' => 'abd9@gmail.com'];
+            // Since the external API doesn't support email search,
+            // we'll return a message indicating that email lookup is not supported
+            return response()->json([
+                'success' => true,
+                'message' => 'Email lookup not supported by external system',
+                'data' => [
+                    'email' => $email,
+                    'name' => null,
+                    'points_balance' => 0,
+                    'tier' => 'bronze',
+                    'note' => 'External points system does not support email-based lookup. Please contact support.'
+                ]
+            ]);
 
             // If we found the customer ID, get their balance
             if ($customerId) {
