@@ -303,8 +303,6 @@
     <script>
         let chatOpen = false;
         let messageCount = 0;
-        let autoOpenTimer;
-
         let isInitialized = false;
         let autoOpenTimer = null;
 
