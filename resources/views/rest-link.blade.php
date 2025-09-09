@@ -157,7 +157,7 @@
                     <div class="absolute top-2 right-2 w-20 h-20 bg-white rounded-full"></div>
                     <div class="absolute bottom-2 left-2 w-16 h-16 bg-white rounded-full"></div>
                 </div>
-                
+
                 <div class="flex items-center relative z-10">
                     <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-4 backdrop-blur-sm">
                         <i class="fas fa-robot text-lg"></i>
@@ -184,7 +184,7 @@
             <div class="border-t border-gray-200 p-6 bg-white">
                 <div class="flex items-center space-x-4">
                     <div class="flex-1 relative">
-                        <input type="text" id="chatInput" placeholder="Type your message..." 
+                        <input type="text" id="chatInput" placeholder="Type your message..."
                                class="w-full border-2 border-gray-200 rounded-2xl px-6 py-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white">
                         <div class="absolute right-4 top-1/2 transform -translate-y-1/2">
                             <i class="fas fa-smile text-gray-400 hover:text-blue-500 cursor-pointer transition-colors text-lg"></i>
@@ -206,7 +206,7 @@
         .chat-message {
             animation: slideIn 0.4s ease-out;
         }
-        
+
         @keyframes slideIn {
             from {
                 opacity: 0;
@@ -217,13 +217,13 @@
                 transform: translateY(0) scale(1);
             }
         }
-        
+
         .typing-indicator {
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        
+
         .typing-dot {
             width: 8px;
             height: 8px;
@@ -231,11 +231,11 @@
             background: linear-gradient(45deg, #3B82F6, #8B5CF6);
             animation: typing 1.4s infinite ease-in-out;
         }
-        
+
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         .typing-dot:nth-child(3) { animation-delay: 0s; }
-        
+
         @keyframes typing {
             0%, 80%, 100% {
                 transform: scale(0.8);
@@ -251,17 +251,17 @@
         #chatMessages::-webkit-scrollbar {
             width: 6px;
         }
-        
+
         #chatMessages::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 10px;
         }
-        
+
         #chatMessages::-webkit-scrollbar-thumb {
             background: linear-gradient(45deg, #3B82F6, #8B5CF6);
             border-radius: 10px;
         }
-        
+
         #chatMessages::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(45deg, #2563EB, #7C3AED);
         }
@@ -270,7 +270,7 @@
         #chatWindow {
             animation: chatSlideIn 0.3s ease-out;
         }
-        
+
         @keyframes chatSlideIn {
             from {
                 opacity: 0;
@@ -286,7 +286,7 @@
         #notificationDot {
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
             0% {
                 transform: scale(1);
@@ -329,7 +329,7 @@
 
             // Add initial welcome message with quick options
             addMessage('bot', 'Hello! 👋 Welcome to AdvFood! I\'m here to help you find the perfect restaurant. How can I assist you today?');
-            
+
             // Add quick options
             setTimeout(() => {
                 addQuickOptions();
@@ -357,7 +357,7 @@
             const chatWindow = document.getElementById('chatWindow');
             const chatToggle = document.getElementById('chatToggle');
             const notificationDot = document.getElementById('notificationDot');
-            
+
             chatWindow.classList.remove('hidden');
             chatToggle.style.transform = 'scale(0.8)';
             chatToggle.style.opacity = '0.7';
@@ -365,12 +365,12 @@
                 notificationDot.style.display = 'none';
             }
             chatOpen = true;
-            
+
             // Clear auto-open timer
             if (autoOpenTimer) {
                 clearTimeout(autoOpenTimer);
             }
-            
+
             // Focus on input
             setTimeout(() => {
                 document.getElementById('chatInput').focus();
@@ -381,7 +381,7 @@
             const chatWindow = document.getElementById('chatWindow');
             const chatToggle = document.getElementById('chatToggle');
             const notificationDot = document.getElementById('notificationDot');
-            
+
             chatWindow.classList.add('hidden');
             chatToggle.style.transform = 'scale(1)';
             chatToggle.style.opacity = '1';
@@ -394,7 +394,7 @@
         function addMessage(sender, message, isTyping = false) {
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
-            
+
             if (isTyping) {
                 messageDiv.className = 'chat-message flex justify-start';
                 messageDiv.innerHTML = `
@@ -438,48 +438,68 @@
                     </div>
                 `;
             }
-            
+
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-            
+
             return messageDiv;
         }
 
         function sendMessage() {
             const chatInput = document.getElementById('chatInput');
             const message = chatInput.value.trim();
-            
+
             if (message === '') return;
-            
+
             // Add user message
             addMessage('user', message);
             chatInput.value = '';
-            
+
             // Check if message is an order number (starts with # or just numbers) - DIRECT CHECK
             if (/^#?\d+$/.test(message)) {
                 // Show typing indicator
                 const typingMessage = addMessage('bot', '', true);
-                
+
                 // Extract order ID (remove # if present)
                 const orderId = message.replace('#', '');
-                
+
                 // Check order status directly
                 setTimeout(async () => {
                     typingMessage.remove();
                     const response = await checkOrderStatus(orderId);
-                    addMessage('bot', response);
+                    
+                    // Handle multiple messages
+                    if (Array.isArray(response)) {
+                        response.forEach((msg, index) => {
+                            setTimeout(() => {
+                                addMessage('bot', msg);
+                            }, index * 800); // 800ms delay between messages
+                        });
+                    } else {
+                        addMessage('bot', response);
+                    }
                 }, 1500);
                 return;
             }
-            
+
             // Show typing indicator
             const typingMessage = addMessage('bot', '', true);
-            
+
             // Simulate bot response
             setTimeout(async () => {
                 typingMessage.remove();
                 const response = await getBotResponse(message);
-                addMessage('bot', response);
+                
+                // Handle multiple messages
+                if (Array.isArray(response)) {
+                    response.forEach((msg, index) => {
+                        setTimeout(() => {
+                            addMessage('bot', msg);
+                        }, index * 800); // 800ms delay between messages
+                    });
+                } else {
+                    addMessage('bot', response);
+                }
             }, 1500);
         }
 
@@ -534,66 +554,66 @@
         async function getBotResponse(message) {
             const lowerMessage = message.toLowerCase();
             messageCount++;
-            
+
             console.log('Bot received message:', message);
             console.log('Is number?', /^\d+$/.test(message.trim()));
-            
+
             // Check if message is an order number (starts with # or just numbers) - THIS MUST BE FIRST!
             if (/^#?\d+$/.test(message.trim())) {
                 console.log('Processing order number:', message.trim());
                 const orderId = message.trim().replace('#', '');
                 return await checkOrderStatus(orderId);
             }
-            
+
             // Order tracking
             if (lowerMessage.includes('order') && (lowerMessage.includes('where') || lowerMessage.includes('track') || lowerMessage.includes('status'))) {
                 return 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number (like #0005 or just 5) so I can check the status for you.';
             }
-            
+
             // Greeting responses
             if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
                 return 'Hello! 😊 I\'m here to help you discover amazing restaurants. What type of food are you craving today?';
             }
-            
+
             // Food recommendations
             if (lowerMessage.includes('pizza') || lowerMessage.includes('italian')) {
                 return 'Great choice! 🍕 We have amazing Italian restaurants. Check out our pizza places - they have the best wood-fired pizzas in town!';
             }
-            
+
             if (lowerMessage.includes('burger') || lowerMessage.includes('american')) {
                 return 'Burgers are always a good idea! 🍔 We have several burger joints with juicy, delicious options. Would you like me to show you our top-rated burger places?';
             }
-            
+
             if (lowerMessage.includes('arabic') || lowerMessage.includes('middle eastern') || lowerMessage.includes('shawarma')) {
                 return 'Perfect! 🥙 We have excellent Middle Eastern restaurants with authentic shawarma, hummus, and traditional dishes. Tant Bakiza is one of our favorites!';
             }
-            
+
             if (lowerMessage.includes('asian') || lowerMessage.includes('chinese') || lowerMessage.includes('japanese')) {
                 return 'Asian cuisine is fantastic! 🍜 We have great options for Chinese, Japanese, and other Asian dishes. What specific type are you interested in?';
             }
-            
+
             // Restaurant questions
             if (lowerMessage.includes('restaurant') || lowerMessage.includes('place') || lowerMessage.includes('eat')) {
                 return 'We have 3 amazing restaurants available right now! 🍽️ Each offers unique flavors and great service. Would you like to know more about any specific restaurant?';
             }
-            
+
             if (lowerMessage.includes('delivery') || lowerMessage.includes('time')) {
                 return 'Our restaurants offer fast delivery! 🚚 Most orders are delivered within 30-45 minutes. You can track your order in real-time once you place it.';
             }
-            
+
             if (lowerMessage.includes('price') || lowerMessage.includes('cost') || lowerMessage.includes('expensive')) {
                 return 'We have restaurants for every budget! 💰 From affordable quick bites to premium dining experiences. All our restaurants offer great value for money.';
             }
-            
+
             // Help and support
             if (lowerMessage.includes('help') || lowerMessage.includes('support')) {
                 return 'I\'m here to help! 🤝 I can assist you with:\n• Finding restaurants\n• Food recommendations\n• Delivery information\n• Order support\n\nWhat would you like to know?';
             }
-            
+
             if (lowerMessage.includes('order') || lowerMessage.includes('buy') || lowerMessage.includes('purchase')) {
                 return 'Great! 🛒 To place an order:\n1. Choose a restaurant from our list\n2. Browse their menu\n3. Add items to your cart\n4. Complete your order\n\nWould you like me to guide you through any specific restaurant?';
             }
-            
+
             // Default responses
             const defaultResponses = [
                 'That\'s interesting! 🤔 I\'d love to help you find the perfect restaurant. What type of cuisine are you in the mood for?',
@@ -601,7 +621,7 @@
                 'Thanks for sharing! 💭 Let me help you discover some amazing food options. What\'s your favorite type of cuisine?',
                 'I\'m here to make your dining experience amazing! ✨ What can I help you find today?'
             ];
-            
+
             return defaultResponses[messageCount % defaultResponses.length];
         }
 
@@ -612,15 +632,15 @@
                 console.log('API response status:', response.status);
                 const data = await response.json();
                 console.log('API response data:', data);
-                
+
                 if (!data.success) {
                     return `Sorry, I couldn't find an order with number ${orderId}. 😔\n\nPlease double-check your order number and try again.`;
                 }
-                
+
                 const order = data.order;
                 let statusMessage = '';
                 let statusEmoji = '';
-                
+
                 // Status messages
                 switch(order.status) {
                     case 'pending':
@@ -651,70 +671,63 @@
                         statusMessage = 'Your order status is being updated';
                         statusEmoji = '📋';
                 }
+
+                // Send multiple messages for better organization
+                const messages = [];
                 
-                // Build order details with better formatting
-                let orderDetails = `🎯 **Order Found!**\n\n`;
+                // Message 1: Greeting and order info
+                messages.push(`مرحبا ${order.full_name}! تم العثور على طلبك رقم ${order.id} من مطعم ${order.restaurant}.`);
                 
-                // Order header with better styling
-                orderDetails += `📋 **Order #${order.id}**\n`;
-                orderDetails += `👤 **${order.full_name}**\n`;
-                orderDetails += `🏪 **${order.restaurant}**\n`;
-                orderDetails += `📅 ${new Date(order.created_at).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                })}\n\n`;
-                
-                // Items section with better formatting
-                orderDetails += `🍽️ **Your Order:**\n`;
+                // Message 2: Order items
+                let itemsMessage = `**تفاصيل طلبك:**\n`;
                 order.cart_items.forEach((item, index) => {
                     const itemTotal = (item.price * item.quantity).toFixed(2);
-                    orderDetails += `\n${index + 1}. **${item.name}**\n`;
-                    orderDetails += `   📦 Quantity: ${item.quantity}\n`;
-                    orderDetails += `   💰 Price: ${item.price.toFixed(2)} رس × ${item.quantity} = **${itemTotal} رس**\n`;
+                    itemsMessage += `\n${index + 1}. ${item.name}\n`;
+                    itemsMessage += `   الكمية: ${item.quantity}\n`;
+                    itemsMessage += `   السعر: ${item.price.toFixed(2)} رس × ${item.quantity} = ${itemTotal} رس`;
                 });
+                messages.push(itemsMessage);
                 
-                // Total section
-                orderDetails += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-                orderDetails += `💰 **Total Amount: ${order.total.toFixed(2)} رس**\n\n`;
+                // Message 3: Total amount
+                messages.push(`**المبلغ الإجمالي: ${order.total.toFixed(2)} رس**`);
                 
-                // Status section with better formatting
-                orderDetails += `${statusEmoji} **Current Status:** ${statusMessage}\n\n`;
+                // Message 4: Status and details
+                let statusMessage = `**حالة الطلب:** ${statusMessage}\n\n`;
                 
-                // Add status-specific message with better formatting
                 if (order.status === 'pending' || order.status === 'preparing') {
-                    orderDetails += `⏰ **What's happening now:**\n`;
-                    orderDetails += `• Your order is being prepared by our chefs\n`;
-                    orderDetails += `• We're making sure everything is fresh and delicious\n`;
-                    orderDetails += `• Estimated delivery time: 30-45 minutes\n\n`;
-                    orderDetails += `🚀 **Next steps:**\n`;
-                    orderDetails += `• We'll notify you when your order is ready\n`;
-                    orderDetails += `• Our delivery team will bring it to your door\n`;
-                    orderDetails += `• You can track your order in real-time\n\n`;
-                    orderDetails += `✨ Thank you for choosing AdvFood!`;
+                    statusMessage += `**ما يحدث الآن:**\n`;
+                    statusMessage += `• طلبك قيد التحضير من قبل طهامتنا\n`;
+                    statusMessage += `• نتأكد من أن كل شيء طازج ولذيذ\n`;
+                    statusMessage += `• وقت التوصيل المتوقع: 30-45 دقيقة\n\n`;
+                    statusMessage += `**الخطوات التالية:**\n`;
+                    statusMessage += `• سنخبرك عندما يكون طلبك جاهز\n`;
+                    statusMessage += `• فريق التوصيل سيجلب الطلب إلى بابك\n`;
+                    statusMessage += `• يمكنك تتبع طلبك في الوقت الفعلي\n\n`;
+                    statusMessage += `شكرا لاختيارك AdvFood!`;
                 } else if (order.status === 'ready') {
-                    orderDetails += `🚚 **Great news!**\n`;
-                    orderDetails += `• Your order is ready and packed\n`;
-                    orderDetails += `• Our delivery team is on the way\n`;
-                    orderDetails += `• You should receive it within 15-20 minutes\n\n`;
-                    orderDetails += `📱 **Stay tuned for delivery updates!**`;
+                    statusMessage += `**أخبار رائعة!**\n`;
+                    statusMessage += `• طلبك جاهز ومغلف\n`;
+                    statusMessage += `• فريق التوصيل في الطريق\n`;
+                    statusMessage += `• يجب أن تستلمه خلال 15-20 دقيقة\n\n`;
+                    statusMessage += `**تابع تحديثات التوصيل!**`;
                 } else if (order.status === 'delivered') {
-                    orderDetails += `🎉 **Order Delivered!**\n`;
-                    orderDetails += `• Your delicious meal has arrived\n`;
-                    orderDetails += `• We hope you enjoy every bite\n`;
-                    orderDetails += `• Thank you for choosing AdvFood\n\n`;
-                    orderDetails += `⭐ **Rate your experience and help us improve!**`;
+                    statusMessage += `**تم تسليم الطلب!**\n`;
+                    statusMessage += `• وصلت وجبتك اللذيذة\n`;
+                    statusMessage += `• نتمنى أن تستمتع بكل قضمة\n`;
+                    statusMessage += `• شكرا لاختيارك AdvFood\n\n`;
+                    statusMessage += `**قيم تجربتك وساعدنا على التحسن!**`;
                 } else if (order.status === 'confirmed') {
-                    orderDetails += `✅ **Order Confirmed!**\n`;
-                    orderDetails += `• We've received your order\n`;
-                    orderDetails += `• Our kitchen is starting preparation\n`;
-                    orderDetails += `• You'll get updates as we progress\n\n`;
-                    orderDetails += `🍽️ **Get ready for an amazing meal!**`;
+                    statusMessage += `**تم تأكيد الطلب!**\n`;
+                    statusMessage += `• استلمنا طلبك\n`;
+                    statusMessage += `• مطبخنا يبدأ التحضير\n`;
+                    statusMessage += `• ستحصل على تحديثات مع تقدمنا\n\n`;
+                    statusMessage += `**استعد لوجبة رائعة!**`;
                 }
                 
-                return orderDetails;
+                messages.push(statusMessage);
                 
+                return messages;
+
             } catch (error) {
                 console.error('Error checking order status:', error);
                 return `Sorry, I'm having trouble checking your order right now. 😔\n\nPlease try again in a few moments or contact our support team.`;
