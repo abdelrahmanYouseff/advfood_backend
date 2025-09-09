@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\RestLinkController;
 use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,17 @@ use Inertia\Inertia;
 Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
+
+// Public restaurant links page (Linktree style)
+Route::get('/rest-link', [RestLinkController::class, 'index'])->name('rest-link');
+
+// Individual restaurant menu page
+Route::get('/restaurant/{id}', [RestLinkController::class, 'show'])->name('restaurant.menu');
+
+// Checkout pages
+Route::get('/checkout/customer-details', [RestLinkController::class, 'customerDetails'])->name('checkout.customer-details');
+Route::get('/checkout/payment', [RestLinkController::class, 'payment'])->name('checkout.payment');
+Route::post('/checkout/save-order', [RestLinkController::class, 'saveOrder'])->name('checkout.save-order');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');

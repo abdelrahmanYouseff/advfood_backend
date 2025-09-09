@@ -22,6 +22,7 @@ class Restaurant extends Model
         'closing_time',
         'delivery_fee',
         'delivery_time',
+        'rating',
     ];
 
     protected $casts = [
