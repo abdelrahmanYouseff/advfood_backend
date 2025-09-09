@@ -455,6 +455,20 @@
             addMessage('user', message);
             chatInput.value = '';
             
+            // Check if message is a number (order ID) - DIRECT CHECK
+            if (/^\d+$/.test(message)) {
+                // Show typing indicator
+                const typingMessage = addMessage('bot', '', true);
+                
+                // Check order status directly
+                setTimeout(async () => {
+                    typingMessage.remove();
+                    const response = await checkOrderStatus(message);
+                    addMessage('bot', response);
+                }, 1500);
+                return;
+            }
+            
             // Show typing indicator
             const typingMessage = addMessage('bot', '', true);
             
