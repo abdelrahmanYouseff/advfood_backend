@@ -327,8 +327,13 @@
             const sendButton = document.getElementById('sendMessage');
             const chatInput = document.getElementById('chatInput');
 
-            // Add initial welcome message
+            // Add initial welcome message with quick options
             addMessage('bot', 'Hello! 👋 Welcome to AdvFood! I\'m here to help you find the perfect restaurant. How can I assist you today?');
+            
+            // Add quick options
+            setTimeout(() => {
+                addQuickOptions();
+            }, 1000);
 
             chatToggle.addEventListener('click', toggleChat);
             closeChat.addEventListener('click', closeChatWindow);
@@ -461,9 +466,67 @@
             }, 1500);
         }
 
+        function addQuickOptions() {
+            const chatMessages = document.getElementById('chatMessages');
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'chat-message flex justify-start';
+            optionsDiv.innerHTML = `
+                <div class="flex items-end space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                        <i class="fas fa-robot text-sm text-white"></i>
+                    </div>
+                    <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
+                        <p class="text-sm text-gray-800 mb-3">Quick options:</p>
+                        <div class="space-y-2">
+                            <button onclick="handleQuickOption('order')" class="w-full text-left px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm text-blue-700 transition-colors">
+                                📦 Where is my order?
+                            </button>
+                            <button onclick="handleQuickOption('menu')" class="w-full text-left px-3 py-2 bg-green-50 hover:bg-green-100 rounded-lg text-sm text-green-700 transition-colors">
+                                🍽️ Browse restaurants
+                            </button>
+                            <button onclick="handleQuickOption('help')" class="w-full text-left px-3 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg text-sm text-purple-700 transition-colors">
+                                ❓ Need help?
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(optionsDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function handleQuickOption(option) {
+            if (option === 'order') {
+                addMessage('user', 'Where is my order?');
+                setTimeout(() => {
+                    addMessage('bot', 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number so I can check the status for you.');
+                }, 1000);
+            } else if (option === 'menu') {
+                addMessage('user', 'Browse restaurants');
+                setTimeout(() => {
+                    addMessage('bot', 'Great! 🍽️ We have 3 amazing restaurants available:\n\n• Delawa - 45 min delivery\n• Gather Us - 30 min delivery\n• Tant Bakiza - 30 min delivery\n\nClick on any restaurant to view their menu and place an order!');
+                }, 1000);
+            } else if (option === 'help') {
+                addMessage('user', 'Need help?');
+                setTimeout(() => {
+                    addMessage('bot', 'I\'m here to help! 🤝 I can assist you with:\n\n• 📦 Order tracking\n• 🍽️ Restaurant recommendations\n• 🚚 Delivery information\n• 💰 Pricing details\n• 🛒 Placing orders\n\nWhat would you like to know?');
+                }, 1000);
+            }
+        }
+
         function getBotResponse(message) {
             const lowerMessage = message.toLowerCase();
             messageCount++;
+            
+            // Order tracking
+            if (lowerMessage.includes('order') && (lowerMessage.includes('where') || lowerMessage.includes('track') || lowerMessage.includes('status'))) {
+                return 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number so I can check the status for you.';
+            }
+            
+            // Check if message is a number (order ID)
+            if (/^\d+$/.test(message.trim())) {
+                return checkOrderStatus(message.trim());
+            }
             
             // Greeting responses
             if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
@@ -518,6 +581,82 @@
             ];
             
             return defaultResponses[messageCount % defaultResponses.length];
+        }
+
+        async function checkOrderStatus(orderId) {
+            try {
+                const response = await fetch(`/api/order/${orderId}`);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    return `Sorry, I couldn't find an order with number ${orderId}. 😔\n\nPlease double-check your order number and try again.`;
+                }
+                
+                const order = data.order;
+                let statusMessage = '';
+                let statusEmoji = '';
+                
+                // Status messages
+                switch(order.status) {
+                    case 'pending':
+                        statusMessage = 'Your order is being prepared';
+                        statusEmoji = '⏳';
+                        break;
+                    case 'confirmed':
+                        statusMessage = 'Your order has been confirmed';
+                        statusEmoji = '✅';
+                        break;
+                    case 'preparing':
+                        statusMessage = 'Your order is being prepared';
+                        statusEmoji = '👨‍🍳';
+                        break;
+                    case 'ready':
+                        statusMessage = 'Your order is ready for delivery';
+                        statusEmoji = '🚚';
+                        break;
+                    case 'delivered':
+                        statusMessage = 'Your order has been delivered';
+                        statusEmoji = '🎉';
+                        break;
+                    case 'cancelled':
+                        statusMessage = 'Your order has been cancelled';
+                        statusEmoji = '❌';
+                        break;
+                    default:
+                        statusMessage = 'Your order status is being updated';
+                        statusEmoji = '📋';
+                }
+                
+                // Build order details
+                let orderDetails = `📦 **Order #${order.id}**\n`;
+                orderDetails += `👤 Customer: ${order.full_name}\n`;
+                orderDetails += `🏪 Restaurant: ${order.restaurant}\n`;
+                orderDetails += `📅 Order Date: ${new Date(order.created_at).toLocaleDateString()}\n`;
+                orderDetails += `💰 Total: ${order.total.toFixed(2)} رس\n\n`;
+                
+                // Add items
+                orderDetails += `🛒 **Order Items:**\n`;
+                order.cart_items.forEach((item, index) => {
+                    orderDetails += `${index + 1}. ${item.name} x${item.quantity} - ${(item.price * item.quantity).toFixed(2)} رس\n`;
+                });
+                
+                orderDetails += `\n${statusEmoji} **Status:** ${statusMessage}\n`;
+                
+                // Add status-specific message
+                if (order.status === 'pending' || order.status === 'preparing') {
+                    orderDetails += `\n⏰ Your order is under preparation and will be delivered as soon as possible!`;
+                } else if (order.status === 'ready') {
+                    orderDetails += `\n🚚 Your order is ready and on its way to you!`;
+                } else if (order.status === 'delivered') {
+                    orderDetails += `\n🎉 Enjoy your meal! Thank you for choosing AdvFood!`;
+                }
+                
+                return orderDetails;
+                
+            } catch (error) {
+                console.error('Error checking order status:', error);
+                return `Sorry, I'm having trouble checking your order right now. 😔\n\nPlease try again in a few moments or contact our support team.`;
+            }
         }
     </script>
 

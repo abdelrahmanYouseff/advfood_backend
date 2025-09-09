@@ -106,3 +106,36 @@ Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
 
 // Public Points API routes
 Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'getPointsByCustomerId']);
+
+// Order tracking API for chatbot
+Route::get('/order/{id}', function($id) {
+    try {
+        $order = \App\Models\LinkOrder::with('restaurant')->find($id);
+        
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'order' => [
+                'id' => $order->id,
+                'status' => $order->status,
+                'full_name' => $order->full_name,
+                'phone_number' => $order->phone_number,
+                'total' => $order->total,
+                'cart_items' => $order->cart_items,
+                'restaurant' => $order->restaurant->name,
+                'created_at' => $order->created_at->format('Y-m-d H:i:s')
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Server error'
+        ], 500);
+    }
+});
