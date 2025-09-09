@@ -68,8 +68,6 @@ Route::get('/menu-items/featured', [MenuItemController::class, 'getFeatured']);
 Route::get('/restaurants/{restaurant}/menu-items', [MenuItemController::class, 'getByRestaurant']);
 Route::get('/menu-items/{menuItem}', [MenuItemController::class, 'show']);
 
-// Points by email (public endpoint - no authentication required)
-Route::get('/points-by-email', [MobileAppController::class, 'getPointsByEmail']);
 
 // Authentication routes
 Route::post('/auth/register', [AuthController::class, 'register']);
