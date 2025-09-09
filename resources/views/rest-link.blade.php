@@ -140,41 +140,63 @@
     <!-- Chatbot -->
     <div id="chatbot" class="fixed bottom-6 right-6 z-50">
         <!-- Chat Toggle Button -->
-        <div id="chatToggle" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-16 h-16 flex items-center justify-center cursor-pointer shadow-lg transition-all duration-300 hover:scale-110">
+        <div id="chatToggle" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full w-16 h-16 flex items-center justify-center cursor-pointer shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-blue-500/25">
             <i class="fas fa-comments text-xl"></i>
+            <!-- Notification dot -->
+            <div id="notificationDot" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                <span class="text-xs text-white font-bold">!</span>
+            </div>
         </div>
 
         <!-- Chat Window -->
-        <div id="chatWindow" class="hidden absolute bottom-20 right-0 w-80 h-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+        <div id="chatWindow" class="hidden absolute bottom-20 right-0 w-96 h-[500px] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden backdrop-blur-sm">
             <!-- Chat Header -->
-            <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
-                <div class="flex items-center">
-                    <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center mr-3">
-                        <i class="fas fa-robot text-sm"></i>
+            <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 text-white p-5 flex items-center justify-between relative">
+                <!-- Background pattern -->
+                <div class="absolute inset-0 opacity-10">
+                    <div class="absolute top-2 right-2 w-20 h-20 bg-white rounded-full"></div>
+                    <div class="absolute bottom-2 left-2 w-16 h-16 bg-white rounded-full"></div>
+                </div>
+                
+                <div class="flex items-center relative z-10">
+                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-4 backdrop-blur-sm">
+                        <i class="fas fa-robot text-lg"></i>
                     </div>
                     <div>
-                        <h3 class="font-semibold">AdvFood Assistant</h3>
-                        <p class="text-xs text-blue-100">Online now</p>
+                        <h3 class="font-bold text-lg">AdvFood Assistant</h3>
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+                            <p class="text-sm text-blue-100">Online now</p>
+                        </div>
                     </div>
                 </div>
-                <button id="closeChat" class="text-white/80 hover:text-white">
-                    <i class="fas fa-times"></i>
+                <button id="closeChat" class="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-2 transition-all duration-200 relative z-10">
+                    <i class="fas fa-times text-lg"></i>
                 </button>
             </div>
 
             <!-- Chat Messages -->
-            <div id="chatMessages" class="h-64 overflow-y-auto p-4 space-y-3">
+            <div id="chatMessages" class="h-80 overflow-y-auto p-5 space-y-4 bg-gradient-to-b from-gray-50 to-white">
                 <!-- Messages will be added here -->
             </div>
 
             <!-- Chat Input -->
-            <div class="border-t border-gray-200 p-4">
-                <div class="flex items-center space-x-2">
-                    <input type="text" id="chatInput" placeholder="Type your message..." 
-                           class="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <button id="sendMessage" class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-paper-plane text-xs"></i>
+            <div class="border-t border-gray-200 p-5 bg-white">
+                <div class="flex items-center space-x-3">
+                    <div class="flex-1 relative">
+                        <input type="text" id="chatInput" placeholder="Type your message..." 
+                               class="w-full border-2 border-gray-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white">
+                        <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <i class="fas fa-smile text-gray-400 hover:text-blue-500 cursor-pointer transition-colors"></i>
+                        </div>
+                    </div>
+                    <button id="sendMessage" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl w-12 h-12 flex items-center justify-center hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 hover:scale-105">
+                        <i class="fas fa-paper-plane text-sm"></i>
                     </button>
+                </div>
+                <div class="flex items-center justify-between mt-3 text-xs text-gray-500">
+                    <span>Press Enter to send</span>
+                    <span>Powered by AdvFood AI</span>
                 </div>
             </div>
         </div>
@@ -182,36 +204,37 @@
 
     <style>
         .chat-message {
-            animation: slideIn 0.3s ease-out;
+            animation: slideIn 0.4s ease-out;
         }
         
         @keyframes slideIn {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(20px) scale(0.95);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
         
         .typing-indicator {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
         }
         
         .typing-dot {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            background-color: #9CA3AF;
+            background: linear-gradient(45deg, #3B82F6, #8B5CF6);
             animation: typing 1.4s infinite ease-in-out;
         }
         
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        .typing-dot:nth-child(3) { animation-delay: 0s; }
         
         @keyframes typing {
             0%, 80%, 100% {
@@ -219,8 +242,60 @@
                 opacity: 0.5;
             }
             40% {
-                transform: scale(1);
+                transform: scale(1.2);
                 opacity: 1;
+            }
+        }
+
+        /* Custom scrollbar for chat messages */
+        #chatMessages::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #chatMessages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        #chatMessages::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #3B82F6, #8B5CF6);
+            border-radius: 10px;
+        }
+        
+        #chatMessages::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, #2563EB, #7C3AED);
+        }
+
+        /* Chat window entrance animation */
+        #chatWindow {
+            animation: chatSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes chatSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Notification dot animation */
+        #notificationDot {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
             }
         }
     </style>
@@ -276,9 +351,14 @@
         function openChat() {
             const chatWindow = document.getElementById('chatWindow');
             const chatToggle = document.getElementById('chatToggle');
+            const notificationDot = document.getElementById('notificationDot');
             
             chatWindow.classList.remove('hidden');
-            chatToggle.style.display = 'none';
+            chatToggle.style.transform = 'scale(0.8)';
+            chatToggle.style.opacity = '0.7';
+            if (notificationDot) {
+                notificationDot.style.display = 'none';
+            }
             chatOpen = true;
             
             // Clear auto-open timer
@@ -295,9 +375,14 @@
         function closeChatWindow() {
             const chatWindow = document.getElementById('chatWindow');
             const chatToggle = document.getElementById('chatToggle');
+            const notificationDot = document.getElementById('notificationDot');
             
             chatWindow.classList.add('hidden');
-            chatToggle.style.display = 'flex';
+            chatToggle.style.transform = 'scale(1)';
+            chatToggle.style.opacity = '1';
+            if (notificationDot) {
+                notificationDot.style.display = 'flex';
+            }
             chatOpen = false;
         }
 
@@ -308,11 +393,11 @@
             if (isTyping) {
                 messageDiv.className = 'chat-message flex justify-start';
                 messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-2">
-                        <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                            <i class="fas fa-robot text-xs text-white"></i>
+                    <div class="flex items-end space-x-3">
+                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-robot text-sm text-white"></i>
                         </div>
-                        <div class="bg-gray-100 rounded-2xl px-4 py-2 max-w-xs">
+                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
                             <div class="typing-indicator">
                                 <div class="typing-dot"></div>
                                 <div class="typing-dot"></div>
@@ -324,24 +409,26 @@
             } else if (sender === 'bot') {
                 messageDiv.className = 'chat-message flex justify-start';
                 messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-2">
-                        <div class="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                            <i class="fas fa-robot text-xs text-white"></i>
+                    <div class="flex items-end space-x-3">
+                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-robot text-sm text-white"></i>
                         </div>
-                        <div class="bg-gray-100 rounded-2xl px-4 py-2 max-w-xs">
-                            <p class="text-sm text-gray-800">${message}</p>
+                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
+                            <p class="text-sm text-gray-800 leading-relaxed">${message}</p>
+                            <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                         </div>
                     </div>
                 `;
             } else {
                 messageDiv.className = 'chat-message flex justify-end';
                 messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-2">
-                        <div class="bg-blue-600 rounded-2xl px-4 py-2 max-w-xs">
-                            <p class="text-sm text-white">${message}</p>
+                    <div class="flex items-end space-x-3">
+                        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl rounded-br-md px-5 py-3 max-w-xs shadow-lg">
+                            <p class="text-sm text-white leading-relaxed">${message}</p>
+                            <div class="text-xs text-blue-100 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                         </div>
-                        <div class="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center">
-                            <i class="fas fa-user text-xs text-white"></i>
+                        <div class="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-user text-sm text-white"></i>
                         </div>
                     </div>
                 `;
