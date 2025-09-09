@@ -154,7 +154,6 @@ class MobileAppController extends Controller
                         'success' => true,
                         'message' => 'Points retrieved successfully',
                         'data' => [
-                            'customer_id' => $customerId,
                             'email' => $email,
                             'name' => $customerData['name'] ?? null,
                             'points_balance' => $balanceData['data']['points_balance'] ?? 0,
@@ -169,7 +168,6 @@ class MobileAppController extends Controller
                 'success' => true,
                 'message' => 'Points retrieved (external system unavailable)',
                 'data' => [
-                    'customer_id' => null,
                     'email' => $email,
                     'name' => null,
                     'points_balance' => 0,
