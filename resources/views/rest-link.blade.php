@@ -140,7 +140,7 @@
     <!-- Chatbot -->
     <div id="chatbot" class="fixed bottom-6 right-6 z-50">
         <!-- Chat Toggle Button -->
-        <div id="chatToggle" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full w-16 h-16 flex items-center justify-center cursor-pointer shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-blue-500/25">
+        <div id="chatToggle" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full w-16 h-16 flex items-center justify-center cursor-pointer shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-blue-500/25" onclick="toggleChat()">
             <i class="fas fa-comments text-xl"></i>
             <!-- Notification dot -->
             <div id="notificationDot" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
@@ -170,7 +170,7 @@
                         </div>
                     </div>
                 </div>
-                <button id="closeChat" class="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-2 transition-all duration-200 relative z-10">
+                <button id="closeChat" class="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-2 transition-all duration-200 relative z-10" onclick="closeChatWindow()">
                     <i class="fas fa-times text-lg"></i>
                 </button>
             </div>
@@ -190,7 +190,7 @@
                             <i class="fas fa-smile text-gray-400 hover:text-blue-500 cursor-pointer transition-colors text-lg"></i>
                         </div>
                     </div>
-                    <button id="sendMessage" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl w-14 h-14 flex items-center justify-center hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 hover:scale-105">
+                    <button id="sendMessage" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl w-14 h-14 flex items-center justify-center hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 hover:scale-105" onclick="sendMessage()">
                         <i class="fas fa-paper-plane text-base"></i>
                     </button>
                 </div>
@@ -305,21 +305,29 @@
         let messageCount = 0;
         let autoOpenTimer;
 
-        // Simple and reliable initialization
-        window.addEventListener('load', function() {
-            console.log('Page fully loaded, starting chat...');
-            
-            // Initialize immediately
+        // Force initialization - multiple approaches
+        function forceInit() {
+            console.log('Force initializing chat...');
             initializeChat();
             
-            // Start auto-open timer
-            autoOpenTimer = setTimeout(() => {
-                console.log('Auto-opening chat after 10 seconds...');
-                if (!chatOpen) {
-                    openChat();
-                }
+            // Auto-open after 10 seconds
+            setTimeout(() => {
+                console.log('Auto-opening chat...');
+                openChat();
             }, 10000);
-        });
+        }
+
+        // Try multiple initialization methods
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', forceInit);
+        } else {
+            forceInit();
+        }
+
+        window.addEventListener('load', forceInit);
+        
+        // Backup initialization
+        setTimeout(forceInit, 1000);
 
         function initializeChat() {
             console.log('Initializing chat...');
