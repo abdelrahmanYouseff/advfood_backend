@@ -84,9 +84,6 @@ Route::middleware('auth:sanctum')->group(function () {
         ]);
     });
 
-    // User points and profile
-    Route::get('/user/points', [MobileAppController::class, 'getUserPoints']);
-    Route::get('/user/profile', [MobileAppController::class, 'getUserProfile']);
 
     // Location management
     Route::apiResource('locations', LocationController::class);
