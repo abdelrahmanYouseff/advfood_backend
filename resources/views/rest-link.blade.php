@@ -652,28 +652,65 @@
                         statusEmoji = '📋';
                 }
                 
-                // Build order details
-                let orderDetails = `📦 **Order #${order.id}**\n`;
-                orderDetails += `👤 Customer: ${order.full_name}\n`;
-                orderDetails += `🏪 Restaurant: ${order.restaurant}\n`;
-                orderDetails += `📅 Order Date: ${new Date(order.created_at).toLocaleDateString()}\n`;
-                orderDetails += `💰 Total: ${order.total.toFixed(2)} رس\n\n`;
+                // Build order details with better formatting
+                let orderDetails = `🎯 **Order Found!**\n\n`;
                 
-                // Add items
-                orderDetails += `🛒 **Order Items:**\n`;
+                // Order header with better styling
+                orderDetails += `📋 **Order #${order.id}**\n`;
+                orderDetails += `👤 **${order.full_name}**\n`;
+                orderDetails += `🏪 **${order.restaurant}**\n`;
+                orderDetails += `📅 ${new Date(order.created_at).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                })}\n\n`;
+                
+                // Items section with better formatting
+                orderDetails += `🍽️ **Your Order:**\n`;
                 order.cart_items.forEach((item, index) => {
-                    orderDetails += `${index + 1}. ${item.name} x${item.quantity} - ${(item.price * item.quantity).toFixed(2)} رس\n`;
+                    const itemTotal = (item.price * item.quantity).toFixed(2);
+                    orderDetails += `\n${index + 1}. **${item.name}**\n`;
+                    orderDetails += `   📦 Quantity: ${item.quantity}\n`;
+                    orderDetails += `   💰 Price: ${item.price.toFixed(2)} رس × ${item.quantity} = **${itemTotal} رس**\n`;
                 });
                 
-                orderDetails += `\n${statusEmoji} **Status:** ${statusMessage}\n`;
+                // Total section
+                orderDetails += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+                orderDetails += `💰 **Total Amount: ${order.total.toFixed(2)} رس**\n\n`;
                 
-                // Add status-specific message
+                // Status section with better formatting
+                orderDetails += `${statusEmoji} **Current Status:** ${statusMessage}\n\n`;
+                
+                // Add status-specific message with better formatting
                 if (order.status === 'pending' || order.status === 'preparing') {
-                    orderDetails += `\n⏰ Your order is under preparation and will be delivered as soon as possible!`;
+                    orderDetails += `⏰ **What's happening now:**\n`;
+                    orderDetails += `• Your order is being prepared by our chefs\n`;
+                    orderDetails += `• We're making sure everything is fresh and delicious\n`;
+                    orderDetails += `• Estimated delivery time: 30-45 minutes\n\n`;
+                    orderDetails += `🚀 **Next steps:**\n`;
+                    orderDetails += `• We'll notify you when your order is ready\n`;
+                    orderDetails += `• Our delivery team will bring it to your door\n`;
+                    orderDetails += `• You can track your order in real-time\n\n`;
+                    orderDetails += `✨ Thank you for choosing AdvFood!`;
                 } else if (order.status === 'ready') {
-                    orderDetails += `\n🚚 Your order is ready and on its way to you!`;
+                    orderDetails += `🚚 **Great news!**\n`;
+                    orderDetails += `• Your order is ready and packed\n`;
+                    orderDetails += `• Our delivery team is on the way\n`;
+                    orderDetails += `• You should receive it within 15-20 minutes\n\n`;
+                    orderDetails += `📱 **Stay tuned for delivery updates!**`;
                 } else if (order.status === 'delivered') {
-                    orderDetails += `\n🎉 Enjoy your meal! Thank you for choosing AdvFood!`;
+                    orderDetails += `🎉 **Order Delivered!**\n`;
+                    orderDetails += `• Your delicious meal has arrived\n`;
+                    orderDetails += `• We hope you enjoy every bite\n`;
+                    orderDetails += `• Thank you for choosing AdvFood\n\n`;
+                    orderDetails += `⭐ **Rate your experience and help us improve!**`;
+                } else if (order.status === 'confirmed') {
+                    orderDetails += `✅ **Order Confirmed!**\n`;
+                    orderDetails += `• We've received your order\n`;
+                    orderDetails += `• Our kitchen is starting preparation\n`;
+                    orderDetails += `• You'll get updates as we progress\n\n`;
+                    orderDetails += `🍽️ **Get ready for an amazing meal!**`;
                 }
                 
                 return orderDetails;
