@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class MobileAppController extends Controller
 {
     /**
-     * Get user points balance from external point system
+     * Get user points balance from external point systemm
      */
     public function getUserPoints(Request $request)
     {
