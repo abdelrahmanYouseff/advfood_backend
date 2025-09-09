@@ -90,8 +90,31 @@ class PointsService
                 ->get($this->apiUrl . '/customers/' . $customerId . '/balance');
 
             if ($response && $response->successful()) {
-                return $response->json();
+                $responseData = $response->json();
+                
+                // Log the response for debugging
+                Log::info('Points API Response', [
+                    'customer_id' => $customerId,
+                    'response' => $responseData
+                ]);
+                
+                // Check if response has error status
+                if (isset($responseData['status']) && $responseData['status'] === 'error') {
+                    Log::warning('Points API returned error', [
+                        'customer_id' => $customerId,
+                        'message' => $responseData['message'] ?? 'Unknown error'
+                    ]);
+                    return null;
+                }
+                
+                return $responseData;
             }
+
+            Log::warning('Points API request failed', [
+                'customer_id' => $customerId,
+                'status' => $response ? $response->status() : 'No response',
+                'body' => $response ? $response->body() : 'No body'
+            ]);
 
             return null;
 

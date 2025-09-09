@@ -36,9 +36,9 @@ class UserController extends Controller
         $usersWithPoints = $users->map(function ($user) use ($pointsService) {
             if ($user->point_customer_id) {
                 $pointsData = $pointsService->getCustomerPoints($user->point_customer_id);
-                if ($pointsData) {
-                    $user->points = $pointsData['points'] ?? 0;
-                    $user->points_tier = $pointsData['tier'] ?? 'bronze';
+                if ($pointsData && isset($pointsData['status']) && $pointsData['status'] === 'success') {
+                    $user->points = $pointsData['data']['points_balance'] ?? 0;
+                    $user->points_tier = $pointsData['data']['tier'] ?? 'bronze';
                 } else {
                     // No points from pointsys - set to 0
                     $user->points = 0;
