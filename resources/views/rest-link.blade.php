@@ -389,59 +389,18 @@
             console.log('Chat initialized successfully!');
         }
 
-        function toggleChat() {
+        // Make functions global
+        window.toggleChat = function() {
             console.log('Toggle chat clicked, current state:', chatOpen);
             if (chatOpen) {
                 closeChatWindow();
             } else {
                 openChat();
             }
-        }
+        };
 
-        function openChat() {
-            console.log('Opening chat...');
-            
-            const chatWindow = document.getElementById('chatWindow');
-            const chatToggle = document.getElementById('chatToggle');
-            const notificationDot = document.getElementById('notificationDot');
-
-            if (!chatWindow) {
-                console.error('Chat window not found!');
-                return;
-            }
-
-            // Show chat window
-            chatWindow.classList.remove('hidden');
-            
-            // Update toggle button
-            if (chatToggle) {
-                chatToggle.style.transform = 'scale(0.8)';
-                chatToggle.style.opacity = '0.7';
-            }
-            
-            // Hide notification dot
-            if (notificationDot) {
-                notificationDot.style.display = 'none';
-            }
-            
-            chatOpen = true;
-            console.log('Chat opened successfully!');
-
-            // Clear auto-open timer
-            if (autoOpenTimer) {
-                clearTimeout(autoOpenTimer);
-            }
-
-            // Focus on input
-            setTimeout(() => {
-                const chatInput = document.getElementById('chatInput');
-                if (chatInput) {
-                    chatInput.focus();
-                }
-            }, 100);
-        }
-
-        function closeChatWindow() {
+        window.closeChatWindow = function() {
+            console.log('Closing chat...');
             const chatWindow = document.getElementById('chatWindow');
             const chatToggle = document.getElementById('chatToggle');
             const notificationDot = document.getElementById('notificationDot');
@@ -453,63 +412,9 @@
                 notificationDot.style.display = 'flex';
             }
             chatOpen = false;
-        }
+        };
 
-        function addMessage(sender, message, isTyping = false) {
-            const chatMessages = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-
-            if (isTyping) {
-                messageDiv.className = 'chat-message flex justify-start';
-                messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                            <i class="fas fa-robot text-sm text-white"></i>
-                        </div>
-                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
-                            <div class="typing-indicator">
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (sender === 'bot') {
-                messageDiv.className = 'chat-message flex justify-start';
-                messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                            <i class="fas fa-robot text-sm text-white"></i>
-                        </div>
-                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
-                            <p class="text-sm text-gray-800 leading-relaxed">${message}</p>
-                            <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                messageDiv.className = 'chat-message flex justify-end';
-                messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-3">
-                        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl rounded-br-md px-5 py-3 max-w-xs shadow-lg">
-                            <p class="text-sm text-white leading-relaxed">${message}</p>
-                            <div class="text-xs text-blue-100 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                        </div>
-                        <div class="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center shadow-lg">
-                            <i class="fas fa-user text-sm text-white"></i>
-                        </div>
-                    </div>
-                `;
-            }
-
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-
-            return messageDiv;
-        }
-
-        function sendMessage() {
+        window.sendMessage = function() {
             const chatInput = document.getElementById('chatInput');
             const message = chatInput.value.trim();
 
@@ -565,7 +470,106 @@
                     addMessage('bot', response);
                 }
             }, 1500);
+        };
+
+        function openChat() {
+            console.log('Opening chat...');
+            
+            const chatWindow = document.getElementById('chatWindow');
+            const chatToggle = document.getElementById('chatToggle');
+            const notificationDot = document.getElementById('notificationDot');
+
+            if (!chatWindow) {
+                console.error('Chat window not found!');
+                return;
+            }
+
+            // Show chat window
+            chatWindow.classList.remove('hidden');
+            
+            // Update toggle button
+            if (chatToggle) {
+                chatToggle.style.transform = 'scale(0.8)';
+                chatToggle.style.opacity = '0.7';
+            }
+            
+            // Hide notification dot
+            if (notificationDot) {
+                notificationDot.style.display = 'none';
+            }
+            
+            chatOpen = true;
+            console.log('Chat opened successfully!');
+
+            // Clear auto-open timer
+            if (autoOpenTimer) {
+                clearTimeout(autoOpenTimer);
+            }
+
+            // Focus on input
+            setTimeout(() => {
+                const chatInput = document.getElementById('chatInput');
+                if (chatInput) {
+                    chatInput.focus();
+                }
+            }, 100);
         }
+
+
+        function addMessage(sender, message, isTyping = false) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+
+            if (isTyping) {
+                messageDiv.className = 'chat-message flex justify-start';
+                messageDiv.innerHTML = `
+                    <div class="flex items-end space-x-3">
+                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-robot text-sm text-white"></i>
+                        </div>
+                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
+                            <div class="typing-indicator">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (sender === 'bot') {
+                messageDiv.className = 'chat-message flex justify-start';
+                messageDiv.innerHTML = `
+                    <div class="flex items-end space-x-3">
+                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-robot text-sm text-white"></i>
+                        </div>
+                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
+                            <p class="text-sm text-gray-800 leading-relaxed">${message}</p>
+                            <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.className = 'chat-message flex justify-end';
+                messageDiv.innerHTML = `
+                    <div class="flex items-end space-x-3">
+                        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl rounded-br-md px-5 py-3 max-w-xs shadow-lg">
+                            <p class="text-sm text-white leading-relaxed">${message}</p>
+                            <div class="text-xs text-blue-100 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                        </div>
+                        <div class="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center shadow-lg">
+                            <i class="fas fa-user text-sm text-white"></i>
+                        </div>
+                    </div>
+                `;
+            }
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            return messageDiv;
+        }
+
 
         function addQuickOptions() {
             const chatMessages = document.getElementById('chatMessages');
