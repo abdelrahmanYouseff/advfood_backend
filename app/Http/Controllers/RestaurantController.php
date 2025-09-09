@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class RestaurantController extends Controller
@@ -98,14 +99,18 @@ class RestaurantController extends Controller
             'email' => 'sometimes|nullable|email|max:255',
             'logo' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'is_active' => 'sometimes|boolean',
-            'opening_time' => 'sometimes|date_format:H:i:s',
-            'closing_time' => 'sometimes|date_format:H:i:s',
+            'opening_time' => 'sometimes|string',
+            'closing_time' => 'sometimes|string',
             'delivery_fee' => 'sometimes|numeric|min:0',
             'delivery_time' => 'sometimes|integer|min:1',
         ]);
 
         // Handle logo upload
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            // Delete old logo if exists
+            if ($restaurant->logo && Storage::disk('public')->exists($restaurant->logo)) {
+                Storage::disk('public')->delete($restaurant->logo);
+            }
             $logoPath = $request->file('logo')->store('restaurants/logos', 'public');
             $validated['logo'] = $logoPath;
         }

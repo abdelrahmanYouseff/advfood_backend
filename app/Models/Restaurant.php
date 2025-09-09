@@ -27,8 +27,8 @@ class Restaurant extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'opening_time' => 'datetime',
-        'closing_time' => 'datetime',
+        'opening_time' => 'string',
+        'closing_time' => 'string',
         'delivery_fee' => 'decimal:2',
     ];
 

@@ -62,10 +62,14 @@ const submit = () => {
     form.put(route('restaurants.update', props.restaurant.id), {
         onSuccess: () => {
             // Don't reset the form to keep the updated values
+            console.log('Restaurant updated successfully');
         },
         onError: (errors) => {
             console.log('Form errors:', errors);
         },
+        onFinish: () => {
+            form.processing = false;
+        }
     });
 };
 
