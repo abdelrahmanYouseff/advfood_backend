@@ -518,9 +518,13 @@
             const lowerMessage = message.toLowerCase();
             messageCount++;
             
+            console.log('Bot received message:', message);
+            console.log('Is number?', /^\d+$/.test(message.trim()));
+            
             // Check if message is a number (order ID) - THIS MUST BE FIRST!
             if (/^\d+$/.test(message.trim())) {
-                return checkOrderStatus(message.trim());
+                console.log('Processing order number:', message.trim());
+                return await checkOrderStatus(message.trim());
             }
             
             // Order tracking
@@ -584,9 +588,12 @@
         }
 
         async function checkOrderStatus(orderId) {
+            console.log('Checking order status for ID:', orderId);
             try {
                 const response = await fetch(`/api/order/${orderId}`);
+                console.log('API response status:', response.status);
                 const data = await response.json();
+                console.log('API response data:', data);
                 
                 if (!data.success) {
                     return `Sorry, I couldn't find an order with number ${orderId}. 😔\n\nPlease double-check your order number and try again.`;
