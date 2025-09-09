@@ -52,10 +52,172 @@
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             transition: all 0.3s ease;
         }
-        .pay-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-        }
+               .pay-button:hover {
+                   transform: translateY(-2px);
+                   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+               }
+               .success-popup {
+                   position: fixed;
+                   top: 0;
+                   left: 0;
+                   width: 100%;
+                   height: 100%;
+                   background: rgba(0, 0, 0, 0.8);
+                   z-index: 1000;
+                   display: flex;
+                   align-items: center;
+                   justify-content: center;
+                   opacity: 0;
+                   visibility: hidden;
+                   transition: all 0.3s ease;
+               }
+               .success-popup.show {
+                   opacity: 1;
+                   visibility: visible;
+               }
+               .success-content {
+                   background: white;
+                   border-radius: 20px;
+                   padding: 40px;
+                   text-align: center;
+                   max-width: 400px;
+                   width: 90%;
+                   transform: scale(0.8);
+                   transition: all 0.3s ease;
+                   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+               }
+               .success-popup.show .success-content {
+                   transform: scale(1);
+               }
+               .success-icon {
+                   width: 80px;
+                   height: 80px;
+                   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                   border-radius: 50%;
+                   display: flex;
+                   align-items: center;
+                   justify-content: center;
+                   margin: 0 auto 20px;
+                   animation: bounce 0.6s ease-in-out, pulse 2s infinite 0.6s;
+                   box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+                   position: relative;
+               }
+               .success-icon i {
+                   font-size: 40px;
+                   color: white;
+               }
+               @keyframes bounce {
+                   0%, 20%, 50%, 80%, 100% {
+                       transform: translateY(0);
+                   }
+                   40% {
+                       transform: translateY(-10px);
+                   }
+                   60% {
+                       transform: translateY(-5px);
+                   }
+               }
+               .pulse-animation {
+                   animation: pulse 2s infinite;
+               }
+               @keyframes pulse {
+                   0% {
+                       transform: scale(1);
+                       opacity: 1;
+                   }
+                   50% {
+                       transform: scale(1.05);
+                       opacity: 0.8;
+                   }
+                   100% {
+                       transform: scale(1);
+                       opacity: 1;
+                   }
+               }
+               @keyframes pulse-ring {
+                   0% {
+                       transform: scale(0.33);
+                   }
+                   80%, 100% {
+                       opacity: 0;
+                   }
+                }
+                .success-icon::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    border-radius: 50%;
+                    background: rgba(16, 185, 129, 0.3);
+                    animation: pulse-ring 1.25s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+                }
+               .order-number {
+                   background: #f3f4f6;
+                   border: 2px dashed #d1d5db;
+                   border-radius: 12px;
+                   padding: 15px;
+                   margin: 20px 0;
+                   position: relative;
+               }
+               .copy-btn {
+                   position: absolute;
+                   top: 10px;
+                   right: 10px;
+                   background: #10b981;
+                   color: white;
+                   border: none;
+                   border-radius: 6px;
+                   padding: 5px 10px;
+                   font-size: 12px;
+                   cursor: pointer;
+                   transition: all 0.3s ease;
+               }
+               .copy-btn:hover {
+                   background: #059669;
+                   transform: scale(1.05);
+               }
+               .copy-btn.copied {
+                   background: #3b82f6;
+               }
+               .whatsapp-btn {
+                   background: #25d366;
+                   color: white;
+                   border: none;
+                   border-radius: 12px;
+                   padding: 12px 24px;
+                   font-size: 16px;
+                   font-weight: 600;
+                   cursor: pointer;
+                   transition: all 0.3s ease;
+                   display: inline-flex;
+                   align-items: center;
+                   gap: 8px;
+                   text-decoration: none;
+                   margin: 10px;
+               }
+               .whatsapp-btn:hover {
+                   background: #128c7e;
+                   transform: translateY(-2px);
+                   box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);
+               }
+               .close-btn {
+                   background: #6b7280;
+                   color: white;
+                   border: none;
+                   border-radius: 12px;
+                   padding: 12px 24px;
+                   font-size: 16px;
+                   font-weight: 600;
+                   cursor: pointer;
+                   transition: all 0.3s ease;
+                   margin: 10px;
+               }
+               .close-btn:hover {
+                   background: #4b5563;
+                   transform: translateY(-2px);
+               }
         .payment-method {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -198,11 +360,55 @@
                 <div class="text-white/60 text-sm">
                     <p>Powered by <span class="font-semibold">AdvFood</span></p>
                 </div>
-            </div>
-        </div>
-    </div>
+           </div>
+       </div>
+   </div>
 
-    <script>
+   <!-- Success Popup -->
+   <div id="successPopup" class="success-popup" onclick="closeSuccessPopup()">
+       <div class="success-content" onclick="event.stopPropagation()">
+           <div class="success-icon pulse-animation">
+               <i class="fas fa-check"></i>
+           </div>
+
+           <h2 class="text-2xl font-bold text-gray-800 mb-2">Payment Successful!</h2>
+           <p class="text-gray-600 mb-4">Your order is being prepared</p>
+
+           <div class="order-number">
+               <div class="text-sm text-gray-500 mb-1">Order Number</div>
+               <div id="orderNumber" class="text-xl font-bold text-gray-800">#0000</div>
+               <button id="copyOrderBtn" class="copy-btn" onclick="copyOrderNumber()">
+                   <i class="fas fa-copy"></i> Copy
+               </button>
+           </div>
+
+           <div class="text-sm text-gray-500 mb-6">
+               <i class="fas fa-clock mr-1"></i>
+               Estimated preparation time: 15-25 minutes
+           </div>
+
+           <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+               <div class="flex items-center justify-center mb-2">
+                   <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                   <span class="text-green-700 font-medium">Order Status: Being Prepared</span>
+               </div>
+               <p class="text-green-600 text-sm">We'll notify you when your order is ready!</p>
+           </div>
+
+           <div class="flex flex-col sm:flex-row justify-center items-center gap-3">
+               <a id="whatsappBtn" href="#" target="_blank" class="whatsapp-btn">
+                   <i class="fab fa-whatsapp"></i>
+                   Chat with Us
+               </a>
+               <button onclick="closeSuccessPopup()" class="close-btn">
+                   <i class="fas fa-times mr-1"></i>
+                   Close
+               </button>
+           </div>
+       </div>
+   </div>
+
+   <script>
         let selectedPaymentMethod = 'card';
 
         function goBack() {
@@ -294,15 +500,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Payment successful!\n\nOrder #' + data.order_id + ' has been placed.\n\nThank you for your order!');
+                    // Show success popup
+                    showSuccessPopup(data.order_id);
 
                     // Clear session data
                     sessionStorage.removeItem('customerData');
                     sessionStorage.removeItem('cartData');
                     sessionStorage.removeItem('cartTotal');
-
-                    // Redirect to home
-                    window.location.href = '/rest-link';
+                    sessionStorage.removeItem('restaurantId');
                 } else {
                     alert('Error: ' + data.message);
                 }
@@ -316,6 +521,73 @@
         function getRestaurantIdFromSession() {
             // Get restaurant ID from sessionStorage
             return sessionStorage.getItem('restaurantId') || 14;
+        }
+
+        function showSuccessPopup(orderId) {
+            // Update order number
+            document.getElementById('orderNumber').textContent = '#' + orderId.toString().padStart(4, '0');
+
+            // Update WhatsApp link with order details
+            const customerData = JSON.parse(sessionStorage.getItem('customerData') || '{}');
+            const restaurantId = sessionStorage.getItem('restaurantId') || 14;
+            const whatsappMessage = `Hello! I just placed an order #${orderId.toString().padStart(4, '0')} and would like to track it.`;
+            const whatsappUrl = `https://wa.me/966501234567?text=${encodeURIComponent(whatsappMessage)}`;
+            document.getElementById('whatsappBtn').href = whatsappUrl;
+
+            // Show popup
+            const popup = document.getElementById('successPopup');
+            popup.classList.add('show');
+
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSuccessPopup() {
+            const popup = document.getElementById('successPopup');
+            popup.classList.remove('show');
+
+            // Restore body scroll
+            document.body.style.overflow = 'auto';
+
+            // Redirect to home after a short delay
+            setTimeout(() => {
+                window.location.href = '/rest-link';
+            }, 300);
+        }
+
+        function copyOrderNumber() {
+            const orderNumber = document.getElementById('orderNumber').textContent;
+            const copyBtn = document.getElementById('copyOrderBtn');
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(orderNumber).then(() => {
+                // Update button text and style
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                copyBtn.classList.add('copied');
+
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = orderNumber;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                copyBtn.classList.add('copied');
+
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            });
         }
 
         // Format card number input
