@@ -42,7 +42,7 @@ class PointsService
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
                 ])
-                ->post($this->apiUrl . '/customers', $customerData);
+                ->post($this->apiUrl . '/customers/register', $customerData);
 
             if ($response && $response->successful()) {
                 $responseData = $response->json();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\PointsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -70,7 +71,23 @@ class UserController extends Controller
             'country' => $validated['country'],
         ]);
 
-        // Send user data to external API
+        // Register user in points system and get customer ID
+        $pointsService = new PointsService();
+        $customerId = $pointsService->createCustomer([
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone_number' => $user->phone_number,
+        ]);
+
+        // Update user with customer ID if registration was successful
+        if ($customerId) {
+            $user->update(['point_customer_id' => $customerId]);
+            
+            // Update points locally from external system
+            $pointsService->updateUserPointsLocally($user->id);
+        }
+
+        // Send user data to external API (existing functionality)
         $this->registerUserInExternalSystem($user);
 
         return redirect()->route('users.index')
