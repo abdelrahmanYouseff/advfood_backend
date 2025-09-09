@@ -317,8 +317,12 @@
         // Start auto-open when page loads
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing chat...');
-            startAutoOpen();
-            initializeChat();
+            
+            // Wait a bit for all elements to be ready
+            setTimeout(() => {
+                startAutoOpen();
+                initializeChat();
+            }, 100);
         });
 
         function initializeChat() {
@@ -335,6 +339,12 @@
                 sendButton: !!sendButton,
                 chatInput: !!chatInput
             });
+
+            // Check if all elements exist
+            if (!chatToggle || !chatWindow || !closeChat || !sendButton || !chatInput) {
+                console.error('Some chat elements are missing!');
+                return;
+            }
 
             // Add initial welcome message with quick options
             addMessage('bot', 'Hello! 👋 Welcome to AdvFood! I\'m here to help you find the perfect restaurant. How can I assist you today?');
