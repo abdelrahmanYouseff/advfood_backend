@@ -111,7 +111,7 @@ Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'g
 Route::get('/order/{id}', function($id) {
     try {
         $order = \App\Models\LinkOrder::with('restaurant')->find($id);
-        
+
         if (!$order) {
             return response()->json([
                 'success' => false,

@@ -459,9 +459,9 @@
             const typingMessage = addMessage('bot', '', true);
             
             // Simulate bot response
-            setTimeout(() => {
+            setTimeout(async () => {
                 typingMessage.remove();
-                const response = getBotResponse(message);
+                const response = await getBotResponse(message);
                 addMessage('bot', response);
             }, 1500);
         }
@@ -514,18 +514,18 @@
             }
         }
 
-        function getBotResponse(message) {
+        async function getBotResponse(message) {
             const lowerMessage = message.toLowerCase();
             messageCount++;
+            
+            // Check if message is a number (order ID) - THIS MUST BE FIRST!
+            if (/^\d+$/.test(message.trim())) {
+                return checkOrderStatus(message.trim());
+            }
             
             // Order tracking
             if (lowerMessage.includes('order') && (lowerMessage.includes('where') || lowerMessage.includes('track') || lowerMessage.includes('status'))) {
                 return 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number so I can check the status for you.';
-            }
-            
-            // Check if message is a number (order ID)
-            if (/^\d+$/.test(message.trim())) {
-                return checkOrderStatus(message.trim());
             }
             
             // Greeting responses
