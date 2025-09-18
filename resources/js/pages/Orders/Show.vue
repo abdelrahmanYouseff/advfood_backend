@@ -252,7 +252,7 @@ const getPaymentTypeText = (type: number) => {
                             <div class="p-6">
                                 <div class="space-y-6">
                                     <div
-                                        v-for="item in order.order_items"
+                                        v-for="item in order.order_items || order.orderItems"
                                         :key="item.id"
                                         class="flex items-start p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
                                     >
@@ -263,8 +263,8 @@ const getPaymentTypeText = (type: number) => {
                                             <div class="flex justify-between items-start">
                                                 <div>
                                                     <h3 class="text-lg font-medium text-gray-900">{{ item.item_name }}</h3>
-                                                    <p v-if="item.menu_item.description" class="text-sm text-gray-600 mt-1">
-                                                        {{ item.menu_item.description }}
+                                                    <p v-if="item.menu_item?.description || item.menuItem?.description" class="text-sm text-gray-600 mt-1">
+                                                        {{ item.menu_item?.description || item.menuItem?.description }}
                                                     </p>
                                                     <div class="flex items-center space-x-6 mt-3">
                                                         <div class="flex items-center text-sm text-gray-500">
@@ -275,9 +275,9 @@ const getPaymentTypeText = (type: number) => {
                                                             <DollarSign class="w-4 h-4 mr-1" />
                                                             Unit: <span class="font-medium ml-1">${{ item.price }}</span>
                                                         </div>
-                                                        <div v-if="item.menu_item.preparation_time" class="flex items-center text-sm text-gray-500">
+                                                        <div v-if="item.menu_item?.preparation_time || item.menuItem?.preparation_time" class="flex items-center text-sm text-gray-500">
                                                             <Timer class="w-4 h-4 mr-1" />
-                                                            <span class="font-medium">{{ item.menu_item.preparation_time }} min</span>
+                                                            <span class="font-medium">{{ item.menu_item?.preparation_time || item.menuItem?.preparation_time }} min</span>
                                                         </div>
                                                     </div>
                                                     <div v-if="item.special_instructions" class="mt-3 p-2 bg-orange-50 border border-orange-200 rounded-md">
@@ -289,7 +289,7 @@ const getPaymentTypeText = (type: number) => {
                                                 </div>
                                                 <div class="text-right">
                                                     <p class="text-xl font-bold text-gray-900">${{ item.subtotal }}</p>
-                                                    <p class="text-sm text-gray-500">Original: ${{ item.menu_item.price }}</p>
+                                                    <p class="text-sm text-gray-500">Original: ${{ item.menu_item?.price || item.menuItem?.price }}</p>
                                                 </div>
                                             </div>
                                         </div>

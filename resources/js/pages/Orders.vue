@@ -10,6 +10,8 @@ interface Props {
         order_number: string;
         status: string;
         total: number;
+        items_count?: number;
+        items_subtotal?: number;
         created_at: string;
         user: {
             name: string;
@@ -18,6 +20,13 @@ interface Props {
         restaurant: {
             name: string;
         };
+        order_items?: Array<{
+            id: number;
+            item_name: string;
+            quantity: number;
+            price: string;
+            subtotal: string;
+        }>;
     }>;
 }
 
@@ -98,6 +107,10 @@ const formatCurrency = (amount: number) => {
                                     <div class="flex items-center space-x-1">
                                         <Store class="h-4 w-4" />
                                         <span>{{ order.restaurant.name }}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-1">
+                                        <ShoppingCart class="h-4 w-4" />
+                                        <span>{{ order.items_count || 0 }} items</span>
                                     </div>
                                     <div class="flex items-center space-x-1">
                                         <Calendar class="h-4 w-4" />

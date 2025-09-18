@@ -14,7 +14,14 @@ class OrderController extends Controller
      */
     public function index()
     {
-        $orders = Order::with(['user', 'restaurant'])->latest()->get();
+        $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem'])->latest()->get();
+
+        // Add calculated fields for each order
+        $orders = $orders->map(function ($order) {
+            $order->items_count = $order->orderItems->sum('quantity');
+            $order->items_subtotal = $order->orderItems->sum('subtotal');
+            return $order;
+        });
 
         return Inertia::render('Orders', [
             'orders' => $orders,
