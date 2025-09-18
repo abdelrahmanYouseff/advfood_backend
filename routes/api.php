@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\MobileAppController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ShippingController;
 
@@ -112,6 +113,15 @@ Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'g
 // Orders API routes
 Route::apiResource('orders', OrderController::class);
 Route::get('/users/{userId}/orders', [OrderController::class, 'getUserOrders']);
+
+// Order Items API routes
+Route::get('/orders/{orderId}/items', [OrderItemController::class, 'index']);
+Route::post('/order-items', [OrderItemController::class, 'store']);
+Route::post('/order-items/multiple', [OrderItemController::class, 'addMultiple']);
+Route::get('/order-items/{id}', [OrderItemController::class, 'show']);
+Route::put('/order-items/{id}', [OrderItemController::class, 'update']);
+Route::patch('/order-items/{id}', [OrderItemController::class, 'update']);
+Route::delete('/order-items/{id}', [OrderItemController::class, 'destroy']);
 
 // Shipping routes
 Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']);
