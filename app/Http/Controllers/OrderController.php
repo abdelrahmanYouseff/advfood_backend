@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class OrderController extends Controller
@@ -41,7 +42,32 @@ class OrderController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $order = Order::with(['user', 'restaurant', 'orderItems.menuItem'])->find($id);
+
+        if (!$order) {
+            abort(404, 'Order not found');
+        }
+
+        // Get shipping details if available
+        $shippingOrder = null;
+        if (!empty($order->dsp_order_id)) {
+            $shippingOrder = DB::table('shipping_orders')
+                ->where('dsp_order_id', $order->dsp_order_id)
+                ->first();
+        }
+
+        // Calculate totals from order items
+        $itemsSubtotal = $order->orderItems->sum('subtotal');
+        $itemsCount = $order->orderItems->sum('quantity');
+
+        return Inertia::render('Orders/Show', [
+            'order' => $order,
+            'shippingOrder' => $shippingOrder,
+            'calculations' => [
+                'items_subtotal' => $itemsSubtotal,
+                'items_count' => $itemsCount,
+            ]
+        ]);
     }
 
     /**

@@ -11,6 +11,7 @@ use App\Services\ShippingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
@@ -207,7 +208,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Display the specified order.
+     * Display the specified order with complete details.
      */
     public function show($id)
     {
@@ -220,10 +221,128 @@ class OrderController extends Controller
             ], 404);
         }
 
-        return response()->json([
+        // Get shipping details if available
+        $shippingOrder = null;
+        if (!empty($order->dsp_order_id)) {
+            $shippingOrder = DB::table('shipping_orders')
+                ->where('dsp_order_id', $order->dsp_order_id)
+                ->first();
+        }
+
+        // Calculate totals from order items
+        $itemsSubtotal = $order->orderItems->sum('subtotal');
+        $itemsCount = $order->orderItems->sum('quantity');
+
+        // Format response with complete details
+        $response = [
             'success' => true,
-            'data' => $order
-        ]);
+            'data' => [
+                // Order basic info
+                'order_info' => [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'payment_method' => $order->payment_method,
+                    'payment_status' => $order->payment_status,
+                    'created_at' => $order->created_at,
+                    'estimated_delivery_time' => $order->estimated_delivery_time,
+                    'delivered_at' => $order->delivered_at,
+                    'special_instructions' => $order->special_instructions,
+                ],
+
+                // Customer details
+                'customer' => [
+                    'id' => $order->user->id,
+                    'name' => $order->user->name,
+                    'email' => $order->user->email,
+                    'phone' => $order->user->phone_number ?? $order->user->phone,
+                    'role' => $order->user->role,
+                ],
+
+                // Delivery details
+                'delivery' => [
+                    'name' => $order->delivery_name,
+                    'phone' => $order->delivery_phone,
+                    'address' => $order->delivery_address,
+                ],
+
+                // Restaurant details
+                'restaurant' => [
+                    'id' => $order->restaurant->id,
+                    'name' => $order->restaurant->name,
+                    'description' => $order->restaurant->description,
+                    'address' => $order->restaurant->address,
+                    'phone' => $order->restaurant->phone,
+                    'email' => $order->restaurant->email,
+                    'delivery_fee' => $order->restaurant->delivery_fee,
+                    'delivery_time' => $order->restaurant->delivery_time,
+                    'rating' => $order->restaurant->rating,
+                ],
+
+                // Order items with details
+                'items' => $order->orderItems->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'menu_item_id' => $item->menu_item_id,
+                        'item_name' => $item->item_name,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->price,
+                        'subtotal' => $item->subtotal,
+                        'special_instructions' => $item->special_instructions,
+                        'menu_item_details' => [
+                            'name' => $item->menuItem->name,
+                            'description' => $item->menuItem->description,
+                            'original_price' => $item->menuItem->price,
+                            'image' => $item->menuItem->image,
+                            'preparation_time' => $item->menuItem->preparation_time,
+                            'ingredients' => $item->menuItem->ingredients,
+                            'allergens' => $item->menuItem->allergens,
+                        ]
+                    ];
+                }),
+
+                // Price breakdown
+                'pricing' => [
+                    'items_subtotal' => $itemsSubtotal,
+                    'order_subtotal' => $order->subtotal,
+                    'delivery_fee' => $order->delivery_fee,
+                    'tax' => $order->tax,
+                    'total' => $order->total,
+                    'items_count' => $itemsCount,
+                ],
+
+                // Shipping details
+                'shipping' => $shippingOrder ? [
+                    'shop_id' => $order->shop_id,
+                    'dsp_order_id' => $order->dsp_order_id,
+                    'shipping_status' => $order->shipping_status,
+                    'driver_name' => $order->driver_name,
+                    'driver_phone' => $order->driver_phone,
+                    'driver_location' => [
+                        'latitude' => $order->driver_latitude,
+                        'longitude' => $order->driver_longitude,
+                    ],
+                    'recipient_details' => [
+                        'name' => $shippingOrder->recipient_name,
+                        'phone' => $shippingOrder->recipient_phone,
+                        'address' => $shippingOrder->recipient_address,
+                        'location' => [
+                            'latitude' => $shippingOrder->latitude,
+                            'longitude' => $shippingOrder->longitude,
+                        ]
+                    ],
+                    'shipping_total' => $shippingOrder->total,
+                    'payment_type' => $shippingOrder->payment_type,
+                    'notes' => $shippingOrder->notes,
+                ] : [
+                    'shop_id' => $order->shop_id,
+                    'status' => 'Not shipped yet',
+                    'message' => 'Order has not been sent to shipping provider'
+                ]
+            ]
+        ];
+
+        return response()->json($response);
     }
 
     /**
