@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\Restaurant;
+use App\Models\MenuItem;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -86,6 +87,7 @@ class OrderController extends Controller
             'items.*.menu_item_id' => 'required_with:items|exists:menu_items,id',
             'items.*.quantity' => 'required_with:items|integer|min:1',
             'items.*.price' => 'required_with:items|numeric|min:0',
+            'items.*.special_instructions' => 'sometimes|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -118,11 +120,19 @@ class OrderController extends Controller
             // Create order items if provided
             if (!empty($items)) {
                 foreach ($items as $item) {
+                    // Get menu item details
+                    $menuItem = MenuItem::find($item['menu_item_id']);
+                    if (!$menuItem) {
+                        throw new \Exception("Menu item with ID {$item['menu_item_id']} not found");
+                    }
+
                     $order->orderItems()->create([
                         'menu_item_id' => $item['menu_item_id'],
+                        'item_name' => $menuItem->name,
                         'quantity' => $item['quantity'],
                         'price' => $item['price'],
-                        'total' => $item['price'] * $item['quantity'],
+                        'subtotal' => $item['price'] * $item['quantity'],
+                        'special_instructions' => $item['special_instructions'] ?? null,
                     ]);
                 }
             }

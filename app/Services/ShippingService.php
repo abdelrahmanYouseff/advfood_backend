@@ -94,6 +94,24 @@ class ShippingService
             $dspOrderId = $data['dsp_order_id'] ?? $data['data']['dsp_order_id'] ?? $data['id'] ?? null;
             $shippingStatus = $data['status'] ?? $data['data']['status'] ?? 'New Order';
 
+            // If no dsp_order_id from provider, generate one starting from 00020
+            if (empty($dspOrderId)) {
+                $today = date('Ymd');
+                $latestShipping = DB::table('shipping_orders')
+                    ->where('dsp_order_id', 'like', "ORD-{$today}-%")
+                    ->orderBy('dsp_order_id', 'desc')
+                    ->first();
+
+                if ($latestShipping) {
+                    $lastNumber = (int) substr($latestShipping->dsp_order_id, -5);
+                    $nextNumber = $lastNumber + 1;
+                } else {
+                    $nextNumber = 20; // Start from 00020
+                }
+
+                $dspOrderId = 'ORD-' . $today . '-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+            }
+
             $row = [
                 'order_id' => $orderObj->id,
                 'shop_id' => $orderObj->shop_id ?? null,
