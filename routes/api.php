@@ -111,6 +111,7 @@ Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'g
 
 // Orders API routes
 Route::apiResource('orders', OrderController::class);
+Route::get('/users/{userId}/orders', [OrderController::class, 'getUserOrders']);
 
 // Shipping routes
 Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']);

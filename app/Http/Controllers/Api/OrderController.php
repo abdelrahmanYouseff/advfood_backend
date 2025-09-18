@@ -212,4 +212,66 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get all orders for a specific user.
+     */
+    public function getUserOrders($userId, Request $request)
+    {
+        // Check if user exists
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        $query = Order::with(['restaurant', 'orderItems.menuItem'])
+                     ->where('user_id', $userId);
+
+        // Optional filters
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('payment_status')) {
+            $query->where('payment_status', $request->payment_status);
+        }
+
+        if ($request->has('restaurant_id')) {
+            $query->where('restaurant_id', $request->restaurant_id);
+        }
+
+        // Date range filter
+        if ($request->has('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+
+        if ($request->has('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 10);
+        $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+            'orders_count' => $orders->total(),
+            'data' => $orders->items(),
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+                'has_more' => $orders->hasMorePages(),
+            ]
+        ]);
+    }
 }
