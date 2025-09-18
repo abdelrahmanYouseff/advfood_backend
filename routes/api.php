@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
+use App\Http\Controllers\Api\SimpleOrderController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ShippingController;
 
@@ -122,6 +123,10 @@ Route::get('/order-items/{id}', [OrderItemController::class, 'show']);
 Route::put('/order-items/{id}', [OrderItemController::class, 'update']);
 Route::patch('/order-items/{id}', [OrderItemController::class, 'update']);
 Route::delete('/order-items/{id}', [OrderItemController::class, 'destroy']);
+
+// Simple Order API (as per your requirements)
+Route::post('/simple-orders', [SimpleOrderController::class, 'store']);
+Route::get('/simple-orders/{id}', [SimpleOrderController::class, 'show']);
 
 // Shipping routes
 Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']);
