@@ -52,4 +52,20 @@ class ShippingController extends Controller
         $local = DB::table('shipping_orders')->where('dsp_order_id', $dspOrderId)->first();
         return response()->json(['api' => $api, 'local' => $local]);
     }
+
+    public function cancel(string $dspOrderId)
+    {
+        $result = $this->shippingService->cancelOrder($dspOrderId);
+
+        if (is_array($result)) {
+            // Provider returned error details
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'] ?? 'Cancellation failed',
+                'provider_response' => $result
+            ], $result['status_code'] ?? 400);
+        }
+
+        return response()->json(['success' => (bool) $result]);
+    }
 }

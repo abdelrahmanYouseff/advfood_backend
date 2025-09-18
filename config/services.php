@@ -46,8 +46,9 @@ return [
         'endpoints' => [
             'create' => env('SHIPPING_API_ENDPOINT_CREATE', '/orders'),
             'status' => env('SHIPPING_API_ENDPOINT_STATUS', '/orders/{id}'),
-            'cancel' => env('SHIPPING_API_ENDPOINT_CANCEL', '/orders/{id}/cancel'),
+            'cancel' => env('SHIPPING_API_ENDPOINT_CANCEL', '/orders/{id}'),
         ],
+        'cancel_method' => env('SHIPPING_API_CANCEL_METHOD', 'delete'), // delete|post
         'send_as_form' => env('SHIPPING_API_SEND_AS_FORM', false),
     ],
 

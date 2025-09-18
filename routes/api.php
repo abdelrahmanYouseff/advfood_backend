@@ -112,6 +112,7 @@ Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'g
 Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']);
 Route::post('/create-order', [ShippingController::class, 'createOrder']);
 Route::get('/shipping/status/{dspOrderId}', [ShippingController::class, 'getStatus']);
+Route::post('/shipping/cancel/{dspOrderId}', [ShippingController::class, 'cancel']);
 
 // Order tracking API for chatbot
 Route::get('/order/{id}', function($id) {
