@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\MobileAppController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\ShippingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +107,11 @@ Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
 
 // Public Points API routes
 Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'getPointsByCustomerId']);
+
+// Shipping routes
+Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']);
+Route::post('/create-order', [ShippingController::class, 'createOrder']);
+Route::get('/shipping/status/{dspOrderId}', [ShippingController::class, 'getStatus']);
 
 // Order tracking API for chatbot
 Route::get('/order/{id}', function($id) {

@@ -40,4 +40,15 @@ return [
         'url' => env('EXTERNAL_API_URL', 'https://www.pointsys.clarastars.com/api/v1'),
     ],
 
+    'shipping' => [
+        'url' => env('SHIPPING_API_URL'),
+        'key' => env('SHIPPING_API_KEY'),
+        'endpoints' => [
+            'create' => env('SHIPPING_API_ENDPOINT_CREATE', '/orders'),
+            'status' => env('SHIPPING_API_ENDPOINT_STATUS', '/orders/{id}'),
+            'cancel' => env('SHIPPING_API_ENDPOINT_CANCEL', '/orders/{id}/cancel'),
+        ],
+        'send_as_form' => env('SHIPPING_API_SEND_AS_FORM', false),
+    ],
+
 ];
