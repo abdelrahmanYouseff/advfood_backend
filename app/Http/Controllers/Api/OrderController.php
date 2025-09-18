@@ -109,6 +109,9 @@ class OrderController extends Controller
             $items = $orderData['items'] ?? [];
             unset($orderData['items']);
 
+            // Set fixed shop_id for shipping integration
+            $orderData['shop_id'] = '821017371';
+
             // Create the order
             $order = Order::create($orderData);
 
@@ -127,7 +130,7 @@ class OrderController extends Controller
             // Load relationships
             $order->load(['user', 'restaurant', 'orderItems.menuItem']);
 
-            // Automatically create shipping order if shop_id is provided
+            // Automatically create shipping order (shop_id is now always available)
             $shippingResult = null;
             if (!empty($order->shop_id)) {
                 try {
