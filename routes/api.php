@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileAppController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\AdController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\ShippingController;
 
@@ -107,6 +108,9 @@ Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
 
 // Public Points API routes
 Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'getPointsByCustomerId']);
+
+// Orders API routes
+Route::apiResource('orders', OrderController::class);
 
 // Shipping routes
 Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']);
