@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
 use App\Models\Restaurant;
+use App\Services\ShippingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -57,7 +59,7 @@ class OrderController extends Controller
     /**
      * Store a newly created order.
      */
-    public function store(Request $request)
+    public function store(Request $request, ShippingService $shippingService)
     {
         $validator = Validator::make($request->all(), [
             // Required fields
@@ -125,11 +127,62 @@ class OrderController extends Controller
             // Load relationships
             $order->load(['user', 'restaurant', 'orderItems.menuItem']);
 
-            return response()->json([
+            // Automatically create shipping order if shop_id is provided
+            $shippingResult = null;
+            if (!empty($order->shop_id)) {
+                try {
+                    $shippingResult = $shippingService->createOrder($order);
+                    if ($shippingResult) {
+                        Log::info('Shipping order created automatically', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null,
+                        ]);
+
+                        // Update the order with shipping details if available
+                        if (!empty($shippingResult['dsp_order_id'])) {
+                            $order->update([
+                                'dsp_order_id' => $shippingResult['dsp_order_id'],
+                                'shipping_status' => $shippingResult['shipping_status'] ?? 'New Order',
+                            ]);
+                            $order->refresh();
+                        }
+                    } else {
+                        Log::warning('Failed to create shipping order automatically', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Exception while creating shipping order automatically', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $response = [
                 'success' => true,
                 'message' => 'Order created successfully',
                 'data' => $order
-            ], 201);
+            ];
+
+            // Include shipping info in response if available
+            if ($shippingResult) {
+                $response['shipping'] = [
+                    'created' => true,
+                    'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null,
+                    'shipping_status' => $shippingResult['shipping_status'] ?? null,
+                ];
+            } elseif (!empty($order->shop_id)) {
+                $response['shipping'] = [
+                    'created' => false,
+                    'message' => 'Shipping order creation failed - check logs',
+                ];
+            }
+
+            return response()->json($response, 201);
 
         } catch (\Exception $e) {
             return response()->json([
