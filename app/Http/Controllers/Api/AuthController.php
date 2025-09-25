@@ -89,6 +89,7 @@ class AuthController extends Controller
                         'address' => $user->address,
                         'country' => $user->country,
                         'role' => $user->role,
+                        'point_customer_id' => $user->point_customer_id,
                         'created_at' => $user->created_at,
                     ],
                     'token' => $token,
