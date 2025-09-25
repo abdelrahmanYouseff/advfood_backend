@@ -158,4 +158,82 @@ class AuthController extends Controller
             ], 401);
         }
     }
+
+    /**
+     * Get user points balance
+     */
+    public function getPoints(Request $request)
+    {
+        try {
+            // Get the authenticated user
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            // Check if user has point_customer_id
+            if (!$user->point_customer_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not registered in points system',
+                    'points_balance' => 0
+                ], 404);
+            }
+
+            // Try to get points from points system
+            $pointsService = new PointsService();
+            $pointsData = $pointsService->getCustomerPoints($user->point_customer_id);
+
+            $pointsBalance = 0;
+            $source = 'default';
+
+            if ($pointsData !== null) {
+                // Extract points balance from response
+                if (isset($pointsData['data']['points_balance'])) {
+                    $pointsBalance = $pointsData['data']['points_balance'];
+                    $source = 'points_system';
+                } elseif (isset($pointsData['points_balance'])) {
+                    $pointsBalance = $pointsData['points_balance'];
+                    $source = 'points_system';
+                }
+            } else {
+                // If points system is not available, return default points
+                $pointsBalance = 0;
+                $source = 'default';
+                \Log::warning('Points system not available, returning default points', [
+                    'user_id' => $user->id,
+                    'customer_id' => $user->point_customer_id
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Points retrieved successfully',
+                'data' => [
+                    'customer_id' => $user->point_customer_id,
+                    'points_balance' => $pointsBalance,
+                    'user_name' => $user->name,
+                    'user_email' => $user->email,
+                    'source' => $source
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Error retrieving points', [
+                'user_id' => $user->id ?? 'unknown',
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving points',
+                'error' => $e->getMessage(),
+                'points_balance' => 0
+            ], 500);
+        }
+    }
 }

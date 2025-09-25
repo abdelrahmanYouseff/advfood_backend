@@ -77,6 +77,11 @@ Route::get('/menu-items/{menuItem}', [MenuItemController::class, 'show']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 
+// Points routes (protected)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/auth/points', [AuthController::class, 'getPoints']);
+});
+
 // Protected mobile app routes
 Route::middleware('auth:sanctum')->group(function () {
     // Test authentication
@@ -110,6 +115,68 @@ Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
 
 // Public Points API routes
 Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'getPointsByCustomerId']);
+
+// Direct points API by customer ID
+Route::get('/points/{pointCustomerId}', function($pointCustomerId) {
+    try {
+        // Validate customer ID
+        if (!is_numeric($pointCustomerId) || $pointCustomerId <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid customer ID',
+                'points_balance' => 0
+            ], 400);
+        }
+
+        // Try to get points from points system
+        $pointsService = new \App\Services\PointsService();
+        $pointsData = $pointsService->getCustomerPoints($pointCustomerId);
+
+        $pointsBalance = 0;
+        $source = 'default';
+
+        if ($pointsData !== null) {
+            // Extract points balance from response
+            if (isset($pointsData['data']['points_balance'])) {
+                $pointsBalance = $pointsData['data']['points_balance'];
+                $source = 'points_system';
+            } elseif (isset($pointsData['points_balance'])) {
+                $pointsBalance = $pointsData['points_balance'];
+                $source = 'points_system';
+            }
+        } else {
+            // If points system is not available, return default points
+            $pointsBalance = 0;
+            $source = 'default';
+            \Log::warning('Points system not available, returning default points', [
+                'customer_id' => $pointCustomerId
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Points retrieved successfully',
+            'data' => [
+                'customer_id' => $pointCustomerId,
+                'points_balance' => $pointsBalance,
+                'source' => $source
+            ]
+        ], 200);
+
+    } catch (\Exception $e) {
+        \Log::error('Error retrieving points by customer ID', [
+            'customer_id' => $pointCustomerId,
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Error retrieving points',
+            'error' => $e->getMessage(),
+            'points_balance' => 0
+        ], 500);
+    }
+});
 
 // Orders API routes
 Route::apiResource('orders', OrderController::class);
