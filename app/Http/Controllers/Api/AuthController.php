@@ -49,6 +49,7 @@ class AuthController extends Controller
             ]);
 
             // Register user in points system and get customer ID
+            \Log::info('Starting points system registration for user: ' . $user->email);
             $pointsService = new PointsService();
             $customerId = $pointsService->createCustomer([
                 'name' => $user->name,
@@ -56,9 +57,14 @@ class AuthController extends Controller
                 'phone_number' => $user->phone_number,
             ]);
 
+            \Log::info('Points system registration result: ' . ($customerId ?: 'null'));
+
             // Update user with customer ID if registration was successful
             if ($customerId) {
                 $user->update(['point_customer_id' => $customerId]);
+                \Log::info('Updated user with customer ID: ' . $customerId);
+            } else {
+                \Log::warning('Failed to create customer in points system for user: ' . $user->email);
             }
 
             // Send user data to external API (existing functionality)

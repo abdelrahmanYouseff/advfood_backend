@@ -399,7 +399,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Get all orders for a specific user.
+     * Get all orders for a specific user with complete details.
      */
     public function getUserOrders($userId, Request $request)
     {
@@ -412,7 +412,7 @@ class OrderController extends Controller
             ], 404);
         }
 
-        $query = Order::with(['restaurant', 'orderItems.menuItem'])
+        $query = Order::with(['restaurant', 'orderItems.menuItem', 'user'])
                      ->where('user_id', $userId);
 
         // Optional filters
@@ -437,9 +437,248 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $request->to_date);
         }
 
+        // Search by order number
+        if ($request->has('order_number')) {
+            $query->where('order_number', 'like', '%' . $request->order_number . '%');
+        }
+
+        // Sort options
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $allowedSortFields = ['created_at', 'updated_at', 'total', 'status', 'order_number'];
+
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
         // Pagination
-        $perPage = $request->get('per_page', 10);
-        $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        $perPage = $request->get('per_page', 15);
+        $orders = $query->paginate($perPage);
+
+        // Format orders with complete details
+        $formattedOrders = $orders->map(function ($order) {
+            // Calculate totals from order items
+            $itemsSubtotal = $order->orderItems->sum('subtotal');
+            $itemsCount = $order->orderItems->sum('quantity');
+
+            // Get shipping details if available
+            $shippingOrder = null;
+            if (!empty($order->dsp_order_id)) {
+                $shippingOrder = DB::table('shipping_orders')
+                    ->where('dsp_order_id', $order->dsp_order_id)
+                    ->first();
+            }
+
+            return [
+                // Order basic info
+                'order_info' => [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'payment_method' => $order->payment_method,
+                    'payment_status' => $order->payment_status,
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at,
+                    'estimated_delivery_time' => $order->estimated_delivery_time,
+                    'delivered_at' => $order->delivered_at,
+                    'special_instructions' => $order->special_instructions,
+                ],
+
+                // Customer details
+                'customer' => [
+                    'id' => $order->user->id,
+                    'name' => $order->user->name,
+                    'email' => $order->user->email,
+                    'phone' => $order->user->phone_number ?? $order->user->phone,
+                    'role' => $order->user->role,
+                ],
+
+                // Delivery details
+                'delivery' => [
+                    'name' => $order->delivery_name,
+                    'phone' => $order->delivery_phone,
+                    'address' => $order->delivery_address,
+                ],
+
+                // Restaurant details
+                'restaurant' => [
+                    'id' => $order->restaurant->id,
+                    'name' => $order->restaurant->name,
+                    'description' => $order->restaurant->description,
+                    'address' => $order->restaurant->address,
+                    'phone' => $order->restaurant->phone,
+                    'email' => $order->restaurant->email,
+                    'delivery_fee' => $order->restaurant->delivery_fee,
+                    'delivery_time' => $order->restaurant->delivery_time,
+                    'rating' => $order->restaurant->rating,
+                ],
+
+                // Order items with details
+                'items' => $order->orderItems->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'menu_item_id' => $item->menu_item_id,
+                        'item_name' => $item->item_name,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->price,
+                        'subtotal' => $item->subtotal,
+                        'special_instructions' => $item->special_instructions,
+                        'menu_item_details' => $item->menuItem ? [
+                            'name' => $item->menuItem->name,
+                            'description' => $item->menuItem->description,
+                            'original_price' => $item->menuItem->price,
+                            'image' => $item->menuItem->image,
+                            'preparation_time' => $item->menuItem->preparation_time,
+                            'ingredients' => $item->menuItem->ingredients,
+                            'allergens' => $item->menuItem->allergens,
+                        ] : null
+                    ];
+                }),
+
+                // Price breakdown
+                'pricing' => [
+                    'items_subtotal' => $itemsSubtotal,
+                    'order_subtotal' => $order->subtotal,
+                    'delivery_fee' => $order->delivery_fee,
+                    'tax' => $order->tax,
+                    'total' => $order->total,
+                    'items_count' => $itemsCount,
+                ],
+
+                // Shipping details
+                'shipping' => $shippingOrder ? [
+                    'shop_id' => $order->shop_id,
+                    'dsp_order_id' => $order->dsp_order_id,
+                    'shipping_status' => $order->shipping_status,
+                    'driver_name' => $order->driver_name,
+                    'driver_phone' => $order->driver_phone,
+                    'driver_location' => [
+                        'latitude' => $order->driver_latitude,
+                        'longitude' => $order->driver_longitude,
+                    ],
+                    'recipient_details' => [
+                        'name' => $shippingOrder->recipient_name,
+                        'phone' => $shippingOrder->recipient_phone,
+                        'address' => $shippingOrder->recipient_address,
+                        'location' => [
+                            'latitude' => $shippingOrder->latitude,
+                            'longitude' => $shippingOrder->longitude,
+                        ]
+                    ],
+                    'shipping_total' => $shippingOrder->total,
+                    'payment_type' => $shippingOrder->payment_type,
+                    'notes' => $shippingOrder->notes,
+                ] : [
+                    'shop_id' => $order->shop_id,
+                    'status' => 'Not shipped yet',
+                    'message' => 'Order has not been sent to shipping provider'
+                ]
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone_number ?? $user->phone,
+            ],
+            'orders_count' => $orders->total(),
+            'data' => $formattedOrders,
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+                'has_more' => $orders->hasMorePages(),
+            ],
+            'filters_applied' => [
+                'status' => $request->get('status'),
+                'payment_status' => $request->get('payment_status'),
+                'restaurant_id' => $request->get('restaurant_id'),
+                'from_date' => $request->get('from_date'),
+                'to_date' => $request->get('to_date'),
+                'order_number' => $request->get('order_number'),
+                'sort_by' => $sortBy,
+                'sort_order' => $sortOrder,
+            ]
+        ]);
+    }
+
+    /**
+     * Get user orders statistics.
+     */
+    public function getUserOrdersStats($userId, Request $request)
+    {
+        // Check if user exists
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        $query = Order::where('user_id', $userId);
+
+        // Date range filter
+        if ($request->has('from_date')) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+
+        if ($request->has('to_date')) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+
+        // Get all orders for calculations
+        $orders = $query->get();
+
+        // Calculate statistics
+        $stats = [
+            'total_orders' => $orders->count(),
+            'total_spent' => $orders->sum('total'),
+            'average_order_value' => $orders->count() > 0 ? round($orders->sum('total') / $orders->count(), 2) : 0,
+            'status_breakdown' => [
+                'pending' => $orders->where('status', 'pending')->count(),
+                'confirmed' => $orders->where('status', 'confirmed')->count(),
+                'preparing' => $orders->where('status', 'preparing')->count(),
+                'ready' => $orders->where('status', 'ready')->count(),
+                'delivering' => $orders->where('status', 'delivering')->count(),
+                'delivered' => $orders->where('status', 'delivered')->count(),
+                'cancelled' => $orders->where('status', 'cancelled')->count(),
+            ],
+            'payment_status_breakdown' => [
+                'pending' => $orders->where('payment_status', 'pending')->count(),
+                'paid' => $orders->where('payment_status', 'paid')->count(),
+                'failed' => $orders->where('payment_status', 'failed')->count(),
+            ],
+            'payment_method_breakdown' => [
+                'cash' => $orders->where('payment_method', 'cash')->count(),
+                'card' => $orders->where('payment_method', 'card')->count(),
+                'online' => $orders->where('payment_method', 'online')->count(),
+            ],
+            'monthly_breakdown' => $orders->groupBy(function ($order) {
+                return $order->created_at->format('Y-m');
+            })->map(function ($monthOrders) {
+                return [
+                    'orders_count' => $monthOrders->count(),
+                    'total_spent' => $monthOrders->sum('total'),
+                    'average_order_value' => round($monthOrders->sum('total') / $monthOrders->count(), 2)
+                ];
+            }),
+            'recent_orders' => $orders->sortByDesc('created_at')->take(5)->map(function ($order) {
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'total' => $order->total,
+                    'created_at' => $order->created_at,
+                ];
+            })
+        ];
 
         return response()->json([
             'success' => true,
@@ -448,14 +687,10 @@ class OrderController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
             ],
-            'orders_count' => $orders->total(),
-            'data' => $orders->items(),
-            'pagination' => [
-                'current_page' => $orders->currentPage(),
-                'last_page' => $orders->lastPage(),
-                'per_page' => $orders->perPage(),
-                'total' => $orders->total(),
-                'has_more' => $orders->hasMorePages(),
+            'statistics' => $stats,
+            'filters_applied' => [
+                'from_date' => $request->get('from_date'),
+                'to_date' => $request->get('to_date'),
             ]
         ]);
     }

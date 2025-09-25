@@ -114,6 +114,7 @@ Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'g
 // Orders API routes
 Route::apiResource('orders', OrderController::class);
 Route::get('/users/{userId}/orders', [OrderController::class, 'getUserOrders']);
+Route::get('/users/{userId}/orders/stats', [OrderController::class, 'getUserOrdersStats']);
 
 // Order Items API routes
 Route::get('/orders/{orderId}/items', [OrderItemController::class, 'index']);
