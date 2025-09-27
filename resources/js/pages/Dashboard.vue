@@ -27,6 +27,7 @@ interface Props {
         id: number;
         order_number: string;
         status: string;
+        shipping_status: string;
         total: number;
         created_at: string;
         user: {
@@ -55,6 +56,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const getStatusColor = (status: string) => {
     const colors = {
+        // Original order statuses
         pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
         confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
         preparing: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
@@ -62,8 +64,16 @@ const getStatusColor = (status: string) => {
         delivering: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400',
         delivered: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
         cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+        // Shipping statuses
+        'New Order': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+        'Confirmed': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
+        'Preparing': 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
+        'Ready': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
+        'Out for Delivery': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400',
+        'Delivered': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+        'Cancelled': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
     };
-    return colors[status as keyof typeof colors] || colors.pending;
+    return colors[status as keyof typeof colors] || colors['New Order'];
 };
 
 const formatCurrency = (amount: number) => {
@@ -195,8 +205,8 @@ const formatCurrency = (amount: number) => {
                             </div>
                             <div class="text-right">
                                 <p class="font-medium">{{ formatCurrency(order.total) }}</p>
-                                <span :class="['inline-flex rounded-full px-2 py-1 text-xs font-medium', getStatusColor(order.status)]">
-                                    {{ order.status }}
+                                <span :class="['inline-flex rounded-full px-2 py-1 text-xs font-medium', getStatusColor(order.shipping_status)]">
+                                    {{ order.shipping_status }}
                                 </span>
                             </div>
                         </div>
