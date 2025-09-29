@@ -46,12 +46,14 @@ class LocationController extends Controller
             'user_id' => 'required|exists:users,id',
             'title' => 'nullable|string|max:255',
             'address' => 'required|string|max:1000',
+            'building_number' => 'nullable|string|max:255',
+            'floor' => 'nullable|string|max:255',
+            'apartment' => 'nullable|string|max:255',
+            'landmark' => 'nullable|string|max:255',
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
-            'address_text' => 'required|string|max:1000',
-            'city' => 'nullable|string|max:100',
-            'area' => 'nullable|string|max:100',
             'is_default' => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -123,12 +125,16 @@ class LocationController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|string|max:255',
+            'address' => 'sometimes|string|max:1000',
+            'building_number' => 'nullable|string|max:255',
+            'floor' => 'nullable|string|max:255',
+            'apartment' => 'nullable|string|max:255',
+            'landmark' => 'nullable|string|max:255',
             'latitude' => 'sometimes|numeric|between:-90,90',
             'longitude' => 'sometimes|numeric|between:-180,180',
-            'address_text' => 'sometimes|string|max:1000',
-            'city' => 'nullable|string|max:100',
-            'area' => 'nullable|string|max:100',
             'is_default' => 'boolean',
+            'is_active' => 'boolean',
         ]);
 
         if ($validator->fails()) {
