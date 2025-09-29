@@ -142,6 +142,12 @@ const getPaymentTypeText = (type: number) => {
     };
     return types[type] || 'Unknown';
 };
+
+// Helper function to check if order is delivered
+const isDelivered = (order: any) => {
+    return order.shipping_status === 'Delivered' ||
+           order.shipping_status?.toLowerCase() === 'delivered';
+};
 </script>
 
 <template>
@@ -149,18 +155,33 @@ const getPaymentTypeText = (type: number) => {
 
     <AppLayout>
         <template #header>
-            <div class="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg shadow-lg">
+            <div :class="[
+                'flex items-center justify-between text-white p-6 rounded-lg shadow-lg',
+                isDelivered(order)
+                    ? 'bg-gradient-to-r from-gray-500 to-gray-600 opacity-75'
+                    : 'bg-gradient-to-r from-blue-600 to-purple-600'
+            ]">
                 <div class="flex items-center space-x-4">
                     <Link
                         href="/orders"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-transparent rounded-lg hover:bg-gray-50 transition-colors"
+                        :class="[
+                            'inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-lg transition-colors',
+                            isDelivered(order)
+                                ? 'text-gray-600 bg-gray-200 hover:bg-gray-300'
+                                : 'text-blue-600 bg-white hover:bg-gray-50'
+                        ]"
                     >
                         <ArrowLeft class="w-4 h-4 mr-2" />
                         Back to Orders
                     </Link>
                     <div>
                         <h1 class="text-2xl font-bold">{{ order.order_number }}</h1>
-                        <p class="text-blue-100">Order placed on {{ new Date(order.created_at).toLocaleDateString() }}</p>
+                        <p :class="[
+                            'text-sm',
+                            isDelivered(order)
+                                ? 'text-gray-200'
+                                : 'text-blue-100'
+                        ]">Order placed on {{ new Date(order.created_at).toLocaleDateString() }}</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
@@ -176,7 +197,12 @@ const getPaymentTypeText = (type: number) => {
                     </span>
                     <span
                         v-if="order.shipping_status"
-                        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-20 text-white"
+                        :class="[
+                            'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
+                            isDelivered(order)
+                                ? 'bg-gray-300 bg-opacity-30 text-gray-200'
+                                : 'bg-white bg-opacity-20 text-white'
+                        ]"
                     >
                         <Truck class="w-4 h-4 mr-1" />
                         {{ order.shipping_status }}
@@ -188,15 +214,18 @@ const getPaymentTypeText = (type: number) => {
         <div class="py-8">
             <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
                 <!-- Quick Stats -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div :class="[
+                    'grid grid-cols-1 md:grid-cols-4 gap-4 mb-8',
+                    isDelivered(order) ? 'opacity-75 grayscale-[0.2]' : ''
+                ]">
                     <div class="bg-white p-6 rounded-lg shadow-sm border">
                         <div class="flex items-center">
                             <div class="p-2 bg-blue-100 rounded-lg">
-                                <DollarSign class="w-6 h-6 text-blue-600" />
+                                <span class="text-sm font-bold text-blue-600">SAR</span>
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm font-medium text-gray-500">Total Amount</p>
-                                <p class="text-2xl font-bold text-gray-900">${{ order.total }}</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ order.total }} SAR</p>
                             </div>
                         </div>
                     </div>
@@ -235,7 +264,10 @@ const getPaymentTypeText = (type: number) => {
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div :class="[
+                    'grid grid-cols-1 xl:grid-cols-3 gap-8',
+                    isDelivered(order) ? 'opacity-80 grayscale-[0.1]' : ''
+                ]">
                     <!-- Main Content -->
                     <div class="xl:col-span-2 space-y-8">
                         <!-- Order Items -->
@@ -272,8 +304,8 @@ const getPaymentTypeText = (type: number) => {
                                                             Qty: <span class="font-medium ml-1">{{ item.quantity }}</span>
                                                         </div>
                                                         <div class="flex items-center text-sm text-gray-500">
-                                                            <DollarSign class="w-4 h-4 mr-1" />
-                                                            Unit: <span class="font-medium ml-1">${{ item.price }}</span>
+                                                            <span class="text-xs font-bold text-gray-600 mr-1">SAR</span>
+                                                            Unit: <span class="font-medium ml-1">{{ item.price }} SAR</span>
                                                         </div>
                                                         <div v-if="item.menu_item?.preparation_time || item.menuItem?.preparation_time" class="flex items-center text-sm text-gray-500">
                                                             <Timer class="w-4 h-4 mr-1" />
@@ -288,8 +320,8 @@ const getPaymentTypeText = (type: number) => {
                                                     </div>
                                                 </div>
                                                 <div class="text-right">
-                                                    <p class="text-xl font-bold text-gray-900">${{ item.subtotal }}</p>
-                                                    <p class="text-sm text-gray-500">Original: ${{ item.menu_item?.price || item.menuItem?.price }}</p>
+                                                    <p class="text-xl font-bold text-gray-900">{{ item.subtotal }} SAR</p>
+                                                    <p class="text-sm text-gray-500">Original: {{ item.menu_item?.price || item.menuItem?.price }} SAR</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -528,24 +560,24 @@ const getPaymentTypeText = (type: number) => {
                                 <div class="space-y-4">
                                     <div class="flex justify-between items-center py-2">
                                         <span class="text-gray-600">Items Subtotal</span>
-                                        <span class="font-medium text-gray-900">${{ calculations.items_subtotal }}</span>
+                                        <span class="font-medium text-gray-900">{{ calculations.items_subtotal }} SAR</span>
                                     </div>
                                     <div class="flex justify-between items-center py-2">
                                         <span class="text-gray-600">Order Subtotal</span>
-                                        <span class="font-medium text-gray-900">${{ order.subtotal }}</span>
+                                        <span class="font-medium text-gray-900">{{ order.subtotal }} SAR</span>
                                     </div>
                                     <div class="flex justify-between items-center py-2">
                                         <span class="text-gray-600">Delivery Fee</span>
-                                        <span class="font-medium text-gray-900">${{ order.delivery_fee }}</span>
+                                        <span class="font-medium text-gray-900">{{ order.delivery_fee }} SAR</span>
                                     </div>
                                     <div class="flex justify-between items-center py-2">
                                         <span class="text-gray-600">Tax</span>
-                                        <span class="font-medium text-gray-900">${{ order.tax }}</span>
+                                        <span class="font-medium text-gray-900">{{ order.tax }} SAR</span>
                                     </div>
                                     <div class="border-t border-gray-200 pt-4">
                                         <div class="flex justify-between items-center">
                                             <span class="text-xl font-bold text-gray-900">Total Amount</span>
-                                            <span class="text-2xl font-bold text-green-600">${{ order.total }}</span>
+                                            <span class="text-2xl font-bold text-green-600">{{ order.total }} SAR</span>
                                         </div>
                                     </div>
                                     <div class="bg-gray-50 p-4 rounded-lg mt-4">

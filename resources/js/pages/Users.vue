@@ -28,23 +28,23 @@ const refreshPoints = () => {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: 'لوحة التحكم',
         href: '/dashboard',
     },
     {
-        title: 'Users',
+        title: 'المستخدمين',
         href: '/users',
     },
 ];
 
 const deleteUser = (userId: number, userName: string) => {
-    if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
+    if (confirm(`هل أنت متأكد من حذف ${userName}؟ لا يمكن التراجع عن هذا الإجراء.`)) {
         router.delete(route('users.destroy', userId), {
             onSuccess: () => {
                 // Success message will be handled by the backend
             },
             onError: () => {
-                alert('Failed to delete user. Please try again.');
+                alert('فشل في حذف المستخدم. يرجى المحاولة مرة أخرى.');
             }
         });
     }
@@ -52,15 +52,15 @@ const deleteUser = (userId: number, userName: string) => {
 </script>
 
 <template>
-    <Head title="Users" />
+    <Head title="المستخدمين" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold">Users</h1>
-                    <p class="text-muted-foreground">Manage all registered users</p>
+                    <h1 class="text-2xl font-bold">المستخدمين</h1>
+                    <p class="text-muted-foreground">إدارة جميع المستخدمين المسجلين</p>
                 </div>
                 <div class="flex gap-2">
                     <button
@@ -68,14 +68,14 @@ const deleteUser = (userId: number, userName: string) => {
                         class="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                     >
                         <RefreshCw class="h-4 w-4" />
-                        Refresh Points
+                        تحديث النقاط
                     </button>
                     <Link
                         :href="route('users.create')"
                         class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                     >
                         <Plus class="h-4 w-4" />
-                        Add User
+                        إضافة مستخدم
                     </Link>
                 </div>
             </div>
@@ -89,47 +89,47 @@ const deleteUser = (userId: number, userName: string) => {
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <Users class="h-4 w-4" />
-                                        User
+                                        المستخدم
                                     </div>
                                 </th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <Mail class="h-4 w-4" />
-                                        Email
+                                        البريد الإلكتروني
                                     </div>
                                 </th>
-                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">Role</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">الدور</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <Phone class="h-4 w-4" />
-                                        Phone
+                                        الهاتف
                                     </div>
                                 </th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <Globe class="h-4 w-4" />
-                                        Country
+                                        البلد
                                     </div>
                                 </th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <Star class="h-4 w-4" />
-                                        Points
+                                        النقاط
                                     </div>
                                 </th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <Award class="h-4 w-4" />
-                                        Tier
+                                        المستوى
                                     </div>
                                 </th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <Calendar class="h-4 w-4" />
-                                        Joined
+                                        تاريخ الانضمام
                                     </div>
                                 </th>
-                                <th class="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">Actions</th>
+                                <th class="px-6 py-4 text-center text-sm font-semibold text-gray-900 dark:text-white">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -154,10 +154,10 @@ const deleteUser = (userId: number, userName: string) => {
                                 <!-- Role -->
                                 <td class="px-6 py-4">
                                     <span v-if="user.role === 'admin'" class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/20 dark:text-red-400">
-                                        Admin
+                                        مدير
                                     </span>
                                     <span v-else class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                                        User
+                                        مستخدم
                                     </span>
                                 </td>
 
@@ -185,15 +185,15 @@ const deleteUser = (userId: number, userName: string) => {
                                 <td class="px-6 py-4">
                                     <span v-if="user.points_tier === 'gold'" class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
                                         <Award class="mr-1 h-3 w-3" />
-                                        Gold
+                                        ذهبي
                                     </span>
                                     <span v-else-if="user.points_tier === 'silver'" class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">
                                         <Award class="mr-1 h-3 w-3" />
-                                        Silver
+                                        فضي
                                     </span>
                                     <span v-else class="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
                                         <Award class="mr-1 h-3 w-3" />
-                                        Bronze
+                                        برونزي
                                     </span>
                                 </td>
 
@@ -208,21 +208,21 @@ const deleteUser = (userId: number, userName: string) => {
                                         <Link
                                             :href="route('users.show', user.id)"
                                             class="inline-flex items-center justify-center rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                            title="View"
+                                            title="عرض"
                                         >
                                             <Eye class="h-4 w-4" />
                                         </Link>
                                         <Link
                                             :href="route('users.edit', user.id)"
                                             class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white p-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                                            title="Edit"
+                                            title="تعديل"
                                         >
                                             <Edit class="h-4 w-4" />
                                         </Link>
                                         <button
                                             @click="deleteUser(user.id, user.name)"
                                             class="inline-flex items-center justify-center rounded-lg bg-red-600 p-2 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                                            title="Delete"
+                                            title="حذف"
                                         >
                                             <Trash2 class="h-4 w-4" />
                                         </button>
@@ -237,14 +237,14 @@ const deleteUser = (userId: number, userName: string) => {
             <!-- Empty State -->
             <div v-if="users.length === 0" class="flex flex-col items-center justify-center py-12">
                 <Users class="h-12 w-12 text-muted-foreground" />
-                <h3 class="mt-4 text-lg font-semibold">No users found</h3>
-                <p class="mt-2 text-muted-foreground">Get started by creating your first user.</p>
+                <h3 class="mt-4 text-lg font-semibold">لا توجد مستخدمين</h3>
+                <p class="mt-2 text-muted-foreground">ابدأ بإنشاء أول مستخدم.</p>
                 <Link
                     :href="route('users.create')"
                     class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                     <Plus class="h-4 w-4" />
-                    Add User
+                    إضافة مستخدم
                 </Link>
             </div>
         </div>

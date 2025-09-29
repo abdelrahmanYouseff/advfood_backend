@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeliveryTripController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OrderController;
@@ -43,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Orders
     Route::resource('orders', OrderController::class);
+    Route::patch('orders/{order}/accept', [OrderController::class, 'accept'])->name('orders.accept');
 
     // Invoices
     Route::resource('invoices', InvoiceController::class);
@@ -54,6 +56,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Ads
     Route::resource('ads', AdController::class);
     Route::post('/ads/{ad}/toggle-status', [AdController::class, 'toggleStatus'])->name('ads.toggle-status');
+
+    // Delivery Trips
+    Route::resource('delivery-trips', DeliveryTripController::class);
+    Route::patch('delivery-trips/{deliveryTrip}/start', [DeliveryTripController::class, 'start'])->name('delivery-trips.start');
+    Route::patch('delivery-trips/{deliveryTrip}/complete', [DeliveryTripController::class, 'complete'])->name('delivery-trips.complete');
+    Route::patch('delivery-trips/{deliveryTrip}/orders/{order}/update-status', [DeliveryTripController::class, 'updateOrderStatus'])->name('delivery-trips.update-order-status');
 });
 
 require __DIR__.'/settings.php';

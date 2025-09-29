@@ -111,12 +111,12 @@ const getStatusColor = (status: string) => {
 
 const getStatusText = (status: string) => {
     switch (status) {
-        case 'pending': return 'Pending';
-        case 'confirmed': return 'Confirmed';
-        case 'preparing': return 'Preparing';
-        case 'ready': return 'Ready';
-        case 'delivered': return 'Delivered';
-        case 'cancelled': return 'Cancelled';
+        case 'pending': return 'معلق';
+        case 'confirmed': return 'مؤكد';
+        case 'preparing': return 'قيد التحضير';
+        case 'ready': return 'جاهز';
+        case 'delivered': return 'تم التسليم';
+        case 'cancelled': return 'ملغي';
         default: return status;
     }
 };
@@ -152,25 +152,25 @@ const updateOrderStatus = (orderId: number, newStatus: string) => {
 };
 
 const breadcrumbs = [
-    { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Link Orders', href: '/link-orders' }
+    { name: 'لوحة التحكم', href: '/dashboard' },
+    { name: 'طلبات الروابط', href: '/link-orders' }
 ];
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Link Orders" />
+        <Head title="طلبات الروابط" />
 
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold">Link Orders</h1>
-                    <p class="text-muted-foreground">Manage orders from restaurant links</p>
+                    <h1 class="text-2xl font-bold">طلبات الروابط</h1>
+                    <p class="text-muted-foreground">إدارة الطلبات من روابط المطاعم</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-sm text-muted-foreground">
-                        {{ orders?.meta?.total || 0 }} orders
+                        {{ orders?.meta?.total || 0 }} طلب
                     </span>
                 </div>
             </div>
@@ -181,7 +181,7 @@ const breadcrumbs = [
                     <div class="flex items-center gap-2">
                         <Clock class="h-5 w-5 text-yellow-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">Pending</p>
+                            <p class="text-sm font-medium text-muted-foreground">معلق</p>
                             <p class="text-2xl font-bold">{{ (orders?.data || []).filter(o => o.status === 'pending').length }}</p>
                         </div>
                     </div>
@@ -190,7 +190,7 @@ const breadcrumbs = [
                     <div class="flex items-center gap-2">
                         <ChefHat class="h-5 w-5 text-orange-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">Preparing</p>
+                            <p class="text-sm font-medium text-muted-foreground">قيد التحضير</p>
                             <p class="text-2xl font-bold">{{ (orders?.data || []).filter(o => o.status === 'preparing').length }}</p>
                         </div>
                     </div>
@@ -199,7 +199,7 @@ const breadcrumbs = [
                     <div class="flex items-center gap-2">
                         <CheckCircle class="h-5 w-5 text-green-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">Ready</p>
+                            <p class="text-sm font-medium text-muted-foreground">جاهز</p>
                             <p class="text-2xl font-bold">{{ (orders?.data || []).filter(o => o.status === 'ready').length }}</p>
                         </div>
                     </div>
@@ -208,7 +208,7 @@ const breadcrumbs = [
                     <div class="flex items-center gap-2">
                         <Truck class="h-5 w-5 text-emerald-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">Delivered</p>
+                            <p class="text-sm font-medium text-muted-foreground">تم التسليم</p>
                             <p class="text-2xl font-bold">{{ (orders?.data || []).filter(o => o.status === 'delivered').length }}</p>
                         </div>
                     </div>
@@ -222,7 +222,7 @@ const breadcrumbs = [
                     <input
                         v-model="searchQuery"
                         type="text"
-                        placeholder="Search by name, phone, restaurant, or order ID..."
+                        placeholder="البحث بالاسم، الهاتف، المطعم، أو رقم الطلب..."
                         class="pl-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     />
                 </div>
@@ -232,13 +232,13 @@ const breadcrumbs = [
                         v-model="statusFilter"
                         class="rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
-                        <option value="all">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="preparing">Preparing</option>
-                        <option value="ready">Ready</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
+                        <option value="all">جميع الحالات</option>
+                        <option value="pending">معلق</option>
+                        <option value="confirmed">مؤكد</option>
+                        <option value="preparing">قيد التحضير</option>
+                        <option value="ready">جاهز</option>
+                        <option value="delivered">تم التسليم</option>
+                        <option value="cancelled">ملغي</option>
                     </select>
                 </div>
             </div>
@@ -249,14 +249,14 @@ const breadcrumbs = [
                     <table class="w-full min-w-[800px]">
                         <thead>
                             <tr class="border-b bg-muted/50">
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Order ID</th>
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Restaurant</th>
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Customer</th>
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Items</th>
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Total</th>
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
-                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Actions</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">رقم الطلب</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">المطعم</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">العميل</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">العناصر</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">المجموع</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">الحالة</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">التاريخ</th>
+                                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -281,7 +281,7 @@ const breadcrumbs = [
                                 </td>
                                 <td class="p-4 align-middle">
                                     <div class="text-sm">
-                                        {{ getTotalItems(order.cart_items) }} items
+                                        {{ getTotalItems(order.cart_items) }} عنصر
                                     </div>
                                 </td>
                                 <td class="p-4 align-middle">
@@ -309,19 +309,19 @@ const breadcrumbs = [
                                             class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
                                         >
                                             <Eye class="h-4 w-4" />
-                                            View
+                                            عرض
                                         </Link>
                                         <select
                                             :value="order.status"
                                             @change="updateOrderStatus(order.id, $event.target.value)"
                                             class="text-xs rounded border border-input bg-background px-2 py-1"
                                         >
-                                            <option value="pending">Pending</option>
-                                            <option value="confirmed">Confirmed</option>
-                                            <option value="preparing">Preparing</option>
-                                            <option value="ready">Ready</option>
-                                            <option value="delivered">Delivered</option>
-                                            <option value="cancelled">Cancelled</option>
+                                            <option value="pending">معلق</option>
+                                            <option value="confirmed">مؤكد</option>
+                                            <option value="preparing">قيد التحضير</option>
+                                            <option value="ready">جاهز</option>
+                                            <option value="delivered">تم التسليم</option>
+                                            <option value="cancelled">ملغي</option>
                                         </select>
                                     </div>
                                 </td>
@@ -333,9 +333,9 @@ const breadcrumbs = [
                 <!-- Empty State -->
                 <div v-if="filteredOrders.length === 0" class="p-8 text-center">
                     <ShoppingCart class="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 class="text-lg font-semibold mb-2">No orders found</h3>
+                    <h3 class="text-lg font-semibold mb-2">لا توجد طلبات</h3>
                     <p class="text-muted-foreground">
-                        {{ searchQuery || statusFilter !== 'all' ? 'Try adjusting your search or filter criteria.' : 'No orders have been placed yet.' }}
+                        {{ searchQuery || statusFilter !== 'all' ? 'جرب تعديل معايير البحث أو الفلتر.' : 'لم يتم وضع أي طلبات بعد.' }}
                     </p>
                 </div>
             </div>
@@ -343,7 +343,7 @@ const breadcrumbs = [
             <!-- Pagination -->
             <div v-if="orders?.links && orders.links.length > 3" class="flex items-center justify-between">
                 <div class="text-sm text-muted-foreground">
-                    Showing {{ orders?.meta?.from || 0 }} to {{ orders?.meta?.to || 0 }} of {{ orders?.meta?.total || 0 }} results
+                    عرض {{ orders?.meta?.from || 0 }} إلى {{ orders?.meta?.to || 0 }} من {{ orders?.meta?.total || 0 }} نتيجة
                 </div>
                 <div class="flex items-center gap-2">
                     <Link
