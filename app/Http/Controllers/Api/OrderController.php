@@ -115,6 +115,9 @@ class OrderController extends Controller
             // Set fixed shop_id for shipping integration
             $orderData['shop_id'] = '821017371';
 
+            // Generate order number
+            $orderData['order_number'] = $this->generateOrderNumber();
+
             // Create the order
             $order = Order::create($orderData);
 
@@ -205,6 +208,16 @@ class OrderController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Generate unique order number
+     */
+    private function generateOrderNumber(): string
+    {
+        $date = now()->format('Ymd');
+        $count = Order::whereDate('created_at', today())->count() + 1;
+        return 'ORD-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -525,7 +538,7 @@ class OrderController extends Controller
                         'unit_price' => $item->price,
                         'subtotal' => $item->subtotal,
                         'special_instructions' => $item->special_instructions,
-                        'menu_item_details' => $item->menuItem ? [
+                        'menu_item_details' => [
                             'name' => $item->menuItem->name,
                             'description' => $item->menuItem->description,
                             'original_price' => $item->menuItem->price,
@@ -533,7 +546,7 @@ class OrderController extends Controller
                             'preparation_time' => $item->menuItem->preparation_time,
                             'ingredients' => $item->menuItem->ingredients,
                             'allergens' => $item->menuItem->allergens,
-                        ] : null
+                        ]
                     ];
                 }),
 
@@ -580,36 +593,25 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone_number ?? $user->phone,
-            ],
-            'orders_count' => $orders->total(),
-            'data' => $formattedOrders,
+            'data' => $formattedOrders->items(),
             'pagination' => [
                 'current_page' => $orders->currentPage(),
                 'last_page' => $orders->lastPage(),
                 'per_page' => $orders->perPage(),
                 'total' => $orders->total(),
-                'has_more' => $orders->hasMorePages(),
             ],
-            'filters_applied' => [
-                'status' => $request->get('status'),
-                'payment_status' => $request->get('payment_status'),
-                'restaurant_id' => $request->get('restaurant_id'),
-                'from_date' => $request->get('from_date'),
-                'to_date' => $request->get('to_date'),
-                'order_number' => $request->get('order_number'),
-                'sort_by' => $sortBy,
-                'sort_order' => $sortOrder,
+            'user_info' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone_number ?? $user->phone,
+                'role' => $user->role,
             ]
         ]);
     }
 
     /**
-     * Get user orders statistics.
+     * Get order statistics for a specific user.
      */
     public function getUserOrdersStats($userId, Request $request)
     {
@@ -633,59 +635,83 @@ class OrderController extends Controller
             $query->whereDate('created_at', '<=', $request->to_date);
         }
 
-        // Get all orders for calculations
-        $orders = $query->get();
-
         // Calculate statistics
+        $totalOrders = $query->count();
+        $totalSpent = $query->sum('total');
+        $averageOrderValue = $totalOrders > 0 ? $totalSpent / $totalOrders : 0;
+
+        // Orders by status
+        $statusStats = [
+            'pending' => $query->clone()->where('status', 'pending')->count(),
+            'confirmed' => $query->clone()->where('status', 'confirmed')->count(),
+            'preparing' => $query->clone()->where('status', 'preparing')->count(),
+            'ready' => $query->clone()->where('status', 'ready')->count(),
+            'delivering' => $query->clone()->where('status', 'delivering')->count(),
+            'delivered' => $query->clone()->where('status', 'delivered')->count(),
+            'cancelled' => $query->clone()->where('status', 'cancelled')->count(),
+        ];
+
+        // Recent activity (last 30 days)
+        $recentOrders = Order::where('user_id', $userId)
+            ->whereDate('created_at', '>=', now()->subDays(30))
+            ->count();
+
+        $recentSpent = Order::where('user_id', $userId)
+            ->whereDate('created_at', '>=', now()->subDays(30))
+            ->sum('total');
+
+        // Most ordered items
+        $topItems = DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->join('menu_items', 'order_items.menu_item_id', '=', 'menu_items.id')
+            ->where('orders.user_id', $userId)
+            ->select(
+                'menu_items.name',
+                'menu_items.id',
+                DB::raw('SUM(order_items.quantity) as total_quantity'),
+                DB::raw('COUNT(order_items.id) as order_count')
+            )
+            ->groupBy('menu_items.id', 'menu_items.name')
+            ->orderBy('total_quantity', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Favorite restaurants
+        $topRestaurants = DB::table('orders')
+            ->join('restaurants', 'orders.restaurant_id', '=', 'restaurants.id')
+            ->where('orders.user_id', $userId)
+            ->select(
+                'restaurants.name',
+                'restaurants.id',
+                DB::raw('COUNT(orders.id) as order_count'),
+                DB::raw('SUM(orders.total) as total_spent')
+            )
+            ->groupBy('restaurants.id', 'restaurants.name')
+            ->orderBy('order_count', 'desc')
+            ->limit(5)
+            ->get();
+
         $stats = [
-            'total_orders' => $orders->count(),
-            'total_spent' => $orders->sum('total'),
-            'average_order_value' => $orders->count() > 0 ? round($orders->sum('total') / $orders->count(), 2) : 0,
-            'status_breakdown' => [
-                'pending' => $orders->where('status', 'pending')->count(),
-                'confirmed' => $orders->where('status', 'confirmed')->count(),
-                'preparing' => $orders->where('status', 'preparing')->count(),
-                'ready' => $orders->where('status', 'ready')->count(),
-                'delivering' => $orders->where('status', 'delivering')->count(),
-                'delivered' => $orders->where('status', 'delivered')->count(),
-                'cancelled' => $orders->where('status', 'cancelled')->count(),
+            'total_orders' => $totalOrders,
+            'total_spent' => $totalSpent,
+            'average_order_value' => round($averageOrderValue, 2),
+            'orders_by_status' => $statusStats,
+            'recent_activity' => [
+                'orders_last_30_days' => $recentOrders,
+                'spent_last_30_days' => $recentSpent,
             ],
-            'payment_status_breakdown' => [
-                'pending' => $orders->where('payment_status', 'pending')->count(),
-                'paid' => $orders->where('payment_status', 'paid')->count(),
-                'failed' => $orders->where('payment_status', 'failed')->count(),
-            ],
-            'payment_method_breakdown' => [
-                'cash' => $orders->where('payment_method', 'cash')->count(),
-                'card' => $orders->where('payment_method', 'card')->count(),
-                'online' => $orders->where('payment_method', 'online')->count(),
-            ],
-            'monthly_breakdown' => $orders->groupBy(function ($order) {
-                return $order->created_at->format('Y-m');
-            })->map(function ($monthOrders) {
-                return [
-                    'orders_count' => $monthOrders->count(),
-                    'total_spent' => $monthOrders->sum('total'),
-                    'average_order_value' => round($monthOrders->sum('total') / $monthOrders->count(), 2)
-                ];
-            }),
-            'recent_orders' => $orders->sortByDesc('created_at')->take(5)->map(function ($order) {
-                return [
-                    'id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'status' => $order->status,
-                    'total' => $order->total,
-                    'created_at' => $order->created_at,
-                ];
-            })
+            'top_items' => $topItems,
+            'favorite_restaurants' => $topRestaurants
         ];
 
         return response()->json([
             'success' => true,
-            'user' => [
+            'user_info' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'phone' => $user->phone_number ?? $user->phone,
+                'role' => $user->role,
             ],
             'statistics' => $stats,
             'filters_applied' => [
