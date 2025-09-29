@@ -10,8 +10,6 @@ class Location extends Model
 {
     use HasFactory;
 
-    protected $table = 'locations';
-
     protected $fillable = [
         'user_id',
         'title',
@@ -22,6 +20,9 @@ class Location extends Model
         'landmark',
         'latitude',
         'longitude',
+        'address_text',
+        'city',
+        'area',
         'is_default',
         'is_active',
     ];
@@ -42,14 +43,6 @@ class Location extends Model
     }
 
     /**
-     * Scope a query to only include active locations.
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
-    /**
      * Scope a query to only include default locations.
      */
     public function scopeDefault($query)
@@ -58,19 +51,11 @@ class Location extends Model
     }
 
     /**
-     * Get the full address as a single string.
+     * Scope a query to only include locations for a specific user.
      */
-    public function getFullAddressAttribute(): string
+    public function scopeForUser($query, $userId)
     {
-        $parts = array_filter([
-            $this->address,
-            $this->building_number ? "مبنى {$this->building_number}" : null,
-            $this->floor ? "طابق {$this->floor}" : null,
-            $this->apartment ? "شقة {$this->apartment}" : null,
-            $this->landmark ? "قريب من {$this->landmark}" : null,
-        ]);
-
-        return implode('، ', $parts);
+        return $query->where('user_id', $userId);
     }
 
     /**
@@ -82,5 +67,33 @@ class Location extends Model
             'latitude' => (float) $this->latitude,
             'longitude' => (float) $this->longitude,
         ];
+    }
+
+    /**
+     * Get the full address as a single string.
+     */
+    public function getFullAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->address_text,
+            $this->area,
+            $this->city,
+        ]);
+
+        return implode('، ', $parts);
+    }
+
+    /**
+     * Set as default location for the user.
+     */
+    public function setAsDefault(): void
+    {
+        // Remove default from other locations of the same user
+        static::where('user_id', $this->user_id)
+            ->where('id', '!=', $this->id)
+            ->update(['is_default' => false]);
+
+        // Set this location as default
+        $this->update(['is_default' => true]);
     }
 }

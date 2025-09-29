@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\SimpleOrderController;
-use App\Http\Controllers\LocationController;
+use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\ShippingController;
 
 /*
@@ -30,6 +30,15 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Public routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);
+
+// Public location routes
+Route::get('/locations', [LocationController::class, 'index']);
+Route::post('/locations', [LocationController::class, 'store']);
+Route::get('/locations/{id}', [LocationController::class, 'show']);
+Route::put('/locations/{id}', [LocationController::class, 'update']);
+Route::delete('/locations/{id}', [LocationController::class, 'destroy']);
+Route::post('/locations/{id}/set-default', [LocationController::class, 'setDefault']);
+Route::get('/locations-default', [LocationController::class, 'getDefault']);
 
 // Simple API to get restaurant items by restaurant ID
 Route::get('/restaurant/{id}/items', function($id) {
@@ -92,11 +101,6 @@ Route::middleware('auth:sanctum')->group(function () {
             'user' => $request->user()
         ]);
     });
-
-    // Location management
-    Route::apiResource('locations', LocationController::class);
-    Route::post('/locations/{location}/set-default', [LocationController::class, 'setDefault']);
-    Route::get('/locations-default', [LocationController::class, 'getDefault']);
 
     // Admin menu items management (protected routes)
     Route::post('/menu-items', [MenuItemController::class, 'store']);
