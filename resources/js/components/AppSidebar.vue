@@ -49,59 +49,142 @@ const pendingLinkOrdersCount = computed(() => {
     return linkOrdersArray.filter((order: any) => order.status === 'pending').length;
 });
 
-const mainNavItems = computed(() => [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Users',
-        href: '/users',
-        icon: Users,
-    },
-    {
-        title: 'Restaurants',
-        href: '/restaurants',
-        icon: Store,
-    },
-    {
-        title: 'Menu Items',
-        href: '/menu-items',
-        icon: Menu,
-    },
-    {
-        title: 'Orders',
-        href: '/orders',
-        icon: ShoppingCart,
-        badge: pendingOrdersCount.value > 0 ? pendingOrdersCount.value : undefined,
-    },
-    {
-        title: 'Invoices',
-        href: '/invoices',
-        icon: FileText,
-    },
-    {
-        title: 'Ads',
-        href: '/ads',
-        icon: Megaphone,
-    },
-    {
-        title: 'Link Orders',
-        href: '/link-orders',
-        icon: LinkIcon,
-        badge: pendingLinkOrdersCount.value > 0 ? pendingLinkOrdersCount.value : undefined,
-    },
-    {
-        title: 'Delivery Trips',
-        href: '/delivery-trips',
-        icon: Truck,
-    },
-]);
+const mainNavItems = computed(() => {
+    const user = page.props.auth?.user;
+    const userEmail = user?.email;
+
+    // Check if user is admin2@advfood.com
+    const isAdmin2 = userEmail === 'admin2@advfood.com';
+
+    // Check if user is admin@advfood.com
+    const isAdmin = userEmail === 'admin@advfood.com';
+
+    if (isAdmin2) {
+        // Limited menu for admin2@advfood.com
+        return [
+            {
+                title: 'لوحة التحكم',
+                href: '/dashboard',
+                icon: LayoutGrid,
+            },
+            {
+                title: 'الطلبات',
+                href: '/orders',
+                icon: ShoppingCart,
+                badge: pendingOrdersCount.value > 0 ? pendingOrdersCount.value : undefined,
+            },
+            {
+                title: 'طلبات الروابط',
+                href: '/link-orders',
+                icon: LinkIcon,
+                badge: pendingLinkOrdersCount.value > 0 ? pendingLinkOrdersCount.value : undefined,
+            },
+            {
+                title: 'الفواتير',
+                href: '/invoices',
+                icon: FileText,
+            },
+        ];
+    }
+
+    if (isAdmin) {
+        // Full menu in Arabic for admin@advfood.com
+        return [
+            {
+                title: 'لوحة التحكم',
+                href: '/dashboard',
+                icon: LayoutGrid,
+            },
+            {
+                title: 'المستخدمين',
+                href: '/users',
+                icon: Users,
+            },
+            {
+                title: 'المطاعم',
+                href: '/restaurants',
+                icon: Store,
+            },
+            {
+                title: 'عناصر القائمة',
+                href: '/menu-items',
+                icon: Menu,
+            },
+            {
+                title: 'الطلبات',
+                href: '/orders',
+                icon: ShoppingCart,
+                badge: pendingOrdersCount.value > 0 ? pendingOrdersCount.value : undefined,
+            },
+            {
+                title: 'الفواتير',
+                href: '/invoices',
+                icon: FileText,
+            },
+            {
+                title: 'الإعلانات',
+                href: '/ads',
+                icon: Megaphone,
+            },
+            {
+                title: 'طلبات الروابط',
+                href: '/link-orders',
+                icon: LinkIcon,
+                badge: pendingLinkOrdersCount.value > 0 ? pendingLinkOrdersCount.value : undefined,
+            },
+        ];
+    }
+
+    // Full menu for other users
+    return [
+        {
+            title: 'لوحة التحكم',
+            href: '/dashboard',
+            icon: LayoutGrid,
+        },
+        {
+            title: 'المستخدمين',
+            href: '/users',
+            icon: Users,
+        },
+        {
+            title: 'المطاعم',
+            href: '/restaurants',
+            icon: Store,
+        },
+        {
+            title: 'عناصر القائمة',
+            href: '/menu-items',
+            icon: Menu,
+        },
+        {
+            title: 'الطلبات',
+            href: '/orders',
+            icon: ShoppingCart,
+            badge: pendingOrdersCount.value > 0 ? pendingOrdersCount.value : undefined,
+        },
+        {
+            title: 'الفواتير',
+            href: '/invoices',
+            icon: FileText,
+        },
+        {
+            title: 'الإعلانات',
+            href: '/ads',
+            icon: Megaphone,
+        },
+        {
+            title: 'طلبات الروابط',
+            href: '/link-orders',
+            icon: LinkIcon,
+            badge: pendingLinkOrdersCount.value > 0 ? pendingLinkOrdersCount.value : undefined,
+        },
+    ];
+});
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Settings',
+        title: 'الإعدادات',
         href: '/settings/profile',
         icon: Settings,
     },
