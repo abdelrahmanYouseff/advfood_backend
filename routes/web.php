@@ -12,6 +12,7 @@ use App\Http\Controllers\LinkOrderController;
 use App\Http\Controllers\RestaurantController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TestNoonController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -63,6 +64,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('delivery-trips/{deliveryTrip}/complete', [DeliveryTripController::class, 'complete'])->name('delivery-trips.complete');
     Route::patch('delivery-trips/{deliveryTrip}/orders/{order}/update-status', [DeliveryTripController::class, 'updateOrderStatus'])->name('delivery-trips.update-order-status');
 });
+
+
+
+Route::get('/pay', [TestNoonController::class, 'createPayment'])->name('payment.create');
+Route::get('/payment-success', [TestNoonController::class, 'success'])->name('payment.success');
+Route::get('/payment-failed', [TestNoonController::class, 'fail'])->name('payment.fail');
+
+// روابط إضافية لاختبار وتشخيص مشكلة نون
+Route::get('/noon/status', [TestNoonController::class, 'checkApiStatus'])->name('noon.status');
+Route::get('/noon/test', [TestNoonController::class, 'testConnection'])->name('noon.test');
+Route::get('/noon/quick', [TestNoonController::class, 'quickTest'])->name('noon.quick');
+Route::get('/noon/headers', [TestNoonController::class, 'testHeaders'])->name('noon.headers');
+Route::get('/noon/final', [TestNoonController::class, 'finalTest'])->name('noon.final');
+Route::get('/noon/newkey', [TestNoonController::class, 'testNewApiKey'])->name('noon.newkey');
+Route::get('/noon/quicknew', [TestNoonController::class, 'quickNewKeyTest'])->name('noon.quicknew');
+Route::get('/noon/envtest', [TestNoonController::class, 'finalEnvTest'])->name('noon.envtest');
+Route::get('/noon/config', [TestNoonController::class, 'testWithConfig'])->name('noon.config');
+Route::get('/noon/direct', [TestNoonController::class, 'finalDirectTest'])->name('noon.direct');
+Route::get('/noon/envconfig', [TestNoonController::class, 'finalEnvConfigTest'])->name('noon.envconfig');
+Route::get('/noon/support', [TestNoonController::class, 'generateSupportTicket'])->name('noon.support');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
