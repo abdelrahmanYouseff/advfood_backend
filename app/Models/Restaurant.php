@@ -17,6 +17,7 @@ class Restaurant extends Model
         'phone',
         'email',
         'logo',
+        'shop_id',
         'is_active',
         'opening_time',
         'closing_time',

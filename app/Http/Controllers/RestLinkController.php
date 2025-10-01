@@ -135,8 +135,9 @@ class RestLinkController extends Controller
             // Generate unique order number
             $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 
-            // Use restaurant_id as shop_id for shipping
-            $shopId = (string) $request->restaurant_id;
+            // Get restaurant shop_id for shipping
+            $restaurant = \App\Models\Restaurant::find($request->restaurant_id);
+            $shopId = $restaurant?->shop_id ?? (string) $request->restaurant_id;
 
             // Create order in orders table
             $order = \App\Models\Order::create([

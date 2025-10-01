@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->boolean('sound')->default(true)->after('payment_status');
+        Schema::table('restaurants', function (Blueprint $table) {
+            $table->string('shop_id')->nullable()->after('id')->comment('Shipping company shop ID');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropColumn('sound');
+        Schema::table('restaurants', function (Blueprint $table) {
+            $table->dropColumn('shop_id');
         });
     }
 };
