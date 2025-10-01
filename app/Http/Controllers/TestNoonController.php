@@ -138,34 +138,50 @@ class TestNoonController extends Controller
             $order = \App\Models\Order::find($orderId);
             if ($order) {
                 $order->payment_status = 'paid';
+                $order->status = 'confirmed'; // Update status to confirmed
                 $order->save();
 
-                // Send to shipping company
+                \Illuminate\Support\Facades\Log::info('Payment successful for order', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'total' => $order->total
+                ]);
+
+                // Send to shipping company automatically
                 try {
                     $shippingService = new \App\Services\ShippingService();
                     $shippingResult = $shippingService->createOrder($order);
 
                     if ($shippingResult) {
-                        \Illuminate\Support\Facades\Log::info('Order sent to shipping company successfully', [
+                        \Illuminate\Support\Facades\Log::info('✅ Order sent to shipping company successfully', [
                             'order_id' => $order->id,
-                            'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null
+                            'order_number' => $order->order_number,
+                            'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null,
+                            'shipping_status' => $shippingResult['shipping_status'] ?? null,
+                            'customer_name' => $order->delivery_name,
+                            'customer_phone' => $order->delivery_phone,
+                            'customer_address' => $order->delivery_address
                         ]);
 
-                        // Update order with dsp_order_id
+                        // Update order with shipping information
                         if (isset($shippingResult['dsp_order_id'])) {
                             $order->dsp_order_id = $shippingResult['dsp_order_id'];
                             $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
                             $order->save();
                         }
                     } else {
-                        \Illuminate\Support\Facades\Log::warning('Failed to send order to shipping company', [
-                            'order_id' => $order->id
+                        \Illuminate\Support\Facades\Log::warning('⚠️ Failed to send order to shipping company', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'reason' => 'Shipping service returned null'
                         ]);
                     }
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Error sending order to shipping', [
+                    \Illuminate\Support\Facades\Log::error('❌ Error sending order to shipping company', [
                         'order_id' => $order->id,
-                        'error' => $e->getMessage()
+                        'order_number' => $order->order_number,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             }
