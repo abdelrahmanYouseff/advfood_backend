@@ -31,7 +31,7 @@ class TestNoonController extends Controller
             ],
             "configuration" => [
                 "returnUrl" => config('noon.success_url', route('payment.success')),
-                "paymentAction" => "AUTHORIZE"
+                "paymentAction" => "SALE"
             ]
         ];
 

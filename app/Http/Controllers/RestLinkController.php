@@ -182,7 +182,7 @@ class RestLinkController extends Controller
                 ],
                 "configuration" => [
                     "returnUrl" => route('payment.success') . '?order_id=' . $order->id,
-                    "paymentAction" => "AUTHORIZE"
+                    "paymentAction" => "SALE"
                 ]
             ];
 
