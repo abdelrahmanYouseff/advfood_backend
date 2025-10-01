@@ -49,12 +49,24 @@ class ShippingService
             $latitude = isset($orderObj->latitude) ? $orderObj->latitude : null;
             $longitude = isset($orderObj->longitude) ? $orderObj->longitude : null;
 
+            // Make phone unique by appending order ID
+            $uniquePhone = $orderObj->delivery_phone ?? null;
+            if ($uniquePhone) {
+                // Remove any existing suffix and add new one
+                $uniquePhone = preg_replace('/#\d+$/', '', $uniquePhone);
+                $uniquePhone .= '#' . ($orderObj->id ?? time());
+            }
+
+            // Make email unique by appending order ID
+            $uniqueEmail = 'order' . ($orderObj->id ?? time()) . '@advfood.local';
+
             $payload = [
                 'id' => $orderIdString,
                 'shop_id' => $shopIdString,
                 'delivery_details' => [
                     'name' => $orderObj->delivery_name ?? null,
-                    'phone' => $orderObj->delivery_phone ?? null,
+                    'phone' => $uniquePhone,
+                    'email' => $uniqueEmail,
                     'coordinate' => [
                         'latitude' => $latitude,
                         'longitude' => $longitude,
