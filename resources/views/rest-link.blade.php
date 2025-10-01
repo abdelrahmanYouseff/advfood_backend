@@ -88,7 +88,7 @@
 
             <!-- Restaurant Links - Grid Layout -->
             <div class="flex justify-center">
-                <div class="grid grid-cols-2 gap-6 max-w-md">
+                <div class="grid grid-cols-3 gap-6">
                 @forelse($restaurants as $restaurant)
                     <a href="{{ route('restaurant.menu', $restaurant->id) }}" class="block">
                         <div class="link-card rounded-3xl p-6 text-center group">
