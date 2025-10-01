@@ -1,51 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customer Details - Checkout</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.3s ease;
+        }
+        [dir="rtl"] body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
         }
         .form-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: #ffffff;
+            border: 2px solid #e5e7eb;
             transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
         .form-card:hover {
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.1);
         }
         .back-button {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
             transition: all 0.3s ease;
+            color: #374151;
         }
         .back-button:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: #e5e7eb;
+            border-color: #667eea;
             transform: translateY(-2px);
         }
         .form-input {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
+            background: #ffffff;
+            border: 2px solid #e5e7eb;
+            color: #374151;
             transition: all 0.3s ease;
         }
         .form-input:focus {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.4);
+            background: #ffffff;
+            border-color: #667eea;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         .form-input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
+            color: #9ca3af;
         }
         .continue-button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -122,130 +128,146 @@
 </head>
 <body class="font-sans">
     <div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md mx-auto">
+        <div class="max-w-2xl mx-auto">
             <!-- Back Button -->
             <div class="mb-6">
-                <button onclick="goBack()" class="inline-flex items-center gap-2 back-button rounded-full px-4 py-2 text-white hover:text-white">
-                    <i class="fas fa-arrow-left"></i>
-                    <span>Back</span>
+                <button onclick="goBack()" class="inline-flex items-center gap-2 back-button rounded-full px-4 py-2">
+                    <i class="fas fa-arrow-left back-arrow"></i>
+                    <span id="back-text">Back</span>
                 </button>
             </div>
 
             <!-- Header -->
-            <div class="text-center mb-8">
-                <div class="mx-auto h-20 w-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg">
-                    <i class="fas fa-user text-3xl text-purple-600"></i>
+            <div class="text-center mb-6">
+                <div class="mx-auto h-20 w-20 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                    <i class="fas fa-user text-3xl text-white"></i>
                 </div>
-                <h1 class="text-3xl font-bold text-white mb-2">Customer Details</h1>
-                <p class="text-white/80 text-lg">Please provide your information</p>
+                <h1 id="page-title" class="text-3xl font-bold text-gray-800 mb-2">Customer Details</h1>
+                <p id="page-subtitle" class="text-gray-600 text-lg">Please provide your information</p>
             </div>
 
             <!-- Form -->
             <div class="form-card rounded-2xl p-6">
                 <form id="customerForm" onsubmit="submitForm(event)">
                     <div class="space-y-4">
-                        <!-- Full Name -->
-                        <div>
-                            <label class="block text-white text-sm font-medium mb-2">
-                                <i class="fas fa-user mr-2"></i>Full Name
-                            </label>
-                            <input type="text"
-                                   name="full_name"
-                                   required
-                                   class="form-input w-full px-4 py-3 rounded-lg"
-                                   placeholder="Enter your full name">
+                        <!-- Row 1: Full Name and Phone Number -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Full Name -->
+                            <div>
+                                <label class="block text-gray-700 text-sm font-medium mb-2">
+                                    <i class="fas fa-user mr-2"></i><span id="label-fullname">Full Name</span>
+                                </label>
+                                <input type="text"
+                                       name="full_name"
+                                       required
+                                       class="form-input w-full px-4 py-2.5 rounded-lg"
+                                       id="input-fullname"
+                                       placeholder="Enter your full name">
+                            </div>
+
+                            <!-- Phone Number -->
+                            <div>
+                                <label class="block text-gray-700 text-sm font-medium mb-2">
+                                    <i class="fas fa-phone mr-2"></i><span id="label-phone">Phone Number</span>
+                                </label>
+                                <input type="tel"
+                                       name="phone_number"
+                                       required
+                                       class="form-input w-full px-4 py-2.5 rounded-lg"
+                                       id="input-phone"
+                                       placeholder="Enter your phone number">
+                            </div>
                         </div>
 
-                        <!-- Phone Number -->
-                        <div>
-                            <label class="block text-white text-sm font-medium mb-2">
-                                <i class="fas fa-phone mr-2"></i>Phone Number
-                            </label>
-                            <input type="tel"
-                                   name="phone_number"
-                                   required
-                                   class="form-input w-full px-4 py-3 rounded-lg"
-                                   placeholder="Enter your phone number">
+                        <!-- Row 2: Building No and Floor -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Building No -->
+                            <div>
+                                <label class="block text-gray-700 text-sm font-medium mb-2">
+                                    <i class="fas fa-building mr-2"></i><span id="label-building">Building No</span>
+                                </label>
+                                <input type="text"
+                                       name="building_no"
+                                       required
+                                       class="form-input w-full px-4 py-2.5 rounded-lg"
+                                       id="input-building"
+                                       placeholder="Enter building number">
+                            </div>
+
+                            <!-- Floor -->
+                            <div>
+                                <label class="block text-gray-700 text-sm font-medium mb-2">
+                                    <i class="fas fa-layer-group mr-2"></i><span id="label-floor">Floor</span>
+                                </label>
+                                <input type="text"
+                                       name="floor"
+                                       required
+                                       class="form-input w-full px-4 py-2.5 rounded-lg"
+                                       id="input-floor"
+                                       placeholder="Enter floor number">
+                            </div>
                         </div>
 
-                        <!-- Building No -->
-                        <div>
-                            <label class="block text-white text-sm font-medium mb-2">
-                                <i class="fas fa-building mr-2"></i>Building No
-                            </label>
-                            <input type="text"
-                                   name="building_no"
-                                   required
-                                   class="form-input w-full px-4 py-3 rounded-lg"
-                                   placeholder="Enter building number">
-                        </div>
+                        <!-- Row 3: Apartment Number and Street -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Apartment Number -->
+                            <div>
+                                <label class="block text-gray-700 text-sm font-medium mb-2">
+                                    <i class="fas fa-home mr-2"></i><span id="label-apartment">Apartment Number</span>
+                                </label>
+                                <input type="text"
+                                       name="apartment_number"
+                                       required
+                                       class="form-input w-full px-4 py-2.5 rounded-lg"
+                                       id="input-apartment"
+                                       placeholder="Enter apartment number">
+                            </div>
 
-                        <!-- Floor -->
-                        <div>
-                            <label class="block text-white text-sm font-medium mb-2">
-                                <i class="fas fa-layer-group mr-2"></i>Floor
-                            </label>
-                            <input type="text"
-                                   name="floor"
-                                   required
-                                   class="form-input w-full px-4 py-3 rounded-lg"
-                                   placeholder="Enter floor number">
-                        </div>
-
-                        <!-- Apartment Number -->
-                        <div>
-                            <label class="block text-white text-sm font-medium mb-2">
-                                <i class="fas fa-home mr-2"></i>Apartment Number
-                            </label>
-                            <input type="text"
-                                   name="apartment_number"
-                                   required
-                                   class="form-input w-full px-4 py-3 rounded-lg"
-                                   placeholder="Enter apartment number">
-                        </div>
-
-                        <!-- Street -->
-                        <div>
-                            <label class="block text-white text-sm font-medium mb-2">
-                                <i class="fas fa-road mr-2"></i>Street
-                            </label>
-                            <input type="text"
-                                   name="street"
-                                   required
-                                   class="form-input w-full px-4 py-3 rounded-lg"
-                                   placeholder="Enter street name">
+                            <!-- Street -->
+                            <div>
+                                <label class="block text-gray-700 text-sm font-medium mb-2">
+                                    <i class="fas fa-road mr-2"></i><span id="label-street">Street</span>
+                                </label>
+                                <input type="text"
+                                       name="street"
+                                       required
+                                       class="form-input w-full px-4 py-2.5 rounded-lg"
+                                       id="input-street"
+                                       placeholder="Enter street name">
+                            </div>
                         </div>
 
                         <!-- Note -->
                         <div>
-                            <label class="block text-white text-sm font-medium mb-2">
-                                <i class="fas fa-sticky-note mr-2"></i>Note (Optional)
+                            <label class="block text-gray-700 text-sm font-medium mb-2">
+                                <i class="fas fa-sticky-note mr-2"></i><span id="label-note">Note (Optional)</span>
                             </label>
                             <textarea name="note"
-                                      rows="3"
-                                      class="form-input w-full px-4 py-3 rounded-lg resize-none"
+                                      rows="2"
+                                      class="form-input w-full px-4 py-2.5 rounded-lg resize-none"
+                                      id="input-note"
                                       placeholder="Any additional notes or special instructions..."></textarea>
                         </div>
 
                         <!-- Get Location Button -->
-                        <div class="pt-4">
+                        <div class="pt-2">
                             <button type="button"
                                     onclick="getCurrentLocation()"
-                                    class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 font-semibold">
+                                    class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 font-semibold">
                                 <i class="fas fa-map-marker-alt"></i>
-                                <span>Get My Location</span>
+                                <span id="location-btn-text">Get My Location</span>
                             </button>
-                            <p class="text-white/60 text-xs text-center mt-2">
+                            <p id="location-hint" class="text-gray-500 text-xs text-center mt-2">
                                 Allow location access to auto-fill address fields
                             </p>
                         </div>
                     </div>
 
                     <!-- Continue Button -->
-                    <div class="mt-8">
+                    <div class="mt-6">
                         <button type="submit" class="continue-button w-full text-white py-3 rounded-lg font-semibold text-lg">
-                            <i class="fas fa-arrow-right mr-2"></i>
-                            Continue
+                            <i class="fas fa-arrow-right mr-2 continue-arrow"></i>
+                            <span id="continue-btn-text">Continue</span>
                         </button>
                     </div>
                 </form>
@@ -253,8 +275,8 @@
 
             <!-- Footer -->
             <div class="text-center mt-8">
-                <div class="text-white/60 text-sm">
-                    <p>Powered by <span class="font-semibold">AdvFood</span></p>
+                <div class="text-gray-500 text-sm">
+                    <p><span id="powered-by-text">Powered by</span> <span class="font-semibold" style="color: #cf4823;">AdvFood</span></p>
                 </div>
             </div>
         </div>
@@ -264,7 +286,7 @@
     <div id="mapPopup" class="map-popup" style="display: none;">
         <div class="map-container">
             <div class="map-header">
-                <h3 class="text-lg font-semibold">Select Your Location</h3>
+                <h3 id="map-title" class="text-lg font-semibold">Select Your Location</h3>
                 <button onclick="closeMapPopup()" class="text-white hover:text-gray-200">
                     <i class="fas fa-times text-xl"></i>
                 </button>
@@ -273,8 +295,8 @@
                 <div id="map" style="width: 100%; height: 100%;"></div>
             </div>
             <div class="map-actions">
-                <button onclick="closeMapPopup()" class="map-btn map-btn-cancel">Cancel</button>
-                <button onclick="confirmLocation()" class="map-btn map-btn-confirm">Confirm Location</button>
+                <button onclick="closeMapPopup()" id="map-cancel-btn" class="map-btn map-btn-cancel">Cancel</button>
+                <button onclick="confirmLocation()" id="map-confirm-btn" class="map-btn map-btn-confirm">Confirm Location</button>
             </div>
         </div>
     </div>
@@ -536,6 +558,165 @@
                 successDiv.remove();
             }, 3000);
         }
+
+        // Translations
+        const translations = {
+            en: {
+                backText: 'Back',
+                pageTitle: 'Customer Details',
+                pageSubtitle: 'Please provide your information',
+                labelFullname: 'Full Name',
+                labelPhone: 'Phone Number',
+                labelBuilding: 'Building No',
+                labelFloor: 'Floor',
+                labelApartment: 'Apartment Number',
+                labelStreet: 'Street',
+                labelNote: 'Note (Optional)',
+                placeholderFullname: 'Enter your full name',
+                placeholderPhone: 'Enter your phone number',
+                placeholderBuilding: 'Enter building number',
+                placeholderFloor: 'Enter floor number',
+                placeholderApartment: 'Enter apartment number',
+                placeholderStreet: 'Enter street name',
+                placeholderNote: 'Any additional notes or special instructions...',
+                locationBtnText: 'Get My Location',
+                locationHint: 'Allow location access to auto-fill address fields',
+                continueBtnText: 'Continue',
+                poweredBy: 'Powered by',
+                mapTitle: 'Select Your Location',
+                mapCancel: 'Cancel',
+                mapConfirm: 'Confirm Location'
+            },
+            ar: {
+                backText: 'رجوع',
+                pageTitle: 'بيانات العميل',
+                pageSubtitle: 'يرجى تقديم معلوماتك',
+                labelFullname: 'الاسم الكامل',
+                labelPhone: 'رقم الهاتف',
+                labelBuilding: 'رقم المبنى',
+                labelFloor: 'الطابق',
+                labelApartment: 'رقم الشقة',
+                labelStreet: 'الشارع',
+                labelNote: 'ملاحظات (اختياري)',
+                placeholderFullname: 'أدخل اسمك الكامل',
+                placeholderPhone: 'أدخل رقم هاتفك',
+                placeholderBuilding: 'أدخل رقم المبنى',
+                placeholderFloor: 'أدخل رقم الطابق',
+                placeholderApartment: 'أدخل رقم الشقة',
+                placeholderStreet: 'أدخل اسم الشارع',
+                placeholderNote: 'أي ملاحظات أو تعليمات خاصة...',
+                locationBtnText: 'احصل على موقعي',
+                locationHint: 'السماح بالوصول إلى الموقع لملء حقول العنوان تلقائياً',
+                continueBtnText: 'متابعة',
+                poweredBy: 'مدعوم بواسطة',
+                mapTitle: 'اختر موقعك',
+                mapCancel: 'إلغاء',
+                mapConfirm: 'تأكيد الموقع'
+            }
+        };
+
+        function applyTranslations(lang) {
+            const t = translations[lang];
+            const htmlRoot = document.getElementById('html-root');
+
+            // Update direction
+            if (lang === 'ar') {
+                htmlRoot.setAttribute('lang', 'ar');
+                htmlRoot.setAttribute('dir', 'rtl');
+            } else {
+                htmlRoot.setAttribute('lang', 'en');
+                htmlRoot.setAttribute('dir', 'ltr');
+            }
+
+            // Update text elements
+            const backText = document.getElementById('back-text');
+            const pageTitle = document.getElementById('page-title');
+            const pageSubtitle = document.getElementById('page-subtitle');
+            const labelFullname = document.getElementById('label-fullname');
+            const labelPhone = document.getElementById('label-phone');
+            const labelBuilding = document.getElementById('label-building');
+            const labelFloor = document.getElementById('label-floor');
+            const labelApartment = document.getElementById('label-apartment');
+            const labelStreet = document.getElementById('label-street');
+            const labelNote = document.getElementById('label-note');
+            const locationBtnText = document.getElementById('location-btn-text');
+            const locationHint = document.getElementById('location-hint');
+            const continueBtnText = document.getElementById('continue-btn-text');
+            const poweredByText = document.getElementById('powered-by-text');
+
+            if (backText) backText.textContent = t.backText;
+            if (pageTitle) pageTitle.textContent = t.pageTitle;
+            if (pageSubtitle) pageSubtitle.textContent = t.pageSubtitle;
+            if (labelFullname) labelFullname.textContent = t.labelFullname;
+            if (labelPhone) labelPhone.textContent = t.labelPhone;
+            if (labelBuilding) labelBuilding.textContent = t.labelBuilding;
+            if (labelFloor) labelFloor.textContent = t.labelFloor;
+            if (labelApartment) labelApartment.textContent = t.labelApartment;
+            if (labelStreet) labelStreet.textContent = t.labelStreet;
+            if (labelNote) labelNote.textContent = t.labelNote;
+            if (locationBtnText) locationBtnText.textContent = t.locationBtnText;
+            if (locationHint) locationHint.textContent = t.locationHint;
+            if (continueBtnText) continueBtnText.textContent = t.continueBtnText;
+            if (poweredByText) poweredByText.textContent = t.poweredBy;
+
+            // Update map popup elements
+            const mapTitle = document.getElementById('map-title');
+            const mapCancelBtn = document.getElementById('map-cancel-btn');
+            const mapConfirmBtn = document.getElementById('map-confirm-btn');
+
+            if (mapTitle) mapTitle.textContent = t.mapTitle;
+            if (mapCancelBtn) mapCancelBtn.textContent = t.mapCancel;
+            if (mapConfirmBtn) mapConfirmBtn.textContent = t.mapConfirm;
+
+            // Update placeholders
+            const inputFullname = document.getElementById('input-fullname');
+            const inputPhone = document.getElementById('input-phone');
+            const inputBuilding = document.getElementById('input-building');
+            const inputFloor = document.getElementById('input-floor');
+            const inputApartment = document.getElementById('input-apartment');
+            const inputStreet = document.getElementById('input-street');
+            const inputNote = document.getElementById('input-note');
+
+            if (inputFullname) inputFullname.placeholder = t.placeholderFullname;
+            if (inputPhone) inputPhone.placeholder = t.placeholderPhone;
+            if (inputBuilding) inputBuilding.placeholder = t.placeholderBuilding;
+            if (inputFloor) inputFloor.placeholder = t.placeholderFloor;
+            if (inputApartment) inputApartment.placeholder = t.placeholderApartment;
+            if (inputStreet) inputStreet.placeholder = t.placeholderStreet;
+            if (inputNote) inputNote.placeholder = t.placeholderNote;
+
+            // Update arrow direction
+            const backArrow = document.querySelector('.back-arrow');
+            const continueArrow = document.querySelector('.continue-arrow');
+
+            if (backArrow) {
+                if (lang === 'ar') {
+                    backArrow.classList.remove('fa-arrow-left');
+                    backArrow.classList.add('fa-arrow-right');
+                } else {
+                    backArrow.classList.remove('fa-arrow-right');
+                    backArrow.classList.add('fa-arrow-left');
+                }
+            }
+
+            if (continueArrow) {
+                if (lang === 'ar') {
+                    continueArrow.classList.remove('mr-2');
+                    continueArrow.classList.add('ml-2');
+                } else {
+                    continueArrow.classList.remove('ml-2');
+                    continueArrow.classList.add('mr-2');
+                }
+            }
+        }
+
+        // Load saved language preference on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedLang = localStorage.getItem('preferred_language');
+            if (savedLang) {
+                applyTranslations(savedLang);
+            }
+        });
     </script>
 </body>
 </html>
