@@ -179,7 +179,7 @@
                 <!-- Action Buttons -->
                 <div class="flex justify-center items-center mb-6 md:mb-8 px-4">
                     <!-- WhatsApp Button -->
-                    <a href="https://wa.me/966501234567?text=Hello%20{{ urlencode($restaurant->name) }}%20I%20would%20like%20to%20order%20food"
+                    <a href="https://wa.me/966507844079?text=Hello%20{{ urlencode($restaurant->name) }}%20I%20would%20like%20to%20order%20food"
                        target="_blank"
                        class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 md:px-6 py-2 md:py-3 rounded-full transition-all duration-300 flex items-center justify-center gap-2 text-sm md:text-base shadow-md hover:shadow-lg">
                         <i class="fab fa-whatsapp text-lg md:text-xl"></i>

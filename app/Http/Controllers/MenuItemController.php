@@ -82,7 +82,13 @@ class MenuItemController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $menuItem = MenuItem::with(['restaurant'])->findOrFail($id);
+        $restaurants = Restaurant::all();
+
+        return Inertia::render('MenuItemEdit', [
+            'menuItem' => $menuItem,
+            'restaurants' => $restaurants,
+        ]);
     }
 
     /**
@@ -90,7 +96,36 @@ class MenuItemController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $menuItem = MenuItem::findOrFail($id);
+
+        $validated = $request->validate([
+            'restaurant_id' => 'required|exists:restaurants,id',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'is_available' => 'boolean',
+            'is_featured' => 'boolean',
+            'preparation_time' => 'integer|min:1',
+            'ingredients' => 'nullable|string',
+            'allergens' => 'nullable|string',
+        ]);
+
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($menuItem->image && Storage::disk('public')->exists($menuItem->image)) {
+                Storage::disk('public')->delete($menuItem->image);
+            }
+
+            $imagePath = $request->file('image')->store('menu-items', 'public');
+            $validated['image'] = $imagePath;
+        }
+
+        $menuItem->update($validated);
+
+        return redirect()->route('menu-items.index')
+            ->with('success', 'تم تحديث المنتج بنجاح');
     }
 
     /**
@@ -99,12 +134,12 @@ class MenuItemController extends Controller
     public function destroy(string $id)
     {
         $menuItem = MenuItem::findOrFail($id);
-        
+
         // Delete the image file if it exists
         if ($menuItem->image && Storage::disk('public')->exists($menuItem->image)) {
             Storage::disk('public')->delete($menuItem->image);
         }
-        
+
         $menuItem->delete();
 
         return redirect()->route('menu-items.index')

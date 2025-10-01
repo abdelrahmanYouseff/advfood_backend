@@ -253,7 +253,7 @@
 
                 <!-- Action Buttons -->
                 <div class="grid grid-cols-2 gap-3">
-                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، أريد الاستفسار عن طلبي رقم ' . $order->order_number) }}"
+                    <a href="https://wa.me/966507844079?text={{ urlencode('مرحباً، أريد الاستفسار عن طلبي رقم ' . $order->order_number) }}"
                        target="_blank"
                        class="bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
                         <i class="fab fa-whatsapp text-lg"></i>
