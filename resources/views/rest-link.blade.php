@@ -40,7 +40,7 @@
 </head>
 <body class="font-sans">
     <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-4xl mx-auto space-y-8">
+        <div class="max-w-3xl mx-auto space-y-8">
             <!-- Header -->
             <div class="text-center relative">
                 <!-- Language Switcher -->
@@ -87,7 +87,8 @@
             </div>
 
             <!-- Restaurant Links - Grid Layout -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div class="flex justify-center">
+                <div class="grid grid-cols-2 gap-6 max-w-md">
                 @forelse($restaurants as $restaurant)
                     <a href="{{ route('restaurant.menu', $restaurant->id) }}" class="block">
                         <div class="link-card rounded-3xl p-6 text-center group">
@@ -123,6 +124,7 @@
                         <p id="no-restaurants-text" class="text-gray-600">Check back later for amazing dining options!</p>
                     </div>
                 @endforelse
+                </div>
             </div>
 
             <!-- Footer -->
