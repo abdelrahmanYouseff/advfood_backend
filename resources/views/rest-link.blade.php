@@ -40,7 +40,7 @@
 </head>
 <body class="font-sans">
     <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-5xl mx-auto space-y-8">
+        <div class="max-w-4xl mx-auto space-y-8">
             <!-- Header -->
             <div class="text-center relative">
                 <!-- Language Switcher -->
