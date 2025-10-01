@@ -251,7 +251,198 @@ $cancelled = $shippingService->cancelOrder($dspOrderId);
 
 ---
 
+## 📋 دليل قراءة الـ Logs (محدّث)
+
+### عملية ناجحة كاملة:
+
+```log
+[2025-10-01 10:00:00] 🚀 Starting shipping order creation
+   order_id: 54
+   order_number: ORD-20251001-ABC123
+   shop_id: 821017371
+   customer_name: أحمد محمد
+   total: 79.00
+
+[2025-10-01 10:00:01] 📤 Sending order to shipping company
+   url: https://staging.4ulogistic.com/api/partner/orders
+   payload: {
+     "id": "ORD-20251001-ABC123",
+     "shop_id": "821017371",
+     "delivery_details": {
+       "name": "أحمد محمد",
+       "phone": "0535815072#54",
+       "email": "order54@advfood.local",
+       "address": "مبنى 200..."
+     },
+     "order": {
+       "payment_type": 0,
+       "total": 79.00
+     }
+   }
+
+[2025-10-01 10:00:02] ✅ Shipping API Response Received
+   http_status: 200
+   full_response: {
+     "status": "success",
+     "dsp_order_id": "2445",
+     "data": {...}
+   }
+
+[2025-10-01 10:00:02] 🎉 Order successfully sent to shipping company and saved!
+   order_id: 54
+   order_number: ORD-20251001-ABC123
+   dsp_order_id: 2445
+   shipping_status: New Order
+   shop_id: 821017371
+   customer: {
+     "name": "أحمد محمد",
+     "phone": "0535815072",
+     "address": "مبنى 200..."
+   }
+```
+
+---
+
+### الأخطاء الشائعة وحلولها:
+
+#### ❌ خطأ 1: API Credentials ناقصة
+```log
+[2025-10-01 10:00:00] ❌ Shipping API credentials missing!
+   api_url: NOT_SET
+   api_key_exists: false
+   message: Please check SHIPPING_API_URL and SHIPPING_API_KEY in .env file
+```
+
+**الحل:**
+```bash
+# تحقق من .env
+grep SHIPPING_API .env
+
+# إضافة البيانات
+SHIPPING_API_URL=https://staging.4ulogistic.com/api/partner/
+SHIPPING_API_KEY=your_bearer_token_here
+```
+
+---
+
+#### ❌ خطأ 2: shop_id ناقص
+```log
+[2025-10-01 10:00:00] ❌ Shipping order creation aborted
+   reason: Missing order_id or shop_id
+   order_number: ORD-20251001-ABC123
+   shop_id: EMPTY
+   message: Order must have order_number and shop_id
+```
+
+**الحل:**
+```bash
+php artisan tinker
+Restaurant::where('id', 14)->update(['shop_id' => '821017371']);
+```
+
+---
+
+#### ❌ خطأ 3: Validation Error (422)
+```log
+[2025-10-01 10:00:01] ❌ Failed to send order to shipping company
+   http_status: 422
+   error_message: بيانات غير صحيحة
+   errors: {
+     "phone": ["The phone has already been taken."],
+     "email": ["The email has already been taken."]
+   }
+
+[2025-10-01 10:00:01] 🔴 Validation Error (422) - Details:
+   validation_errors: {
+     "phone": ["The phone has already been taken."]
+   }
+```
+
+**الحل:** تم حله تلقائياً! الكود الآن يضيف `#order_id` للهاتف والإيميل
+
+---
+
+#### ❌ خطأ 4: Authentication Error (401)
+```log
+[2025-10-01 10:00:01] ❌ Failed to send order to shipping company
+   http_status: 401
+
+[2025-10-01 10:00:01] 🔴 Authentication Error (401) - Invalid API Token
+```
+
+**الحل:** احصل على Bearer Token جديد من:
+https://staging.4ulogistic.com/client/access-token
+
+---
+
+#### ❌ خطأ 5: Invalid Shop (422)
+```log
+[2025-10-01 10:00:01] 🔴 Validation Error (422) - Details:
+   validation_errors: {
+     "shop_id": ["Invalid shop"]
+   }
+```
+
+**الحل:** تأكد من shop_id الصحيح من شركة الشحن
+
+---
+
+#### ❌ خطأ 6: Server Error (500)
+```log
+[2025-10-01 10:00:01] ❌ Failed to send order to shipping company
+   http_status: 500
+
+[2025-10-01 10:00:01] 🔴 Server Error (500) - Shipping company server error
+```
+
+**الحل:** انتظر وأعد المحاولة، أو تواصل مع شركة الشحن
+
+---
+
+#### ❌ خطأ 7: Exception
+```log
+[2025-10-01 10:00:01] 💥 Exception during shipping order creation
+   order_number: ORD-20251001-ABC123
+   exception_message: Connection timeout
+   exception_file: /app/Services/ShippingService.php
+   exception_line: 102
+```
+
+**الحل:** تحقق من الاتصال بالإنترنت أو زد الـ timeout
+
+---
+
+## 🔍 أوامر مفيدة لمراقبة الـ Logs
+
+### 1. مراقبة مباشرة (Real-time)
+```bash
+tail -f storage/logs/laravel.log
+```
+
+### 2. عرض logs الشحن فقط
+```bash
+tail -100 storage/logs/laravel.log | grep -E "🚀|📤|✅|❌|🎉|💥|🔴"
+```
+
+### 3. عرض الأخطاء فقط
+```bash
+grep "❌\|🔴\|💥" storage/logs/laravel.log | tail -20
+```
+
+### 4. عرض الناجحة فقط
+```bash
+grep "🎉" storage/logs/laravel.log | tail -20
+```
+
+### 5. بحث عن طلب معين
+```bash
+grep "ORD-20251001-ABC123" storage/logs/laravel.log
+```
+
+---
+
 **تاريخ التكامل:** 1 أكتوبر 2025  
 **الحالة:** ✅ مكتمل ويعمل  
-**النظام:** متكامل بالكامل (Noon + Shipping)
+**النظام:** متكامل بالكامل (Noon + Shipping)  
+**Logs:** ✅ تفصيلية جداً لسهولة debugging
 

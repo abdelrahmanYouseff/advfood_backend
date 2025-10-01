@@ -33,7 +33,11 @@ class ShippingService
     {
         try {
             if (empty($this->apiBaseUrl) || empty($this->apiKey)) {
-                Log::error('Shipping API credentials missing');
+                Log::error('❌ Shipping API credentials missing!', [
+                    'api_url' => $this->apiBaseUrl ?: 'NOT_SET',
+                    'api_key_exists' => !empty($this->apiKey),
+                    'message' => 'Please check SHIPPING_API_URL and SHIPPING_API_KEY in .env file',
+                ]);
                 return null;
             }
 
@@ -41,8 +45,22 @@ class ShippingService
             $orderIdString = (string) ($orderObj->order_number ?? $orderObj->id ?? '');
             $shopIdString = isset($orderObj->shop_id) ? (string) $orderObj->shop_id : null;
 
+            Log::info('🚀 Starting shipping order creation', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString,
+                'shop_id' => $shopIdString,
+                'customer_name' => $orderObj->delivery_name ?? null,
+                'total' => $orderObj->total ?? null,
+            ]);
+
             if ($orderIdString === '' || empty($shopIdString)) {
-                Log::error('Shipping order creation aborted: missing order id or shop_id');
+                Log::error('❌ Shipping order creation aborted', [
+                    'reason' => 'Missing order_id or shop_id',
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderIdString ?: 'EMPTY',
+                    'shop_id' => $shopIdString ?: 'EMPTY',
+                    'message' => 'Order must have order_number and shop_id',
+                ]);
                 return null;
             }
 
@@ -82,6 +100,15 @@ class ShippingService
 
             $url = $this->buildUrl($this->endpoints['create']);
 
+            // Log the request details
+            Log::info('📤 Sending order to shipping company', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString,
+                'shop_id' => $shopIdString,
+                'url' => $url,
+                'payload' => $payload,
+            ]);
+
             $request = Http::timeout(30)
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $this->apiKey,
@@ -92,16 +119,51 @@ class ShippingService
                 ? $request->asForm()->post($url, $this->flattenArray($payload))
                 : $request->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
 
+            // Log the response details
             if (!$response || $response->failed()) {
-                Log::error('Failed to create shipping order', [
-                    'status' => $response ? $response->status() : null,
-                    'body' => $response ? $response->json() : null,
+                $responseBody = $response ? $response->body() : null;
+                $responseJson = $response ? $response->json() : null;
+                $statusCode = $response ? $response->status() : 'NO_RESPONSE';
+
+                Log::error('❌ Failed to send order to shipping company', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderIdString,
+                    'shop_id' => $shopIdString,
+                    'http_status' => $statusCode,
                     'url' => $url,
+                    'error_message' => $responseJson['message'] ?? $responseJson['error'] ?? 'Unknown error',
+                    'errors' => $responseJson['errors'] ?? null,
+                    'full_response_body' => $responseBody,
+                    'full_response_json' => $responseJson,
+                    'request_payload' => $payload,
                 ]);
+
+                // More detailed error logging
+                if ($statusCode === 422) {
+                    Log::error('🔴 Validation Error (422) - Details:', [
+                        'validation_errors' => $responseJson['errors'] ?? 'No specific errors provided',
+                        'message' => $responseJson['message'] ?? 'Validation failed',
+                    ]);
+                } elseif ($statusCode === 401) {
+                    Log::error('🔴 Authentication Error (401) - Invalid API Token');
+                } elseif ($statusCode === 404) {
+                    Log::error('🔴 Not Found (404) - Invalid endpoint or order not found');
+                } elseif ($statusCode === 500) {
+                    Log::error('🔴 Server Error (500) - Shipping company server error');
+                }
+
                 return null;
             }
 
             $data = $response->json();
+
+            // Log successful response
+            Log::info('✅ Shipping API Response Received', [
+                'http_status' => $response->status(),
+                'full_response' => $data,
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString,
+            ]);
 
             $dspOrderId = $data['dsp_order_id'] ?? $data['data']['dsp_order_id'] ?? $data['id'] ?? null;
             $shippingStatus = $data['status'] ?? $data['data']['status'] ?? 'New Order';
@@ -146,9 +208,38 @@ class ShippingService
             ];
 
             DB::table('shipping_orders')->insert($row);
+
+            // Log final success with all details
+            Log::info('🎉 Order successfully sent to shipping company and saved!', [
+                'order_id' => $orderObj->id,
+                'order_number' => $orderIdString,
+                'dsp_order_id' => $dspOrderId,
+                'shipping_status' => $shippingStatus,
+                'shop_id' => $shopIdString,
+                'customer' => [
+                    'name' => $orderObj->delivery_name ?? '',
+                    'phone' => $orderObj->delivery_phone ?? '',
+                    'address' => $orderObj->delivery_address ?? '',
+                ],
+                'order_details' => [
+                    'total' => (float) ($orderObj->total ?? 0),
+                    'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
+                    'notes' => $orderObj->special_instructions ?? null,
+                ],
+            ]);
+
             return $row;
         } catch (\Throwable $e) {
-            Log::error('Exception during shipping order creation', ['message' => $e->getMessage()]);
+            Log::error('💥 Exception during shipping order creation', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString ?? 'UNKNOWN',
+                'shop_id' => $shopIdString ?? 'UNKNOWN',
+                'exception_message' => $e->getMessage(),
+                'exception_code' => $e->getCode(),
+                'exception_file' => $e->getFile(),
+                'exception_line' => $e->getLine(),
+                'exception_trace' => $e->getTraceAsString(),
+            ]);
             return null;
         }
     }
