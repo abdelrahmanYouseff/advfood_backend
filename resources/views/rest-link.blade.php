@@ -1,34 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AdvFood - Restaurants</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #ffffff;
             min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            transition: all 0.3s ease;
+        }
+        [dir="rtl"] body {
+            font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
         }
         .link-card {
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.4s ease;
+            background: #ffffff;
+            border: 2px solid #e5e7eb;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
         .link-card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        }
-        .restaurant-image {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            transform: translateY(-10px);
+            border-color: #667eea;
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
         }
         .pulse {
             animation: pulse 2s infinite;
@@ -40,96 +39,105 @@
     </style>
 </head>
 <body class="font-sans">
-    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full space-y-8">
+    <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto space-y-8">
             <!-- Header -->
-            <div class="text-center">
-                <div class="mx-auto h-24 w-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg overflow-hidden">
-                    <img src="{{ asset('images/logo.png') }}"
-                         alt="AdvFood Logo"
-                         class="h-16 w-16 object-contain"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="h-16 w-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center" style="display: none;">
-                        <i class="fas fa-utensils text-2xl text-white"></i>
+            <div class="text-center relative">
+                <!-- Language Switcher -->
+                <div class="absolute top-0 right-0">
+                    <div class="relative">
+                        <button onclick="toggleLanguageMenu()" class="flex items-center gap-2 bg-white hover:bg-gray-50 px-3 py-2 rounded-full shadow-md border-2 border-gray-200 hover:border-purple-300 transition-all">
+                            <img id="current-flag" src="{{ asset('icons/united-kingdom.png') }}"
+                                 alt="English"
+                                 class="w-6 h-6 rounded-full object-cover">
+                            <span id="current-lang" class="text-gray-700 text-sm font-medium">EN</span>
+                            <i class="fas fa-chevron-down text-gray-500 text-xs"></i>
+                        </button>
+
+                        <!-- Language Dropdown -->
+                        <div id="language-menu" class="hidden absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border-2 border-gray-200 overflow-hidden min-w-[140px]">
+                            <button onclick="switchLanguage('en')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-all">
+                                <img src="{{ asset('icons/united-kingdom.png') }}"
+                                     alt="English"
+                                     class="w-6 h-6 rounded-full object-cover">
+                                <span class="text-gray-700 text-sm font-medium">English</span>
+                            </button>
+                            <button onclick="switchLanguage('ar')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-all border-t border-gray-100">
+                                <img src="{{ asset('icons/ain.png') }}"
+                                     alt="العربية"
+                                     class="w-6 h-6 rounded-full object-cover">
+                                <span class="text-gray-700 text-sm font-medium">العربية</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <h1 class="text-3xl font-bold text-white mb-2">@AdvFood</h1>
-                <p class="text-white/80 text-lg">Discover Amazing Restaurants</p>
+
+                <div class="mx-auto h-36 w-36 rounded-full flex items-center justify-center mb-6 shadow-lg overflow-hidden" style="background-color: #cf4823;">
+                    <img src="{{ asset('images/GatherUs-Logo.png') }}"
+                         alt="AdvFood Logo"
+                         style="width: 150px; height: 150px;" class="object-contain">
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">@AdvFood</h1>
+                <p id="subtitle" class="text-gray-600 text-lg">Discover Amazing Restaurants</p>
                 <div class="mt-4">
-                    <span class="inline-block bg-white/20 text-white px-3 py-1 rounded-full text-sm">
-                        {{ $restaurants->count() }} Restaurants Available
+                    <span class="inline-block bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm font-semibold">
+                        <span id="restaurant-count">{{ $restaurants->count() }}</span> <span id="restaurants-text">Restaurants Available</span>
                     </span>
                 </div>
             </div>
 
-            <!-- Restaurant Links -->
-            <div class="space-y-4">
+            <!-- Restaurant Links - Grid Layout -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 @forelse($restaurants as $restaurant)
                     <a href="{{ route('restaurant.menu', $restaurant->id) }}" class="block">
-                        <div class="link-card rounded-2xl p-6 text-center">
-                            <div class="flex items-center space-x-4">
+                        <div class="link-card rounded-3xl p-6 text-center group">
+                            <!-- Restaurant Circle Image -->
+                            <div class="mb-4 flex justify-center">
                                 @if($restaurant->logo)
                                     <img src="{{ asset('storage/' . $restaurant->logo) }}"
                                          alt="{{ $restaurant->name }}"
-                                         class="restaurant-image"
+                                         class="w-28 h-28 object-cover rounded-full border-4 border-white/30 shadow-xl group-hover:scale-110 transition-transform duration-300"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 @endif
-                                <div class="restaurant-image bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center"
+                                <div class="w-28 h-28 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full border-4 border-white/30 shadow-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
                                      style="{{ $restaurant->logo ? 'display: none;' : '' }}">
-                                    <i class="fas fa-store text-2xl text-white"></i>
-                                </div>
-
-                                <div class="flex-1 text-left">
-                                    <h3 class="text-xl font-semibold text-white mb-1">{{ $restaurant->name }}</h3>
-                                    <p class="text-white/70 text-sm mb-2">{{ $restaurant->description ?? 'Delicious food awaits you' }}</p>
-                                    <div class="flex items-center space-x-3">
-                                        @if($restaurant->rating)
-                                            <div class="flex items-center">
-                                                <i class="fas fa-star text-yellow-400 text-sm"></i>
-                                                <span class="text-white/80 text-sm ml-1">{{ number_format($restaurant->rating, 1) }}</span>
-                                            </div>
-                                        @endif
-                                        @if($restaurant->delivery_time)
-                                            <div class="flex items-center">
-                                                <i class="fas fa-clock text-white/60 text-sm"></i>
-                                                <span class="text-white/80 text-sm ml-1">{{ $restaurant->delivery_time }} min</span>
-                                            </div>
-                                        @endif
-                                        <div class="flex items-center">
-                                            <i class="fas fa-map-marker-alt text-white/60 text-sm"></i>
-                                            <span class="text-white/80 text-sm ml-1">{{ $restaurant->address ?? 'Location' }}</span>
-                                        </div>
+                                    <i class="fas fa-store text-3xl text-white"></i>
                                     </div>
                                 </div>
 
-                                <div class="text-white/60">
-                                    <i class="fas fa-chevron-right"></i>
+                            <!-- Restaurant Info -->
+                            <h3 class="text-lg font-bold text-gray-800 mb-3 truncate">{{ $restaurant->name }}</h3>
+
+                            @if($restaurant->delivery_time)
+                                <div class="flex items-center justify-center text-gray-600 text-sm">
+                                    <i class="fas fa-clock text-xs mr-1 text-purple-500 time-icon"></i>
+                                    <span>{{ $restaurant->delivery_time }} <span class="time-unit">min</span></span>
                                 </div>
-                            </div>
+                            @endif
                         </div>
                     </a>
                 @empty
-                    <div class="text-center py-12">
-                        <i class="fas fa-store text-6xl text-white/40 mb-4"></i>
-                        <h3 class="text-xl font-semibold text-white mb-2">No Restaurants Available</h3>
-                        <p class="text-white/70">Check back later for amazing dining options!</p>
+                    <div class="col-span-full text-center py-12">
+                        <i class="fas fa-store text-6xl text-gray-300 mb-4"></i>
+                        <h3 id="no-restaurants-title" class="text-xl font-semibold text-gray-800 mb-2">No Restaurants Available</h3>
+                        <p id="no-restaurants-text" class="text-gray-600">Check back later for amazing dining options!</p>
                     </div>
                 @endforelse
             </div>
 
             <!-- Footer -->
             <div class="text-center pt-8">
-                <p class="text-white/60 text-sm">
-                    Powered by <span class="font-semibold">AdvFood</span>
+                <p class="text-gray-500 text-sm">
+                    <span id="powered-by-text">Powered by</span> <span class="font-semibold" style="color: #cf4823;">AdvFood</span>
                 </p>
                 <div class="flex justify-center space-x-4 mt-4">
-                    <a href="#" class="text-white/60 hover:text-white transition-colors">
+                    <a href="#" class="text-gray-400 hover:text-purple-600 transition-colors">
                         <i class="fab fa-instagram text-xl"></i>
                     </a>
-                    <a href="#" class="text-white/60 hover:text-white transition-colors">
+                    <a href="#" class="text-gray-400 hover:text-purple-600 transition-colors">
                         <i class="fab fa-facebook text-xl"></i>
                     </a>
-                    <a href="#" class="text-white/60 hover:text-white transition-colors">
+                    <a href="#" class="text-gray-400 hover:text-purple-600 transition-colors">
                         <i class="fab fa-twitter text-xl"></i>
                     </a>
                 </div>
@@ -171,7 +179,7 @@
                     <div class="bg-green-50 border-2 border-green-200 rounded-xl p-3 text-center">
                         <div class="text-gray-600 text-xs mb-1">رقم الطلب</div>
                         <div class="text-xl font-bold text-green-600">{{ $order->order_number }}</div>
-                    </div>
+        </div>
 
                     <!-- Restaurant Info -->
                     <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
@@ -190,8 +198,8 @@
                         <div>
                             <span class="text-gray-500">👤 الاسم:</span>
                             <span class="text-gray-800 font-medium">{{ $order->delivery_name }}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                             <span class="text-gray-500">📱 الهاتف:</span>
                             <span class="text-gray-800 font-medium" dir="ltr">{{ $order->delivery_phone }}</span>
                         </div>
@@ -223,7 +231,7 @@
                                     <span class="text-gray-700">{{ $item->menuItem->name ?? 'منتج' }}</span>
                                 </div>
                                 <span class="text-gray-800 font-semibold">{{ number_format($item->subtotal, 2) }} رس</span>
-                            </div>
+            </div>
                             @endforeach
 
                             <!-- Total -->
@@ -234,7 +242,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+            </div>
 
                     <!-- Status Info -->
                     <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
@@ -312,6 +320,11 @@
         @keyframes stroke {
             100% { stroke-dashoffset: 0; }
         }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
     </style>
 
     <script>
@@ -329,29 +342,108 @@
                 }, 300);
             }
         }
-
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
     </script>
     @endif
 
     <script>
-        // Add some interactive effects
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.link-card');
+        const translations = {
+            en: {
+                subtitle: 'Discover Amazing Restaurants',
+                restaurantsText: 'Restaurants Available',
+                timeUnit: 'min',
+                noRestaurantsTitle: 'No Restaurants Available',
+                noRestaurantsText: 'Check back later for amazing dining options!',
+                poweredBy: 'Powered by'
+            },
+            ar: {
+                subtitle: 'اكتشف أفضل المطاعم',
+                restaurantsText: 'مطعم متاح',
+                timeUnit: 'دقيقة',
+                noRestaurantsTitle: 'لا توجد مطاعم متاحة',
+                noRestaurantsText: 'تحقق لاحقاً للحصول على خيارات طعام مذهلة!',
+                poweredBy: 'مدعوم بواسطة'
+            }
+        };
 
-            cards.forEach(card => {
-                card.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-5px) scale(1.02)';
-                });
+        function toggleLanguageMenu() {
+            const menu = document.getElementById('language-menu');
+            menu.classList.toggle('hidden');
+        }
 
-                card.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0) scale(1)';
-                });
+        function switchLanguage(lang) {
+            const currentFlag = document.getElementById('current-flag');
+            const currentLang = document.getElementById('current-lang');
+            const htmlRoot = document.getElementById('html-root');
+
+            if (lang === 'en') {
+                currentFlag.src = "{{ asset('icons/united-kingdom.png') }}";
+                currentFlag.alt = "English";
+                currentLang.textContent = "EN";
+                htmlRoot.setAttribute('lang', 'en');
+                htmlRoot.setAttribute('dir', 'ltr');
+            } else if (lang === 'ar') {
+                currentFlag.src = "{{ asset('icons/ain.png') }}";
+                currentFlag.alt = "العربية";
+                currentLang.textContent = "AR";
+                htmlRoot.setAttribute('lang', 'ar');
+                htmlRoot.setAttribute('dir', 'rtl');
+            }
+
+            // Update all text elements
+            const subtitle = document.getElementById('subtitle');
+            const restaurantsText = document.getElementById('restaurants-text');
+            const timeUnits = document.querySelectorAll('.time-unit');
+            const noRestaurantsTitle = document.getElementById('no-restaurants-title');
+            const noRestaurantsText = document.getElementById('no-restaurants-text');
+            const poweredByText = document.getElementById('powered-by-text');
+
+            if (subtitle) subtitle.textContent = translations[lang].subtitle;
+            if (restaurantsText) restaurantsText.textContent = translations[lang].restaurantsText;
+            if (noRestaurantsTitle) noRestaurantsTitle.textContent = translations[lang].noRestaurantsTitle;
+            if (noRestaurantsText) noRestaurantsText.textContent = translations[lang].noRestaurantsText;
+            if (poweredByText) poweredByText.textContent = translations[lang].poweredBy;
+
+            timeUnits.forEach(unit => {
+                unit.textContent = translations[lang].timeUnit;
             });
+
+            // Update time icons position based on direction
+            const timeIcons = document.querySelectorAll('.time-icon');
+            timeIcons.forEach(icon => {
+                if (lang === 'ar') {
+                    icon.classList.remove('mr-1');
+                    icon.classList.add('ml-1');
+                } else {
+                    icon.classList.remove('ml-1');
+                    icon.classList.add('mr-1');
+                }
+            });
+
+            // Close menu
+            document.getElementById('language-menu').classList.add('hidden');
+
+            // Store preference
+            localStorage.setItem('preferred_language', lang);
+        }
+
+        // Close language menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('language-menu');
+            const button = event.target.closest('button[onclick="toggleLanguageMenu()"]');
+
+            if (!button && !menu.contains(event.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Load saved language preference on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedLang = localStorage.getItem('preferred_language');
+            if (savedLang && savedLang !== 'en') {
+                switchLanguage(savedLang);
+            }
         });
     </script>
+
 </body>
 </html>

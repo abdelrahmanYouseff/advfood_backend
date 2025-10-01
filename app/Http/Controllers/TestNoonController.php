@@ -139,8 +139,37 @@ class TestNoonController extends Controller
             if ($order) {
                 $order->payment_status = 'paid';
                 $order->save();
+
+                // Send to shipping company
+                try {
+                    $shippingService = new \App\Services\ShippingService();
+                    $shippingResult = $shippingService->createOrder($order);
+
+                    if ($shippingResult) {
+                        \Illuminate\Support\Facades\Log::info('Order sent to shipping company successfully', [
+                            'order_id' => $order->id,
+                            'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null
+                        ]);
+
+                        // Update order with dsp_order_id
+                        if (isset($shippingResult['dsp_order_id'])) {
+                            $order->dsp_order_id = $shippingResult['dsp_order_id'];
+                            $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
+                            $order->save();
+                        }
+                    } else {
+                        \Illuminate\Support\Facades\Log::warning('Failed to send order to shipping company', [
+                            'order_id' => $order->id
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Error sending order to shipping', [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
-            
+
             return redirect()->route('rest-link', ['order_id' => $orderId, 'payment_status' => 'success']);
         }
         return redirect()->route('rest-link', ['payment_status' => 'success']);

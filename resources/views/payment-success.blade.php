@@ -139,14 +139,14 @@
 
                 <!-- Action Buttons -->
                 <div class="space-y-3">
-                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، أريد الاستفسار عن طلبي رقم #' . str_pad(request()->get('order_id', '0'), 4, '0', STR_PAD_LEFT)) }}" 
+                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، أريد الاستفسار عن طلبي رقم #' . str_pad(request()->get('order_id', '0'), 4, '0', STR_PAD_LEFT)) }}"
                        target="_blank"
                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2">
                         <i class="fab fa-whatsapp text-xl"></i>
                         تواصل معنا عبر واتساب
                     </a>
 
-                    <a href="/rest-link" 
+                    <a href="/rest-link"
                        class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2">
                         <i class="fas fa-home"></i>
                         العودة للصفحة الرئيسية

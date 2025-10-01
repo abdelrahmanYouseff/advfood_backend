@@ -90,20 +90,20 @@
 
                 <!-- Action Buttons -->
                 <div class="space-y-3">
-                    <a href="/checkout/customer-details" 
+                    <a href="/checkout/customer-details"
                        class="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2">
                         <i class="fas fa-redo"></i>
                         إعادة المحاولة
                     </a>
 
-                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، واجهت مشكلة في الدفع') }}" 
+                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، واجهت مشكلة في الدفع') }}"
                        target="_blank"
                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2">
                         <i class="fab fa-whatsapp text-xl"></i>
                         تواصل معنا للمساعدة
                     </a>
 
-                    <a href="/rest-link" 
+                    <a href="/rest-link"
                        class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2">
                         <i class="fas fa-home"></i>
                         العودة للصفحة الرئيسية
