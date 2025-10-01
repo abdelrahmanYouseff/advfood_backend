@@ -12,7 +12,7 @@ return [
     */
 
     'api_key' => env('NOON_API_KEY'),
-    'api_url' => env('NOON_API_URL', 'https://api-test.noonpayments.com'),
+    'api_url' => env('NOON_API_URL', 'https://api-test.sa.noonpayments.com'),
     'application_id' => env('NOON_APPLICATION_ID'),
     'business_id' => env('NOON_BUSINESS_ID'),
     'success_url' => env('NOON_SUCCESS_URL'),
@@ -28,7 +28,7 @@ return [
         'currency' => 'SAR',
         'timeout' => 30,
         'description' => 'Payment order',
-        'category' => 'general',
+        'category' => 'pay',
         'channel' => 'web',
     ],
 

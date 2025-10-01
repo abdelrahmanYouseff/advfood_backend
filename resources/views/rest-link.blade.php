@@ -137,80 +137,150 @@
         </div>
     </div>
 
-    <!-- Chatbot -->
-    <div id="chatbot" class="fixed bottom-6 right-6 z-50">
-        <!-- Chat Toggle Button -->
-        <div id="chatToggle" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-full w-16 h-16 flex items-center justify-center cursor-pointer shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-blue-500/25" onclick="toggleChat()">
-            <i class="fas fa-comments text-xl"></i>
-            <!-- Notification dot -->
-            <div id="notificationDot" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                <span class="text-xs text-white font-bold">!</span>
-            </div>
-        </div>
-
-        <!-- Chat Window -->
-        <div id="chatWindow" class="hidden absolute bottom-20 right-0 w-[450px] h-[600px] bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden backdrop-blur-sm">
-            <!-- Chat Header -->
-            <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 text-white p-5 flex items-center justify-between relative">
-                <!-- Background pattern -->
-                <div class="absolute inset-0 opacity-10">
-                    <div class="absolute top-2 right-2 w-20 h-20 bg-white rounded-full"></div>
-                    <div class="absolute bottom-2 left-2 w-16 h-16 bg-white rounded-full"></div>
+    <!-- Success Payment Popup -->
+    @if($order && request()->get('payment_status') === 'success')
+    <div id="successPopup" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto" style="animation: fadeIn 0.3s ease-out;">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden my-4" style="animation: slideUp 0.5s ease-out; max-height: 90vh; overflow-y: auto;">
+            <!-- Header with gradient -->
+            <div class="bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 p-4 text-center relative overflow-hidden">
+                <div class="absolute inset-0 opacity-20">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -mr-16 -mt-16"></div>
+                    <div class="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full -ml-12 -mb-12"></div>
                 </div>
 
-                <div class="flex items-center relative z-10">
-                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-4 backdrop-blur-sm">
-                        <i class="fas fa-robot text-lg"></i>
+                <!-- Success Icon with animation -->
+                <div class="relative z-10 mb-2 flex items-center justify-center gap-4">
+                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-xl" style="animation: scaleUp 0.6s ease-out;">
+                        <svg class="checkmark" width="40" height="40" viewBox="0 0 52 52">
+                            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none" stroke="#10b981" stroke-width="3"/>
+                            <path class="checkmark-check" fill="none" stroke="#10b981" stroke-width="3" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                        </svg>
                     </div>
-                    <div>
-                        <h3 class="font-bold text-lg">AdvFood Assistant</h3>
-                        <div class="flex items-center">
-                            <div class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                            <p class="text-sm text-blue-100">Online now</p>
+                    <div class="text-right">
+                        <h2 class="text-xl font-bold text-white mb-1 relative z-10">تم الدفع بنجاح!</h2>
+                        <p class="text-green-100 text-sm relative z-10">شكراً لك، تم استلام طلبك</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Details -->
+            <div class="p-5">
+                <!-- Order Number and Customer Info in one row -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <!-- Order Number -->
+                    <div class="bg-green-50 border-2 border-green-200 rounded-xl p-3 text-center">
+                        <div class="text-gray-600 text-xs mb-1">رقم الطلب</div>
+                        <div class="text-xl font-bold text-green-600">{{ $order->order_number }}</div>
+                    </div>
+
+                    <!-- Restaurant Info -->
+                    <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
+                        <div class="text-xs text-blue-600 font-medium mb-1">المطعم</div>
+                        <div class="text-lg text-blue-900 font-semibold">{{ $order->restaurant->name ?? 'مطعم' }}</div>
+                    </div>
+                </div>
+
+                <!-- Customer Info -->
+                <div class="bg-gray-50 rounded-xl p-3 mb-4">
+                    <h3 class="font-semibold text-gray-800 mb-2 flex items-center text-sm">
+                        <i class="fas fa-user text-blue-500 mr-2"></i>
+                        معلومات العميل
+                    </h3>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                        <div>
+                            <span class="text-gray-500">👤 الاسم:</span>
+                            <span class="text-gray-800 font-medium">{{ $order->delivery_name }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">📱 الهاتف:</span>
+                            <span class="text-gray-800 font-medium" dir="ltr">{{ $order->delivery_phone }}</span>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="text-gray-500">📍 العنوان:</span>
+                            <span class="text-gray-800 font-medium">{{ $order->delivery_address }}</span>
+                        </div>
+                        @if($order->special_instructions)
+                        <div class="col-span-2">
+                            <span class="text-gray-500">📝 ملاحظات:</span>
+                            <span class="text-gray-800 font-medium">{{ $order->special_instructions }}</span>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <!-- Order Items -->
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <h3 class="font-semibold text-gray-800 mb-2 flex items-center text-sm">
+                            <i class="fas fa-shopping-bag text-green-500 mr-2"></i>
+                            تفاصيل الطلب
+                        </h3>
+                        <div class="space-y-1.5">
+                            @foreach($order->orderItems as $item)
+                            <div class="flex justify-between items-center text-xs">
+                                <div class="flex items-center">
+                                    <span class="bg-green-100 text-green-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mr-1.5">{{ $item->quantity }}</span>
+                                    <span class="text-gray-700">{{ $item->menuItem->name ?? 'منتج' }}</span>
+                                </div>
+                                <span class="text-gray-800 font-semibold">{{ number_format($item->subtotal, 2) }} رس</span>
+                            </div>
+                            @endforeach
+
+                            <!-- Total -->
+                            <div class="border-t-2 border-gray-200 pt-2 mt-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-800 font-bold text-sm">المجموع:</span>
+                                    <span class="text-green-600 font-bold text-lg">{{ number_format($order->total, 2) }} رس</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Info -->
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                        <div class="flex items-start">
+                            <i class="fas fa-clock text-yellow-600 text-lg mt-0.5 mr-2"></i>
+                            <div class="flex-1">
+                                <div class="font-semibold text-yellow-900 mb-1 text-sm">قيد التحضير</div>
+                                <p class="text-yellow-700 text-xs leading-relaxed">
+                                    سيتم تحضير طلبك خلال 15-25 دقيقة
+                                    <br>
+                                    سنرسل لك إشعار عند جاهزية الطلب
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <button id="closeChat" class="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-2 transition-all duration-200 relative z-10" onclick="closeChatWindow()">
-                    <i class="fas fa-times text-lg"></i>
-                </button>
-            </div>
 
-            <!-- Chat Messages -->
-            <div id="chatMessages" class="h-96 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
-                <!-- Messages will be added here -->
-            </div>
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-2 gap-3">
+                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، أريد الاستفسار عن طلبي رقم ' . $order->order_number) }}"
+                       target="_blank"
+                       class="bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
+                        <i class="fab fa-whatsapp text-lg"></i>
+                        واتساب
+                    </a>
 
-            <!-- Chat Input -->
-            <div class="border-t border-gray-200 p-6 bg-white">
-                <div class="flex items-center space-x-4">
-                    <div class="flex-1 relative">
-                        <input type="text" id="chatInput" placeholder="Type your message..."
-                               class="w-full border-2 border-gray-200 rounded-2xl px-6 py-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white">
-                        <div class="absolute right-4 top-1/2 transform -translate-y-1/2">
-                            <i class="fas fa-smile text-gray-400 hover:text-blue-500 cursor-pointer transition-colors text-lg"></i>
-                        </div>
-                    </div>
-                    <button id="sendMessage" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl w-14 h-14 flex items-center justify-center hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-blue-500/25 hover:scale-105" onclick="sendMessage()">
-                        <i class="fas fa-paper-plane text-base"></i>
+                    <button onclick="closeSuccessPopup()"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300">
+                        <i class="fas fa-times mr-1"></i>
+                        إغلاق
                     </button>
-                </div>
-                <div class="flex items-center justify-between mt-4 text-sm text-gray-500">
-                    <span>Press Enter to send</span>
-                    <span>Powered by AdvFood AI</span>
                 </div>
             </div>
         </div>
     </div>
 
     <style>
-        .chat-message {
-            animation: slideIn 0.4s ease-out;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
-        @keyframes slideIn {
+        @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(20px) scale(0.95);
+                transform: translateY(30px) scale(0.95);
             }
             to {
                 opacity: 1;
@@ -218,603 +288,54 @@
             }
         }
 
-        .typing-indicator {
-            display: flex;
-            align-items: center;
-            gap: 6px;
+        @keyframes scaleUp {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
 
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: linear-gradient(45deg, #3B82F6, #8B5CF6);
-            animation: typing 1.4s infinite ease-in-out;
+        .checkmark-circle {
+            stroke-dasharray: 166;
+            stroke-dashoffset: 166;
+            stroke-width: 3;
+            animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
         }
 
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        .typing-dot:nth-child(3) { animation-delay: 0s; }
-
-        @keyframes typing {
-            0%, 80%, 100% {
-                transform: scale(0.8);
-                opacity: 0.5;
-            }
-            40% {
-                transform: scale(1.2);
-                opacity: 1;
-            }
+        .checkmark-check {
+            transform-origin: 50% 50%;
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            stroke-width: 3;
+            animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
         }
 
-        /* Custom scrollbar for chat messages */
-        #chatMessages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        #chatMessages::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-
-        #chatMessages::-webkit-scrollbar-thumb {
-            background: linear-gradient(45deg, #3B82F6, #8B5CF6);
-            border-radius: 10px;
-        }
-
-        #chatMessages::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(45deg, #2563EB, #7C3AED);
-        }
-
-        /* Chat window entrance animation */
-        #chatWindow {
-            animation: chatSlideIn 0.3s ease-out;
-        }
-
-        @keyframes chatSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        /* Notification dot animation */
-        #notificationDot {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.1);
-            }
-            100% {
-                transform: scale(1);
-            }
+        @keyframes stroke {
+            100% { stroke-dashoffset: 0; }
         }
     </style>
 
     <script>
-        let chatOpen = false;
-        let messageCount = 0;
-        let isInitialized = false;
-        let autoOpenTimer = null;
-
-        // Define global functions immediately
-        window.toggleChat = function() {
-            console.log('Toggle chat clicked, current state:', chatOpen);
-            if (chatOpen) {
-                closeChatWindow();
-            } else {
-                openChat();
-            }
-        };
-
-        window.closeChatWindow = function() {
-            console.log('Closing chat...');
-            const chatWindow = document.getElementById('chatWindow');
-            const chatToggle = document.getElementById('chatToggle');
-            const notificationDot = document.getElementById('notificationDot');
-            
-            chatWindow.classList.add('hidden');
-            chatToggle.style.transform = 'scale(1)';
-            chatToggle.style.opacity = '1';
-            if (notificationDot) {
-                notificationDot.style.display = 'flex';
-            }
-            chatOpen = false;
-        };
-
-        window.sendMessage = function() {
-            const chatInput = document.getElementById('chatInput');
-            const message = chatInput.value.trim();
-            
-            if (message === '') return;
-            
-            // Add user message
-            addMessage('user', message);
-            chatInput.value = '';
-            
-            // Check if message is an order number (starts with # or just numbers) - DIRECT CHECK
-            if (/^#?\d+$/.test(message)) {
-                // Show typing indicator
-                const typingMessage = addMessage('bot', '', true);
-                
-                // Extract order ID (remove # if present)
-                const orderId = message.replace('#', '');
-                
-                // Check order status directly
-                setTimeout(async () => {
-                    typingMessage.remove();
-                    const response = await checkOrderStatus(orderId);
-                    
-                    // Handle multiple messages
-                    if (Array.isArray(response)) {
-                        response.forEach((msg, index) => {
-                            setTimeout(() => {
-                                addMessage('bot', msg);
-                            }, index * 800); // 800ms delay between messages
-                        });
-                    } else {
-                        addMessage('bot', response);
-                    }
-                }, 1500);
-                return;
-            }
-            
-            // Show typing indicator
-            const typingMessage = addMessage('bot', '', true);
-            
-            // Simulate bot response
-            setTimeout(async () => {
-                typingMessage.remove();
-                const response = await getBotResponse(message);
-                
-                // Handle multiple messages
-                if (Array.isArray(response)) {
-                    response.forEach((msg, index) => {
-                        setTimeout(() => {
-                            addMessage('bot', msg);
-                        }, index * 800); // 800ms delay between messages
-                    });
-                } else {
-                    addMessage('bot', response);
-                }
-            }, 1500);
-        };
-
-        // Force initialization - multiple approaches
-        function forceInit() {
-            if (isInitialized) {
-                console.log('Chat already initialized, skipping...');
-                return;
-            }
-            
-            console.log('Force initializing chat...');
-            initializeChat();
-            isInitialized = true;
-            
-            // Auto-open after 10 seconds (only once)
-            if (!autoOpenTimer) {
-                autoOpenTimer = setTimeout(() => {
-                    console.log('Auto-opening chat after 10 seconds...');
-                    if (!chatOpen) {
-                        openChat();
-                    }
-                }, 10000);
-            }
-        }
-
-        // Try multiple initialization methods
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', forceInit);
-        } else {
-            forceInit();
-        }
-
-        window.addEventListener('load', forceInit);
-        
-        // Backup initialization
-        setTimeout(forceInit, 1000);
-
-        function initializeChat() {
-            console.log('Initializing chat...');
-            
-            // Get elements
-            const chatToggle = document.getElementById('chatToggle');
-            const chatWindow = document.getElementById('chatWindow');
-            const closeChat = document.getElementById('closeChat');
-            const sendButton = document.getElementById('sendMessage');
-            const chatInput = document.getElementById('chatInput');
-
-            console.log('Elements found:', {
-                chatToggle: !!chatToggle,
-                chatWindow: !!chatWindow,
-                closeChat: !!closeChat,
-                sendButton: !!sendButton,
-                chatInput: !!chatInput
-            });
-
-            // Add event listeners
-            if (chatToggle) {
-                chatToggle.addEventListener('click', function() {
-                    console.log('Chat toggle clicked!');
-                    toggleChat();
-                });
-            }
-
-            if (closeChat) {
-                closeChat.addEventListener('click', function() {
-                    console.log('Close chat clicked!');
-                    closeChatWindow();
-                });
-            }
-
-            if (sendButton) {
-                sendButton.addEventListener('click', function() {
-                    console.log('Send button clicked!');
-                    sendMessage();
-                });
-            }
-
-            if (chatInput) {
-                chatInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        console.log('Enter pressed!');
-                        sendMessage();
-                    }
-                });
-            }
-
-            // Add initial message
-            addMessage('bot', 'Hello! 👋 Welcome to AdvFood! I\'m here to help you find the perfect restaurant. How can I assist you today?');
-
-            // Add quick options
-            setTimeout(() => {
-                addQuickOptions();
-            }, 1000);
-
-            console.log('Chat initialized successfully!');
-        }
-
-
-        function openChat() {
-            console.log('Opening chat...');
-            
-            const chatWindow = document.getElementById('chatWindow');
-            const chatToggle = document.getElementById('chatToggle');
-            const notificationDot = document.getElementById('notificationDot');
-
-            if (!chatWindow) {
-                console.error('Chat window not found!');
-                return;
-            }
-
-            // Show chat window
-            chatWindow.classList.remove('hidden');
-            
-            // Update toggle button
-            if (chatToggle) {
-                chatToggle.style.transform = 'scale(0.8)';
-                chatToggle.style.opacity = '0.7';
-            }
-            
-            // Hide notification dot
-            if (notificationDot) {
-                notificationDot.style.display = 'none';
-            }
-            
-            chatOpen = true;
-            console.log('Chat opened successfully!');
-
-            // Clear auto-open timer
-            if (autoOpenTimer) {
-                clearTimeout(autoOpenTimer);
-                autoOpenTimer = null;
-            }
-
-            // Focus on input
-            setTimeout(() => {
-                const chatInput = document.getElementById('chatInput');
-                if (chatInput) {
-                    chatInput.focus();
-                }
-            }, 100);
-        }
-
-
-        function addMessage(sender, message, isTyping = false) {
-            const chatMessages = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-
-            if (isTyping) {
-                messageDiv.className = 'chat-message flex justify-start';
-                messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                            <i class="fas fa-robot text-sm text-white"></i>
-                        </div>
-                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
-                            <div class="typing-indicator">
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
-                                <div class="typing-dot"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (sender === 'bot') {
-                messageDiv.className = 'chat-message flex justify-start';
-                messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-3">
-                        <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                            <i class="fas fa-robot text-sm text-white"></i>
-                        </div>
-                        <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
-                            <p class="text-sm text-gray-800 leading-relaxed">${message}</p>
-                            <div class="text-xs text-gray-400 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                messageDiv.className = 'chat-message flex justify-end';
-                messageDiv.innerHTML = `
-                    <div class="flex items-end space-x-3">
-                        <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl rounded-br-md px-5 py-3 max-w-xs shadow-lg">
-                            <p class="text-sm text-white leading-relaxed">${message}</p>
-                            <div class="text-xs text-blue-100 mt-1">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                        </div>
-                        <div class="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center shadow-lg">
-                            <i class="fas fa-user text-sm text-white"></i>
-                        </div>
-                    </div>
-                `;
-            }
-
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-
-            return messageDiv;
-        }
-
-
-        function addQuickOptions() {
-            const chatMessages = document.getElementById('chatMessages');
-            const optionsDiv = document.createElement('div');
-            optionsDiv.className = 'chat-message flex justify-start';
-            optionsDiv.innerHTML = `
-                <div class="flex items-end space-x-3">
-                    <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                        <i class="fas fa-robot text-sm text-white"></i>
-                    </div>
-                    <div class="bg-white rounded-2xl rounded-bl-md px-5 py-3 max-w-xs shadow-lg border border-gray-100">
-                        <p class="text-sm text-gray-800 mb-3">Quick options:</p>
-                        <div class="space-y-2">
-                            <button onclick="handleQuickOption('order')" class="w-full text-left px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm text-blue-700 transition-colors">
-                                📦 Where is my order?
-                            </button>
-                            <button onclick="handleQuickOption('menu')" class="w-full text-left px-3 py-2 bg-green-50 hover:bg-green-100 rounded-lg text-sm text-green-700 transition-colors">
-                                🍽️ Browse restaurants
-                            </button>
-                            <button onclick="handleQuickOption('help')" class="w-full text-left px-3 py-2 bg-purple-50 hover:bg-purple-100 rounded-lg text-sm text-purple-700 transition-colors">
-                                ❓ Need help?
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            chatMessages.appendChild(optionsDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        function handleQuickOption(option) {
-            if (option === 'order') {
-                addMessage('user', 'Where is my order?');
+        function closeSuccessPopup() {
+            const popup = document.getElementById('successPopup');
+            if (popup) {
+                popup.style.animation = 'fadeOut 0.3s ease-out';
                 setTimeout(() => {
-                    addMessage('bot', 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number (like #0005 or just 5) so I can check the status for you.');
-                }, 1000);
-            } else if (option === 'menu') {
-                addMessage('user', 'Browse restaurants');
-                setTimeout(() => {
-                    addMessage('bot', 'Great! 🍽️ We have 3 amazing restaurants available:\n\n• Delawa - 45 min delivery\n• Gather Us - 30 min delivery\n• Tant Bakiza - 30 min delivery\n\nClick on any restaurant to view their menu and place an order!');
-                }, 1000);
-            } else if (option === 'help') {
-                addMessage('user', 'Need help?');
-                setTimeout(() => {
-                    addMessage('bot', 'I\'m here to help! 🤝 I can assist you with:\n\n• 📦 Order tracking\n• 🍽️ Restaurant recommendations\n• 🚚 Delivery information\n• 💰 Pricing details\n• 🛒 Placing orders\n\nWhat would you like to know?');
-                }, 1000);
+                    popup.remove();
+                    // Remove query parameters from URL
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('order_id');
+                    url.searchParams.delete('payment_status');
+                    window.history.replaceState({}, '', url);
+                }, 300);
             }
         }
 
-        async function getBotResponse(message) {
-            const lowerMessage = message.toLowerCase();
-            messageCount++;
-
-            console.log('Bot received message:', message);
-            console.log('Is number?', /^\d+$/.test(message.trim()));
-
-            // Check if message is an order number (starts with # or just numbers) - THIS MUST BE FIRST!
-            if (/^#?\d+$/.test(message.trim())) {
-                console.log('Processing order number:', message.trim());
-                const orderId = message.trim().replace('#', '');
-                return await checkOrderStatus(orderId);
-            }
-
-            // Order tracking
-            if (lowerMessage.includes('order') && (lowerMessage.includes('where') || lowerMessage.includes('track') || lowerMessage.includes('status'))) {
-                return 'I\'d be happy to help you track your order! 📦\n\nPlease provide your order number (like #0005 or just 5) so I can check the status for you.';
-            }
-
-            // Greeting responses
-            if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-                return 'Hello! 😊 I\'m here to help you discover amazing restaurants. What type of food are you craving today?';
-            }
-
-            // Food recommendations
-            if (lowerMessage.includes('pizza') || lowerMessage.includes('italian')) {
-                return 'Great choice! 🍕 We have amazing Italian restaurants. Check out our pizza places - they have the best wood-fired pizzas in town!';
-            }
-
-            if (lowerMessage.includes('burger') || lowerMessage.includes('american')) {
-                return 'Burgers are always a good idea! 🍔 We have several burger joints with juicy, delicious options. Would you like me to show you our top-rated burger places?';
-            }
-
-            if (lowerMessage.includes('arabic') || lowerMessage.includes('middle eastern') || lowerMessage.includes('shawarma')) {
-                return 'Perfect! 🥙 We have excellent Middle Eastern restaurants with authentic shawarma, hummus, and traditional dishes. Tant Bakiza is one of our favorites!';
-            }
-
-            if (lowerMessage.includes('asian') || lowerMessage.includes('chinese') || lowerMessage.includes('japanese')) {
-                return 'Asian cuisine is fantastic! 🍜 We have great options for Chinese, Japanese, and other Asian dishes. What specific type are you interested in?';
-            }
-
-            // Restaurant questions
-            if (lowerMessage.includes('restaurant') || lowerMessage.includes('place') || lowerMessage.includes('eat')) {
-                return 'We have 3 amazing restaurants available right now! 🍽️ Each offers unique flavors and great service. Would you like to know more about any specific restaurant?';
-            }
-
-            if (lowerMessage.includes('delivery') || lowerMessage.includes('time')) {
-                return 'Our restaurants offer fast delivery! 🚚 Most orders are delivered within 30-45 minutes. You can track your order in real-time once you place it.';
-            }
-
-            if (lowerMessage.includes('price') || lowerMessage.includes('cost') || lowerMessage.includes('expensive')) {
-                return 'We have restaurants for every budget! 💰 From affordable quick bites to premium dining experiences. All our restaurants offer great value for money.';
-            }
-
-            // Help and support
-            if (lowerMessage.includes('help') || lowerMessage.includes('support')) {
-                return 'I\'m here to help! 🤝 I can assist you with:\n• Finding restaurants\n• Food recommendations\n• Delivery information\n• Order support\n\nWhat would you like to know?';
-            }
-
-            if (lowerMessage.includes('order') || lowerMessage.includes('buy') || lowerMessage.includes('purchase')) {
-                return 'Great! 🛒 To place an order:\n1. Choose a restaurant from our list\n2. Browse their menu\n3. Add items to your cart\n4. Complete your order\n\nWould you like me to guide you through any specific restaurant?';
-            }
-
-            // Default responses
-            const defaultResponses = [
-                'That\'s interesting! 🤔 I\'d love to help you find the perfect restaurant. What type of cuisine are you in the mood for?',
-                'I understand! 😊 We have great options for that. Have you tried browsing our restaurant list? Each one has something special to offer.',
-                'Thanks for sharing! 💭 Let me help you discover some amazing food options. What\'s your favorite type of cuisine?',
-                'I\'m here to make your dining experience amazing! ✨ What can I help you find today?'
-            ];
-
-            return defaultResponses[messageCount % defaultResponses.length];
-        }
-
-        async function checkOrderStatus(orderId) {
-            console.log('Checking order status for ID:', orderId);
-            try {
-                const response = await fetch(`/api/order/${orderId}`);
-                console.log('API response status:', response.status);
-                const data = await response.json();
-                console.log('API response data:', data);
-
-                if (!data.success) {
-                    return `Sorry, I couldn't find an order with number ${orderId}. 😔\n\nPlease double-check your order number and try again.`;
-                }
-
-                const order = data.order;
-                let statusMessage = '';
-                let statusEmoji = '';
-
-                // Status messages
-                switch(order.status) {
-                    case 'pending':
-                        statusMessage = 'Your order is being prepared';
-                        statusEmoji = '⏳';
-                        break;
-                    case 'confirmed':
-                        statusMessage = 'Your order has been confirmed';
-                        statusEmoji = '✅';
-                        break;
-                    case 'preparing':
-                        statusMessage = 'Your order is being prepared';
-                        statusEmoji = '👨‍🍳';
-                        break;
-                    case 'ready':
-                        statusMessage = 'Your order is ready for delivery';
-                        statusEmoji = '🚚';
-                        break;
-                    case 'delivered':
-                        statusMessage = 'Your order has been delivered';
-                        statusEmoji = '🎉';
-                        break;
-                    case 'cancelled':
-                        statusMessage = 'Your order has been cancelled';
-                        statusEmoji = '❌';
-                        break;
-                    default:
-                        statusMessage = 'Your order status is being updated';
-                        statusEmoji = '📋';
-                }
-
-                // Send multiple messages for better organization
-                const messages = [];
-                
-                // Message 1: Greeting and order info
-                messages.push(`مرحبا ${order.full_name}! تم العثور على طلبك رقم ${order.id} من مطعم ${order.restaurant}.`);
-                
-                // Message 2: Order items
-                let itemsMessage = `**تفاصيل طلبك:**\n`;
-                order.cart_items.forEach((item, index) => {
-                    const itemTotal = (item.price * item.quantity).toFixed(2);
-                    itemsMessage += `\n${index + 1}. ${item.name}\n`;
-                    itemsMessage += `   الكمية: ${item.quantity}\n`;
-                    itemsMessage += `   السعر: ${item.price.toFixed(2)} رس × ${item.quantity} = ${itemTotal} رس`;
-                });
-                messages.push(itemsMessage);
-                
-                // Message 3: Total amount
-                messages.push(`**المبلغ الإجمالي: ${order.total.toFixed(2)} رس**`);
-                
-                // Message 4: Status and details
-                let finalStatusMessage = `**حالة الطلب:** ${statusMessage}\n\n`;
-                
-                if (order.status === 'pending' || order.status === 'preparing') {
-                    finalStatusMessage += `**ما يحدث الآن:**\n`;
-                    finalStatusMessage += `• طلبك قيد التحضير من قبل طهامتنا\n`;
-                    finalStatusMessage += `• نتأكد من أن كل شيء طازج ولذيذ\n`;
-                    finalStatusMessage += `• وقت التوصيل المتوقع: 30-45 دقيقة\n\n`;
-                    finalStatusMessage += `**الخطوات التالية:**\n`;
-                    finalStatusMessage += `• سنخبرك عندما يكون طلبك جاهز\n`;
-                    finalStatusMessage += `• فريق التوصيل سيجلب الطلب إلى بابك\n`;
-                    finalStatusMessage += `• يمكنك تتبع طلبك في الوقت الفعلي\n\n`;
-                    finalStatusMessage += `شكرا لاختيارك AdvFood!`;
-                } else if (order.status === 'ready') {
-                    finalStatusMessage += `**أخبار رائعة!**\n`;
-                    finalStatusMessage += `• طلبك جاهز ومغلف\n`;
-                    finalStatusMessage += `• فريق التوصيل في الطريق\n`;
-                    finalStatusMessage += `• يجب أن تستلمه خلال 15-20 دقيقة\n\n`;
-                    finalStatusMessage += `**تابع تحديثات التوصيل!**`;
-                } else if (order.status === 'delivered') {
-                    finalStatusMessage += `**تم تسليم الطلب!**\n`;
-                    finalStatusMessage += `• وصلت وجبتك اللذيذة\n`;
-                    finalStatusMessage += `• نتمنى أن تستمتع بكل قضمة\n`;
-                    finalStatusMessage += `• شكرا لاختيارك AdvFood\n\n`;
-                    finalStatusMessage += `**قيم تجربتك وساعدنا على التحسن!**`;
-                } else if (order.status === 'confirmed') {
-                    finalStatusMessage += `**تم تأكيد الطلب!**\n`;
-                    finalStatusMessage += `• استلمنا طلبك\n`;
-                    finalStatusMessage += `• مطبخنا يبدأ التحضير\n`;
-                    finalStatusMessage += `• ستحصل على تحديثات مع تقدمنا\n\n`;
-                    finalStatusMessage += `**استعد لوجبة رائعة!**`;
-                }
-
-                messages.push(finalStatusMessage);
-                
-                return messages;
-
-            } catch (error) {
-                console.error('Error checking order status:', error);
-                return `Sorry, I'm having trouble checking your order right now. 😔\n\nPlease try again in a few moments or contact our support team.`;
-            }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
         }
     </script>
+    @endif
 
     <script>
         // Add some interactive effects

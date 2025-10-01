@@ -96,7 +96,6 @@
     "failureUrl": "https://advfoodapp.clarastars.com/payment-failed",
     "applicationId": "adv-food",
     "description": "Test payment order",
-    "category": "general",
     "channel": "web"
   },
   "message": "All payment requests return 500 Internal Server Error. Need account activation or new API key."

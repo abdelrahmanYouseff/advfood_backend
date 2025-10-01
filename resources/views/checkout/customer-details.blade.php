@@ -300,11 +300,63 @@
             const formData = new FormData(event.target);
             const customerData = Object.fromEntries(formData.entries());
 
-            // Store customer data in sessionStorage
-            sessionStorage.setItem('customerData', JSON.stringify(customerData));
+            // Get cart data from sessionStorage
+            const cartData = JSON.parse(sessionStorage.getItem('cartData') || '[]');
+            const cartTotal = parseFloat(sessionStorage.getItem('cartTotal') || '0');
+            const restaurantId = sessionStorage.getItem('restaurantId') || '1';
 
-            // Redirect to payment page
-            window.location.href = '{{ route("checkout.payment") }}';
+            if (cartData.length === 0 || cartTotal <= 0) {
+                alert('عربة التسوق فارغة! الرجاء إضافة منتجات قبل المتابعة.');
+                window.location.href = '/rest-link';
+                return;
+            }
+
+            // Show loading message
+            const submitButton = event.target.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>جاري التحميل...';
+
+            // Prepare payment data
+            const paymentData = {
+                restaurant_id: restaurantId,
+                full_name: customerData.full_name,
+                phone_number: customerData.phone_number,
+                building_no: customerData.building_no,
+                floor: customerData.floor,
+                apartment_number: customerData.apartment_number,
+                street: customerData.street,
+                note: customerData.note || '',
+                total: cartTotal,
+                cart_items: cartData
+            };
+
+            // Send request to initiate payment
+            fetch('{{ route("checkout.initiate-payment") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(paymentData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.checkout_url) {
+                    // Redirect to Noon payment page
+                    window.location.href = data.checkout_url;
+                } else {
+                    alert('خطأ في إنشاء الدفع: ' + (data.message || 'حدث خطأ غير متوقع'));
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء معالجة طلبك. الرجاء المحاولة مرة أخرى.');
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+            });
         }
 
         let map;

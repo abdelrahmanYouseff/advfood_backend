@@ -49,7 +49,7 @@ const form = useForm({
 });
 
 const selectedRestaurant = computed(() => {
-    return props.restaurants.find(r => r.id == form.restaurant_id);
+    return props.restaurants.find(r => r.id === Number(form.restaurant_id));
 });
 
 const submit = () => {

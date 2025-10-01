@@ -19,45 +19,58 @@ class TestNoonController extends Controller
             ], 500);
         }
 
-        // إعداد البيانات للطلب - تنسيق محسن مع applicationId
+        // إعداد البيانات للطلب - تنسيق JSON صحيح
         $requestData = [
-            'amount' => [
-                'currency' => config('noon.defaults.currency', 'SAR'),
-                'value' => 1.00, // مبلغ صغير للاختبار
+            "apiOperation" => "INITIATE",
+            "order" => [
+                "amount" => 1,
+                "currency" => "SAR",
+                "reference" => "ORDER-" . now()->timestamp,
+                "name" => "Payment order",
+                "category" => "pay"  // Category "pay" as per Noon configuration for adv_food
             ],
-            'merchantOrderReference' => 'ORDER-' . now()->timestamp,
-            'customer' => [
-                'email' => 'test@example.com',
-                'name' => 'Test User',
-            ],
-            'successUrl' => config('noon.success_url', route('payment.success')),
-            'failureUrl' => config('noon.failure_url', route('payment.fail')),
-            'applicationId' => config('noon.application_id', 'adv-food'), // ✅ إضافة applicationId
-            'businessId' => config('noon.business_id', 'adv_food'), // ✅ إضافة businessId
-            'description' => config('noon.defaults.description', 'Test payment order'),
-            'category' => config('noon.defaults.category', 'general'),
-            'channel' => config('noon.defaults.channel', 'web')
+            "configuration" => [
+                "returnUrl" => config('noon.success_url', route('payment.success')),
+                "paymentAction" => "AUTHORIZE"
+            ]
         ];
+
+        // إنشاء Authorization header حسب وثائق نون
+        $businessId = config('noon.business_id', 'adv_food');
+        $applicationId = config('noon.application_id', 'adv-food');
+        $apiKey = config('noon.api_key');
+        $authString = base64_encode($businessId . '.' . $applicationId . ':' . $apiKey);
 
         // تسجيل البيانات المرسلة للتتبع
         Log::info('Noon Payment Request', [
-            'url' => config('noon.api_url') . '/payment/v1/order',
-            'api_key' => config('noon.api_key') ? 'SET' : 'NOT SET',
-            'api_key_length' => strlen(config('noon.api_key', '')),
+            'url' => 'https://api-test.sa.noonpayments.com/payment/v1/order',
+            'business_id' => $businessId,
+            'application_id' => $applicationId,
+            'api_key' => $apiKey ? 'SET' : 'NOT SET',
+            'auth_string' => $authString,
             'headers' => [
                 'Content-Type' => 'application/json',
-                'X-Api-Key' => config('noon.api_key') ? 'SET' : 'NOT SET'
+                'Authorization' => $authString
             ],
             'data' => $requestData
         ]);
 
         try {
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Key ' . $authString,
+            ];
+
+            Log::info('Sending request to Noon', [
+                'url' => 'https://api-test.sa.noonpayments.com/payment/v1/order',
+                'headers' => $headers,
+                'auth_string' => $authString,
+                'request_data' => $requestData
+            ]);
+
             $response = Http::timeout(config('noon.defaults.timeout', 30))
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                    'X-Api-Key' => config('noon.api_key'),
-                ])
-                ->post(config('noon.api_url') . '/payment/v1/order', $requestData);
+                ->withHeaders($headers)
+                ->post('https://api-test.sa.noonpayments.com/payment/v1/order', $requestData);
 
             // تسجيل الاستجابة
             Log::info('Noon Payment Response', [
@@ -85,17 +98,23 @@ class TestNoonController extends Controller
 
             $data = $response->json();
 
-            // التحقق من وجود invoiceUrl
-            if (!isset($data['invoiceUrl'])) {
-                Log::error('Noon Payment: invoiceUrl missing', ['response' => $data]);
+            // التحقق من نجاح العملية والحصول على رابط الدفع
+            if (!isset($data['result']['checkoutData']['postUrl'])) {
+                Log::error('Noon Payment: checkout URL missing', ['response' => $data]);
                 return response()->json([
                     'error' => 'Invalid response from payment gateway',
                     'details' => $data
                 ], 500);
             }
 
-            Log::info('Noon Payment Success', ['invoice_url' => $data['invoiceUrl']]);
-            return redirect()->away($data['invoiceUrl']);
+            $checkoutUrl = $data['result']['checkoutData']['postUrl'];
+            Log::info('Noon Payment Success', [
+                'checkout_url' => $checkoutUrl,
+                'order_id' => $data['result']['order']['id'] ?? null,
+                'order_status' => $data['result']['order']['status'] ?? null
+            ]);
+
+            return redirect()->away($checkoutUrl);
 
         } catch (\Exception $e) {
             Log::error('Noon Payment Exception', [
@@ -111,14 +130,25 @@ class TestNoonController extends Controller
         }
     }
 
-    public function success()
+    public function success(Request $request)
     {
-        return '✅ Payment successful!';
+        $orderId = $request->get('order_id');
+        if ($orderId) {
+            // Update order payment status to paid
+            $order = \App\Models\Order::find($orderId);
+            if ($order) {
+                $order->payment_status = 'paid';
+                $order->save();
+            }
+            
+            return redirect()->route('rest-link', ['order_id' => $orderId, 'payment_status' => 'success']);
+        }
+        return redirect()->route('rest-link', ['payment_status' => 'success']);
     }
 
     public function fail()
     {
-        return '❌ Payment failed!';
+        return view('payment-failed');
     }
 
     /**
@@ -289,7 +319,7 @@ class TestNoonController extends Controller
             'applicationId' => config('noon.application_id', 'adv-food'),
             'businessId' => config('noon.business_id', 'adv_food'),
             'description' => 'Final test with correct credentials',
-            'category' => 'general',
+            'category' => 'pay',
             'channel' => 'web'
         ];
 
@@ -359,7 +389,7 @@ class TestNoonController extends Controller
             'applicationId' => config('noon.application_id', 'adv-food'),
             'businessId' => config('noon.business_id', 'adv_food'),
             'description' => 'Test with new API key',
-            'category' => 'general',
+            'category' => 'pay',
             'channel' => 'web'
         ];
 
@@ -580,7 +610,7 @@ class TestNoonController extends Controller
             'applicationId' => config('noon.application_id', 'adv-food'),
             'businessId' => config('noon.business_id', 'adv_food'),
             'description' => 'Test with config instead of env',
-            'category' => config('noon.defaults.category', 'general'),
+            'category' => config('noon.defaults.category', 'pay'),
             'channel' => config('noon.defaults.channel', 'web')
         ];
 
@@ -644,7 +674,7 @@ class TestNoonController extends Controller
             'applicationId' => config('noon.application_id'),
             'businessId' => config('noon.business_id'),
             'description' => 'Final test with direct config values',
-            'category' => config('noon.defaults.category', 'general'),
+            'category' => config('noon.defaults.category', 'pay'),
             'channel' => config('noon.defaults.channel', 'web')
         ];
 
@@ -718,7 +748,7 @@ class TestNoonController extends Controller
             'applicationId' => config('noon.application_id'),
             'businessId' => config('noon.business_id'),
             'description' => 'Final test with config reading from .env',
-            'category' => config('noon.defaults.category', 'general'),
+            'category' => config('noon.defaults.category', 'pay'),
             'channel' => config('noon.defaults.channel', 'web')
         ];
 
@@ -760,6 +790,30 @@ class TestNoonController extends Controller
                 'message' => 'Using config reading from .env file'
             ], 500);
         }
+    }
+
+    /**
+     * اختبار Authorization header مباشرة
+     */
+    public function testAuthHeader()
+    {
+        $businessId = config('noon.business_id', 'adv_food');
+        $applicationId = config('noon.application_id', 'adv-food');
+        $apiKey = config('noon.api_key');
+        $authString = base64_encode($businessId . '.' . $applicationId . ':' . $apiKey);
+
+        return response()->json([
+            'business_id' => $businessId,
+            'application_id' => $applicationId,
+            'api_key' => $apiKey ? 'EXISTS' : 'MISSING',
+            'auth_string' => $authString,
+            'decoded_auth' => base64_decode($authString),
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => $authString
+            ],
+            'test_url' => 'https://api-test.sa.noonpayments.com/payment/v1/order'
+        ]);
     }
 
     /**

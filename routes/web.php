@@ -29,6 +29,7 @@ Route::get('/restaurant/{id}', [RestLinkController::class, 'show'])->name('resta
 Route::get('/checkout/customer-details', [RestLinkController::class, 'customerDetails'])->name('checkout.customer-details');
 Route::get('/checkout/payment', [RestLinkController::class, 'payment'])->name('checkout.payment');
 Route::post('/checkout/save-order', [RestLinkController::class, 'saveOrder'])->name('checkout.save-order');
+Route::post('/checkout/initiate-payment', [RestLinkController::class, 'initiatePayment'])->name('checkout.initiate-payment');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -83,6 +84,7 @@ Route::get('/noon/envtest', [TestNoonController::class, 'finalEnvTest'])->name('
 Route::get('/noon/config', [TestNoonController::class, 'testWithConfig'])->name('noon.config');
 Route::get('/noon/direct', [TestNoonController::class, 'finalDirectTest'])->name('noon.direct');
 Route::get('/noon/envconfig', [TestNoonController::class, 'finalEnvConfigTest'])->name('noon.envconfig');
+Route::get('/noon/auth', [TestNoonController::class, 'testAuthHeader'])->name('noon.auth');
 Route::get('/noon/support', [TestNoonController::class, 'generateSupportTicket'])->name('noon.support');
 
 require __DIR__.'/settings.php';
