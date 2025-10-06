@@ -22,6 +22,9 @@ Route::get('/', function () {
 // Public restaurant links page (Linktree style)
 Route::get('/rest-link', [RestLinkController::class, 'index'])->name('rest-link');
 
+// Tant Bakiza specific page
+Route::get('/tant-bakiza', [RestLinkController::class, 'tantBakiza'])->name('tant-bakiza');
+
 // Individual restaurant menu page
 Route::get('/restaurant/{id}', [RestLinkController::class, 'show'])->name('restaurant.menu');
 

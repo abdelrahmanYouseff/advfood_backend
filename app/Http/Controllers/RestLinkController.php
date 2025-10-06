@@ -24,6 +24,25 @@ class RestLinkController extends Controller
         return view('rest-link', compact('restaurants', 'order'));
     }
 
+    /**
+     * Display Tant Bakiza restaurant page
+     */
+    public function tantBakiza(Request $request)
+    {
+        $restaurant = Restaurant::where('is_active', true)
+            ->where('name', 'Tant Bakiza')
+            ->firstOrFail();
+
+        $restaurants = collect([$restaurant]);
+
+        $order = null;
+        if ($request->has('order_id')) {
+            $order = \App\Models\Order::with(['restaurant', 'orderItems.menuItem'])->find($request->get('order_id'));
+        }
+
+        return view('tant-bakiza', compact('restaurants', 'order'));
+    }
+
     public function show($id)
     {
         $restaurant = Restaurant::where('is_active', true)->findOrFail($id);

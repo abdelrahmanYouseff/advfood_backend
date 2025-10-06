@@ -120,6 +120,9 @@ Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
 // Public Points API routes
 Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'getPointsByCustomerId']);
 
+// Mobile App Payment API routes
+Route::post('/mobile/payment/checkout-url', [MobileAppController::class, 'getPaymentCheckoutUrl']);
+
 // Direct points API by customer ID
 Route::get('/points/{pointCustomerId}', function($pointCustomerId) {
     try {
