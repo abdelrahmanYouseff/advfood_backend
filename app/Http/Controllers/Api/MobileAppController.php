@@ -78,8 +78,17 @@ class MobileAppController extends Controller
     public function getPaymentCheckoutUrl(Request $request)
     {
         try {
+            // Debug: Check if restaurant exists
+            $restaurant = Restaurant::find($request->restaurant_id);
+            if (!$restaurant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not found with ID: ' . $request->restaurant_id
+                ], 404);
+            }
+
             $request->validate([
-                'restaurant_id' => 'required|exists:restaurants,id',
+                'restaurant_id' => 'required|integer',
                 'full_name' => 'required|string|max:255',
                 'phone_number' => 'required|string|max:20',
                 'building_no' => 'required|string|max:50',
