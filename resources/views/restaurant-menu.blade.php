@@ -217,7 +217,7 @@
                                     <div class="text-lg md:text-2xl font-bold text-purple-600">
                                         {{ number_format($item->price, 2) }} <span class="currency-text">رس</span>
                                     </div>
-                                    <button onclick="addToCart({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->price }}, '{{ addslashes($item->description ?? 'Delicious item') }}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 md:px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center gap-1 md:gap-2 text-sm md:text-base shadow-md hover:shadow-lg add-to-cart-btn">
+                                    <button onclick="addToCart({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->price }}, '{{ addslashes(str_replace(["\r", "\n"], ' ', $item->description ?? 'Delicious item')) }}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 md:px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center gap-1 md:gap-2 text-sm md:text-base shadow-md hover:shadow-lg add-to-cart-btn">
                                         <i class="fas fa-plus text-xs md:text-sm"></i>
                                         <span class="add-btn-text">Add</span>
                                     </button>
