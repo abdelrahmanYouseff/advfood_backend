@@ -19,12 +19,12 @@ echo "🔧 Step 3: Updating shop_id for all restaurants"
 php artisan tinker --execute="\App\Models\Restaurant::query()->update(['shop_id' => '821017371']); echo 'Shop IDs updated to 821017371';"
 
 echo ""
-echo "🧹 Step 4: Clearing cache"
+echo "🧹 Step 4: Clearing all caches (including views)"
+php artisan optimize:clear
+php artisan view:clear
 php artisan config:clear
 php artisan cache:clear
 php artisan route:clear
-php artisan view:clear
-php artisan optimize:clear
 
 echo ""
 echo "⚡ Step 5: Rebuilding cache"
