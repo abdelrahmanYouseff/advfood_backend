@@ -247,7 +247,7 @@
     <div id="cart-sidebar" class="fixed top-0 right-0 h-full w-full sm:w-80 cart-sidebar transform translate-x-full transition-transform duration-300 z-50 p-4 sm:p-6">
         <div class="flex justify-between items-center mb-4 md:mb-6">
             <h2 id="cart-title" class="text-xl md:text-2xl font-bold text-gray-800">Shopping Cart</h2>
-            <button onclick="toggleCart()" class="text-gray-500 hover:text-gray-700">
+            <button onclick="closeCart()" class="text-gray-500 hover:text-gray-700">
                 <i class="fas fa-times text-lg md:text-xl"></i>
             </button>
         </div>
@@ -275,7 +275,7 @@
     </div>
 
     <!-- Cart Overlay -->
-    <div id="cart-overlay" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="toggleCart()"></div>
+    <div id="cart-overlay" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="closeCart()"></div>
 
     <script>
         let cart = [];
