@@ -19,7 +19,14 @@ echo "🔧 Step 3: Updating shop_id for all restaurants"
 php artisan tinker --execute="\App\Models\Restaurant::query()->update(['shop_id' => '821017371']); echo 'Shop IDs updated to 821017371';"
 
 echo ""
-echo "🧹 Step 4: Clearing all caches (including views)"
+echo "🔧 Step 4: Fixing permissions"
+sudo chmod -R 775 storage
+sudo chmod -R 775 bootstrap/cache
+sudo chown -R forge:forge storage
+sudo chown -R forge:forge bootstrap/cache
+
+echo ""
+echo "🧹 Step 5: Clearing all caches (including views)"
 php artisan optimize:clear
 php artisan view:clear
 php artisan config:clear
@@ -27,16 +34,16 @@ php artisan cache:clear
 php artisan route:clear
 
 echo ""
-echo "⚡ Step 5: Rebuilding cache"
+echo "⚡ Step 6: Rebuilding cache"
 php artisan config:cache
 php artisan route:cache
 
 echo ""
-echo "📤 Step 6: Resending paid orders to shipping"
+echo "📤 Step 7: Resending paid orders to shipping"
 php artisan order:resend-shipping
 
 echo ""
-echo "✅ Step 7: Verification"
+echo "✅ Step 8: Verification"
 echo "Checking restaurants shop_id:"
 php artisan tinker --execute="echo json_encode(\App\Models\Restaurant::select('id','name','shop_id')->get()->toArray(), JSON_PRETTY_PRINT);"
 
