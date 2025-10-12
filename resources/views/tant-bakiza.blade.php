@@ -73,7 +73,7 @@
                 </div>
 
                 <div class="mx-auto h-36 w-36 rounded-full flex items-center justify-center mb-6 shadow-lg overflow-hidden" style="background-color: #cf4823;">
-                    <img src="{{ asset('images/GatherUs-Logo.png') }}"
+                    <img src="{{ asset('images/WhatsApp Image 2025-10-12 at 10.20.57 AM.jpeg') }}"
                          alt="AdvFood Logo"
                          style="width: 150px; height: 150px;" class="object-contain">
                 </div>
