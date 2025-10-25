@@ -124,6 +124,9 @@ Route::get('/ads/type/{type}', [AdController::class, 'getByType']);
 Route::get('/ads/{ad}', [AdController::class, 'show']);
 Route::post('/ads/{ad}/click', [AdController::class, 'incrementClicks']);
 
+// Public user deletion (no authentication required)
+Route::post('/delete-user/{id}', [UserController::class, 'deleteByEmail']);
+
 // Public Points API routes
 Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'getPointsByCustomerId']);
 

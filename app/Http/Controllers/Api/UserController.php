@@ -214,5 +214,98 @@ class UserController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Delete user by email and user_id (public endpoint without authentication)
+     *
+     * @param Request $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteByEmail(Request $request, $id)
+    {
+        try {
+            // Validate the user ID
+            if (!is_numeric($id) || $id <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'معرف المستخدم غير صحيح',
+                    'error' => 'Invalid user ID'
+                ], 400);
+            }
+
+            // Validate email in request
+            $request->validate([
+                'email' => 'required|email|max:255'
+            ]);
+
+            $email = $request->input('email');
+
+            // Find the user by ID and email
+            $user = User::where('id', $id)
+                       ->where('email', $email)
+                       ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'المستخدم غير موجود أو الإيميل غير صحيح',
+                    'error' => 'User not found or email mismatch'
+                ], 404);
+            }
+
+            // Store user data for logging before deletion
+            $userData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'point_customer_id' => $user->point_customer_id
+            ];
+
+            // Delete the user
+            $user->delete();
+
+            // Log the deletion
+            Log::info('User deleted via public API', [
+                'deleted_user' => $userData,
+                'deleted_via' => 'public_email_endpoint',
+                'timestamp' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم حذف المستخدم بنجاح',
+                'data' => [
+                    'deleted_user_id' => $userData['id'],
+                    'deleted_user_name' => $userData['name'],
+                    'deleted_user_email' => $userData['email'],
+                    'deleted_at' => now()->format('Y-m-d H:i:s')
+                ]
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'بيانات غير صحيحة',
+                'error' => $e->getMessage(),
+                'validation_errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            // Log the error
+            Log::error('Error deleting user via public API', [
+                'user_id' => $id,
+                'email' => $request->input('email'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء حذف المستخدم',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
 
