@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileAppController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\SimpleOrderController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\ShippingController;
 
 /*
@@ -108,6 +110,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/menu-items/{menuItem}', [MenuItemController::class, 'update']);
     Route::delete('/menu-items/{menuItem}', [MenuItemController::class, 'destroy']);
     Route::post('/menu-items/{menuItem}/toggle-availability', [MenuItemController::class, 'toggleAvailability']);
+
+    // User management routes (protected)
+    Route::get('/users', [UserController::class, 'index']);
+    Route::get('/users/{id}', [UserController::class, 'show']);
+    Route::delete('/users/{id}', [UserController::class, 'destroy']);
 });
 
 // Public Ads API routes
@@ -155,7 +162,7 @@ Route::get('/points/{pointCustomerId}', function($pointCustomerId) {
             // If points system is not available, return default points
             $pointsBalance = 0;
             $source = 'default';
-            \Log::warning('Points system not available, returning default points', [
+            Log::warning('Points system not available, returning default points', [
                 'customer_id' => $pointCustomerId
             ]);
         }
@@ -171,7 +178,7 @@ Route::get('/points/{pointCustomerId}', function($pointCustomerId) {
         ], 200);
 
     } catch (\Exception $e) {
-        \Log::error('Error retrieving points by customer ID', [
+        Log::error('Error retrieving points by customer ID', [
             'customer_id' => $pointCustomerId,
             'error' => $e->getMessage()
         ]);
