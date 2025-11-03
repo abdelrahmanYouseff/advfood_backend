@@ -242,20 +242,198 @@ const stopContinuousSound = () => {
     }
 };
 
-// Check for orders that need sound
-const checkForOrdersWithSound = () => {
-    const ordersWithSound = filteredOrders.value.filter((order: any) => order.sound === true);
-    console.log('Checking for orders with sound enabled:', ordersWithSound.length);
+// Track announced orders and their daily numbers
+const announcedOrders = ref<Map<number, number>>(new Map()); // orderId -> dailyNumber
+const lastCheckedDate = ref<string>('');
+let announcementIntervals = new Map<number, number>(); // orderId -> intervalId
 
-    if (ordersWithSound.length > 0) {
-        console.log('Found orders with sound enabled, starting sound...');
-        // Start continuous sound for orders with sound enabled (only if not already playing)
-        if (!continuousSoundInterval) {
-            startContinuousSound();
+// Calculate daily order number (starts from 1 each day)
+const getDailyOrderNumber = (order: any): number => {
+    const today = new Date().toDateString();
+    const orderDate = new Date(order.created_at).toDateString();
+
+    // Reset if it's a new day
+    if (lastCheckedDate.value !== today) {
+        announcedOrders.value.clear();
+        lastCheckedDate.value = today;
+    }
+
+    // If already assigned, return it
+    if (announcedOrders.value.has(order.id)) {
+        return announcedOrders.value.get(order.id)!;
+    }
+
+    // Calculate number based on orders from today (sorted by creation time)
+    const todayOrders = props.orders
+        .filter(o => new Date(o.created_at).toDateString() === today)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    const orderIndex = todayOrders.findIndex(o => o.id === order.id);
+    const dailyNumber = orderIndex + 1;
+
+    // Store it
+    announcedOrders.value.set(order.id, dailyNumber);
+
+    return dailyNumber;
+};
+
+// Check if order is not accepted (needs announcement)
+const isUnacceptedOrder = (order: any): boolean => {
+    return order.shipping_status === 'New Order' ||
+           order.status === 'pending' ||
+           order.shipping_status?.toLowerCase() === 'new order';
+};
+
+// Play female voice announcement for an order
+const playOrderAnnouncement = (order: any) => {
+    if (!('speechSynthesis' in window) || !soundEnabled.value) {
+        return;
+    }
+
+    const dailyNumber = getDailyOrderNumber(order);
+    const message = `New Order Number ${dailyNumber}`;
+
+    // Cancel any pending speech
+    if (speechSynthesis.speaking || speechSynthesis.pending) {
+        speechSynthesis.cancel();
+    }
+
+    // Get voices
+    let voices = speechSynthesis.getVoices();
+
+    const speak = () => {
+        if (voices.length === 0) {
+            voices = speechSynthesis.getVoices();
+            if (voices.length === 0) {
+                setTimeout(speak, 100);
+                return;
+            }
         }
+
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.2;
+        utterance.volume = 1;
+
+        // Find female voice
+        const femaleVoice = voices.find(v =>
+            v.name.toLowerCase().includes('samantha') ||
+            v.name.toLowerCase().includes('zira') ||
+            v.name.toLowerCase().includes('hazel') ||
+            v.name.toLowerCase().includes('karen') ||
+            v.name.toLowerCase().includes('susan') ||
+            (v.name.toLowerCase().includes('female') && v.lang.includes('en'))
+        ) || voices.find(v => v.lang.includes('en-US')) || voices.find(v => v.lang.includes('en')) || voices[0];
+
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+        }
+
+        utterance.onerror = (e: any) => {
+            if (e.error !== 'canceled' && e.error !== 'interrupted') {
+                console.error('Speech error for order', order.id, ':', e.error);
+            }
+        };
+
+        try {
+            speechSynthesis.speak(utterance);
+            console.log(`🔊 Announced: ${message} for order ${order.id}`);
+        } catch (error) {
+            console.error('Error speaking:', error);
+        }
+    };
+
+    // Set up voices if needed
+    if (voices.length === 0) {
+        speechSynthesis.onvoiceschanged = () => {
+            voices = speechSynthesis.getVoices();
+            speak();
+        };
     } else {
-        console.log('No orders with sound enabled, stopping sound...');
-        // Stop sound if no orders need it
+        speak();
+    }
+};
+
+// Start repeating announcement for an order
+const startOrderAnnouncement = (order: any) => {
+    // Stop if already announcing
+    if (announcementIntervals.has(order.id)) {
+        return;
+    }
+
+    // Play immediately
+    playOrderAnnouncement(order);
+
+    // Repeat every 5 seconds until order is accepted
+    const intervalId = setInterval(() => {
+        // Check if order still needs announcement
+        const currentOrder = props.orders.find(o => o.id === order.id);
+        if (!currentOrder || !isUnacceptedOrder(currentOrder)) {
+            stopOrderAnnouncement(order.id);
+            return;
+        }
+        playOrderAnnouncement(currentOrder);
+    }, 5000);
+
+    announcementIntervals.set(order.id, intervalId);
+    console.log(`🔔 Started announcement for order ${order.id}`);
+};
+
+// Stop announcement for an order
+const stopOrderAnnouncement = (orderId: number) => {
+    const intervalId = announcementIntervals.get(orderId);
+    if (intervalId) {
+        clearInterval(intervalId);
+        announcementIntervals.delete(orderId);
+        console.log(`🔕 Stopped announcement for order ${orderId}`);
+    }
+    // Cancel any ongoing speech
+    if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+    }
+};
+
+// Check for orders that need sound announcements
+const checkForOrdersWithSound = () => {
+    // Get unaccepted orders (New Order status)
+    const unacceptedOrders = filteredOrders.value.filter((order: any) => isUnacceptedOrder(order));
+
+    console.log('Checking for unaccepted orders:', unacceptedOrders.length);
+
+    if (unacceptedOrders.length === 0) {
+        // Stop all announcements if no unaccepted orders
+        announcementIntervals.forEach((intervalId, orderId) => {
+            stopOrderAnnouncement(orderId);
+        });
+        stopContinuousSound();
+        return;
+    }
+
+    // Sort orders by creation date (newest first)
+    const sortedUnacceptedOrders = [...unacceptedOrders].sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    // Only announce the newest unaccepted order
+    const newestOrder = sortedUnacceptedOrders[0];
+
+    // Stop announcements for all other orders (older ones)
+    announcementIntervals.forEach((intervalId, orderId) => {
+        if (orderId !== newestOrder.id) {
+            stopOrderAnnouncement(orderId);
+        }
+    });
+
+    // Start announcement only for the newest order if not already announcing
+    if (!announcementIntervals.has(newestOrder.id)) {
+        console.log(`🔔 Starting announcement for newest order: ${newestOrder.id} (daily number: ${getDailyOrderNumber(newestOrder)})`);
+        startOrderAnnouncement(newestOrder);
+    }
+
+    // Legacy continuous sound - keep for backward compatibility but prioritize voice announcements
+    const ordersWithSound = filteredOrders.value.filter((order: any) => order.sound === true);
+    if (ordersWithSound.length === 0) {
         stopContinuousSound();
     }
 };
@@ -294,9 +472,171 @@ const toggleSound = () => {
     localStorage.setItem('orderSoundEnabled', soundEnabled.value.toString());
 };
 
+// Test announcement function - plays "New Order Number 1" once
+const testAnnouncement = () => {
+    if (!('speechSynthesis' in window)) {
+        alert('❌ Speech synthesis غير مدعوم في هذا المتصفح');
+        return;
+    }
+
+    console.log('🧪 Test announcement button clicked');
+
+    // For Chrome: Cancel any pending speech first, then wait a bit
+    if (speechSynthesis.speaking || speechSynthesis.pending) {
+        console.log('🛑 Canceling existing speech...');
+        speechSynthesis.cancel();
+        // Chrome needs a bit more time
+        setTimeout(() => {
+            doSpeak();
+        }, 200);
+    } else {
+        // Direct call for immediate execution
+        doSpeak();
+    }
+};
+
+// Direct speech function
+const doSpeak = () => {
+    // Get voices (Chrome loads them asynchronously)
+    let voices = speechSynthesis.getVoices();
+
+    // Chrome often needs to wait for voices
+    if (voices.length === 0) {
+        console.log('⏳ Loading voices (Chrome)...');
+
+        // Try multiple methods for Chrome compatibility
+        const loadVoices = () => {
+            voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                console.log(`✅ Loaded ${voices.length} voices`);
+                // Small delay for Chrome
+                setTimeout(() => speakNow(voices), 50);
+            } else {
+                // Retry with exponential backoff
+                setTimeout(loadVoices, 100);
+            }
+        };
+
+        // Set up voices changed listener (important for Chrome)
+        const voicesChanged = () => {
+            voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                console.log(`✅ Voices loaded via event: ${voices.length}`);
+                speakNow(voices);
+            }
+        };
+
+        speechSynthesis.onvoiceschanged = voicesChanged;
+
+        // Also try loading immediately
+        loadVoices();
+        return;
+    }
+
+    // Chrome: small delay to ensure voices are ready
+    setTimeout(() => speakNow(voices), 10);
+};
+
+// Actually speak the message
+const speakNow = (voices: SpeechSynthesisVoice[]) => {
+    // Cancel any remaining speech (Chrome can queue)
+    if (speechSynthesis.speaking || speechSynthesis.pending) {
+        speechSynthesis.cancel();
+        setTimeout(() => createAndPlayUtterance(voices), 100);
+    } else {
+        createAndPlayUtterance(voices);
+    }
+};
+
+// Create and play utterance (separated for Chrome compatibility)
+const createAndPlayUtterance = (voices: SpeechSynthesisVoice[]) => {
+    // Create utterance
+    const utterance = new SpeechSynthesisUtterance('New Order Number 1');
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+    utterance.pitch = 1.2;
+    utterance.volume = 1;
+
+    // Find female voice
+    const femaleVoice = voices.find(v =>
+        v.name.toLowerCase().includes('samantha') ||
+        v.name.toLowerCase().includes('zira') ||
+        v.name.toLowerCase().includes('hazel') ||
+        v.name.toLowerCase().includes('karen') ||
+        v.name.toLowerCase().includes('susan') ||
+        (v.name.toLowerCase().includes('female') && v.lang.includes('en'))
+    ) || voices.find(v => v.lang.includes('en-US')) || voices.find(v => v.lang.includes('en')) || voices[0];
+
+    if (femaleVoice) {
+        utterance.voice = femaleVoice;
+        console.log(`🎤 Using voice: ${femaleVoice.name} (${femaleVoice.lang})`);
+    } else {
+        console.log('⚠️ No voice selected, using default');
+    }
+
+    let started = false;
+    let ended = false;
+
+    utterance.onstart = () => {
+        started = true;
+        ended = false;
+        console.log('✅ ✅ ✅ الصوت بدأ! يجب أن تسمع الصوت الآن!');
+    };
+
+    utterance.onend = () => {
+        ended = true;
+        console.log('✅ ✅ ✅ انتهى الصوت بنجاح!');
+    };
+
+    utterance.onerror = (e: any) => {
+        console.error('❌ خطأ في الصوت:', e.error, e);
+        // Chrome sometimes fires 'canceled' error even when it works
+        if (e.error !== 'canceled' && e.error !== 'interrupted') {
+            alert(`❌ خطأ في الصوت: ${e.error}`);
+        }
+    };
+
+    console.log('🔊 🔊 🔊 محاولة تشغيل الصوت الآن (Chrome/Safari compatible)...');
+
+    // Try to speak (with error handling)
+    try {
+        // Chrome: Make sure we're not queuing
+        if (speechSynthesis.pending) {
+            console.log('⚠️ Clearing pending speech for Chrome...');
+            speechSynthesis.cancel();
+            setTimeout(() => {
+                speechSynthesis.speak(utterance);
+                console.log('✅ speechSynthesis.speak() تم استدعاؤه (بعد cancel)');
+            }, 50);
+        } else {
+            speechSynthesis.speak(utterance);
+            console.log('✅ speechSynthesis.speak() تم استدعاؤه');
+        }
+
+        // Check status after delay (longer for Chrome)
+        setTimeout(() => {
+            console.log('📊 حالة الصوت:', {
+                speaking: speechSynthesis.speaking,
+                pending: speechSynthesis.pending,
+                started: started,
+                ended: ended
+            });
+
+            if (!started && !speechSynthesis.speaking && !speechSynthesis.pending) {
+                console.error('❌ الصوت لم يبدأ!');
+                // Don't show alert if it's Chrome - it might still be processing
+            }
+        }, 1500);
+    } catch (error: any) {
+        console.error('❌ خطأ في speak():', error);
+        alert('❌ خطأ: ' + (error.message || error));
+    }
+};
+
 // Accept order function
 const acceptOrder = async (orderId: number) => {
-    // Stop sound immediately when Accept is clicked
+    // Stop announcement immediately when Accept is clicked
+    stopOrderAnnouncement(orderId);
     stopContinuousSound();
 
     try {
@@ -314,6 +654,25 @@ const acceptOrder = async (orderId: number) => {
     }
 };
 
+// Create test order function
+const createTestOrder = async () => {
+    try {
+        await router.post(route('orders.create-test'), {}, {
+            onSuccess: () => {
+                // Reload orders after creating test order
+                router.reload({ only: ['orders'] });
+            },
+            onError: (errors) => {
+                console.error('Error creating test order:', errors);
+                alert('حدث خطأ عند إنشاء الطلب التجريبي');
+            }
+        });
+    } catch (error) {
+        console.error('Error creating test order:', error);
+        alert('حدث خطأ عند إنشاء الطلب التجريبي');
+    }
+};
+
 // Load sound preference and set up notifications
 onMounted(() => {
     // Load sound preference from localStorage
@@ -321,6 +680,20 @@ onMounted(() => {
     if (savedSoundPreference !== null) {
         soundEnabled.value = savedSoundPreference === 'true';
     }
+
+    // Enable speech after first user interaction (required by browsers)
+    const enableSpeechOnInteraction = () => {
+        console.log('✅ User interaction detected - speech enabled');
+        // Test speech is now enabled by creating a silent utterance
+        const testUtterance = new SpeechSynthesisUtterance('');
+        testUtterance.volume = 0;
+        speechSynthesis.speak(testUtterance);
+        speechSynthesis.cancel(); // Cancel immediately
+    };
+
+    // Add click listener to enable speech (only once)
+    document.addEventListener('click', enableSpeechOnInteraction, { once: true });
+    document.addEventListener('touchstart', enableSpeechOnInteraction, { once: true });
 
     // Start monitoring for orders with sound
     const stopMonitoring = monitorOrdersWithSound();
@@ -344,6 +717,20 @@ onMounted(() => {
         clearInterval(interval);
         stopMonitoring(); // Stop monitoring
         stopContinuousSound(); // Stop any playing sounds
+
+        // Stop all order announcements
+        announcementIntervals.forEach((intervalId) => {
+            clearInterval(intervalId);
+        });
+        announcementIntervals.clear();
+
+        // Cancel any ongoing speech
+        if (speechSynthesis.speaking || speechSynthesis.pending) {
+            speechSynthesis.cancel();
+        }
+
+        document.removeEventListener('click', enableSpeechOnInteraction);
+        document.removeEventListener('touchstart', enableSpeechOnInteraction);
     });
 });
 </script>
@@ -391,6 +778,18 @@ onMounted(() => {
                             class="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
                         >
                             اختبار الصوت
+                        </button>
+                        <button
+                            @click="testAnnouncement"
+                            class="ml-2 px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                        >
+                            اختبار الإعلان الصوتي
+                        </button>
+                        <button
+                            @click="createTestOrder"
+                            class="ml-2 px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                        >
+                            ➕ إنشاء طلب تجريبي
                         </button>
                     </div>
 

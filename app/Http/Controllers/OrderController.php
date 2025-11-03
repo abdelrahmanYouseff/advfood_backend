@@ -51,6 +51,62 @@ class OrderController extends Controller
     }
 
     /**
+     * Create a test order for testing announcements
+     */
+    public function createTestOrder()
+    {
+        try {
+            // Get first user and restaurant
+            $user = \App\Models\User::first();
+            $restaurant = \App\Models\Restaurant::first();
+
+            if (!$user || !$restaurant) {
+                return redirect()->back()->with('error', 'يجب وجود مستخدم ومطعم واحد على الأقل في قاعدة البيانات');
+            }
+
+            // Generate order number
+            $orderNumber = 'TEST-' . time();
+
+            // Create test order
+            $order = Order::create([
+                'order_number' => $orderNumber,
+                'user_id' => $user->id,
+                'restaurant_id' => $restaurant->id,
+                'status' => 'pending',
+                'shipping_status' => 'New Order',
+                'subtotal' => 50.00,
+                'delivery_fee' => 10.00,
+                'tax' => 5.00,
+                'total' => 65.00,
+                'delivery_address' => 'عنوان تجريبي للاختبار',
+                'delivery_phone' => '0501234567',
+                'delivery_name' => 'عميل تجريبي',
+                'payment_method' => 'online',
+                'payment_status' => 'paid', // Must be paid to show in orders list
+                'sound' => true,
+            ]);
+
+            // Create a test order item
+            $menuItem = \App\Models\MenuItem::where('restaurant_id', $restaurant->id)->first();
+            if ($menuItem) {
+                \App\Models\OrderItem::create([
+                    'order_id' => $order->id,
+                    'menu_item_id' => $menuItem->id,
+                    'item_name' => $menuItem->name,
+                    'price' => 25.00,
+                    'quantity' => 2,
+                    'subtotal' => 50.00,
+                ]);
+            }
+
+            return redirect()->route('orders.index')->with('success', 'تم إنشاء طلب تجريبي بنجاح!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error creating test order: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'حدث خطأ: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(string $id)
