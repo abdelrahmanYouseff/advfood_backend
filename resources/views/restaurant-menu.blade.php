@@ -124,15 +124,32 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: #000;
-                color: white;
-                padding: 16px;
+                background: #FFD700;
+                color: #000;
+                padding: 12px 16px;
                 z-index: 40;
-                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15);
+                border-radius: 0;
             }
 
             .mobile-cart-button.hidden {
                 display: none;
+            }
+
+            .mobile-cart-button:active {
+                background: #FFC700;
+            }
+
+            .old-price {
+                text-decoration: line-through;
+                color: #666;
+                font-size: 14px;
+            }
+
+            .current-price {
+                color: #000;
+                font-weight: bold;
+                font-size: 16px;
             }
         }
         .line-clamp-2 {
@@ -291,19 +308,17 @@
 
     <!-- Mobile Cart Button (Fixed Bottom) -->
     <div id="mobile-cart-button" class="mobile-cart-button sm:hidden" onclick="toggleCart()">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="relative">
-                    <i class="fas fa-shopping-cart text-xl text-white"></i>
-                    <div id="mobile-cart-badge" class="cart-badge" style="display: none;">0</div>
-                </div>
-                <div class="text-left">
-                    <div class="text-white text-sm font-medium" id="mobile-cart-total">0.00 رس</div>
-                    <div class="text-gray-300 text-xs" id="mobile-cart-items">0 items</div>
-                </div>
+        <div class="flex items-center justify-between w-full">
+            <div class="text-black font-bold text-base sm:text-lg">
+                View Cart (<span id="mobile-cart-count">0</span>)
             </div>
-            <div class="text-white font-bold text-lg">
-                View Cart <i class="fas fa-chevron-up ml-2"></i>
+            <div class="flex flex-col items-end">
+                <div class="old-price" id="mobile-old-price" style="display: none;">
+                    <span id="mobile-old-price-value">0.00</span> <span class="currency-symbol">رس</span>
+                </div>
+                <div class="current-price">
+                    <span id="mobile-cart-total-value">0.00</span> <span class="currency-symbol">رس</span>
+                </div>
             </div>
         </div>
     </div>
@@ -573,17 +588,32 @@
 
         function updateMobileCartButton() {
             const mobileButton = document.getElementById('mobile-cart-button');
-            const mobileCartTotal = document.getElementById('mobile-cart-total');
-            const mobileCartItems = document.getElementById('mobile-cart-items');
+            const mobileCartTotal = document.getElementById('mobile-cart-total-value');
+            const mobileCartCount = document.getElementById('mobile-cart-count');
+            const mobileOldPrice = document.getElementById('mobile-old-price');
+            const mobileOldPriceValue = document.getElementById('mobile-old-price-value');
             const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
 
             if (mobileCartTotal) {
-                mobileCartTotal.textContent = cartTotal.toFixed(2) + ' رس';
+                mobileCartTotal.textContent = cartTotal.toFixed(2);
             }
 
-            if (mobileCartItems) {
-                const itemText = totalItems === 1 ? 'item' : 'items';
-                mobileCartItems.textContent = totalItems + ' ' + itemText;
+            if (mobileCartCount) {
+                mobileCartCount.textContent = totalItems;
+            }
+
+            // Calculate original total (without discounts if any)
+            // For now, we'll use the same total, but you can add discount logic here
+            const originalTotal = cartTotal; // Replace with actual original total if you have discounts
+
+            // Show old price only if there's a discount (originalTotal > cartTotal)
+            if (mobileOldPrice && mobileOldPriceValue) {
+                if (originalTotal > cartTotal) {
+                    mobileOldPriceValue.textContent = originalTotal.toFixed(2);
+                    mobileOldPrice.style.display = 'block';
+                } else {
+                    mobileOldPrice.style.display = 'none';
+                }
             }
 
             if (mobileButton && window.innerWidth < 640) {
