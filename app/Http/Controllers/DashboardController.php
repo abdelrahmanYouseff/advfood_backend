@@ -16,19 +16,22 @@ class DashboardController extends Controller
         $stats = [
             'total_users' => User::count(),
             'total_restaurants' => Restaurant::count(),
-            'total_orders' => Order::count(),
+            'total_orders' => Order::where('payment_status', 'paid')->count(),
             'total_revenue' => Invoice::where('status', 'paid')->sum('total'),
-            'pending_orders' => Order::where('status', 'pending')->count(),
-            'today_orders' => Order::whereDate('created_at', today())->count(),
+            'pending_orders' => Order::where('status', 'pending')->where('payment_status', 'paid')->count(),
+            'today_orders' => Order::whereDate('created_at', today())->where('payment_status', 'paid')->count(),
             'today_revenue' => Invoice::where('status', 'paid')->whereDate('created_at', today())->sum('total'),
         ];
 
         $recent_orders = Order::with(['user', 'restaurant'])
+            ->where('payment_status', 'paid')
             ->latest()
             ->take(5)
             ->get();
 
-        $top_restaurants = Restaurant::withCount('orders')
+        $top_restaurants = Restaurant::withCount(['orders' => function ($query) {
+                $query->where('payment_status', 'paid');
+            }])
             ->orderBy('orders_count', 'desc')
             ->take(5)
             ->get();

@@ -16,7 +16,11 @@ class OrderController extends Controller
      */
     public function index()
     {
-        $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem'])->latest()->get();
+        // Only show orders that have been successfully paid
+        $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem'])
+            ->where('payment_status', 'paid')
+            ->latest()
+            ->get();
 
         // Add calculated fields for each order
         $orders = $orders->map(function ($order) {
