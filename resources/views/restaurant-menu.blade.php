@@ -188,8 +188,8 @@
                 </div>
             </div>
 
-            <!-- Menu Items Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6">
+            <!-- Menu Items Grid - Adjusted for visible cart -->
+            <div class="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6 pr-0 sm:pr-80">
                 @forelse($menuItems as $item)
                     <div class="menu-card rounded-xl md:rounded-2xl p-3 md:p-6">
                         <div class="flex flex-col h-full">
@@ -243,13 +243,10 @@
         </div>
     </div>
 
-    <!-- Cart Sidebar -->
-    <div id="cart-sidebar" class="fixed top-0 right-0 h-full w-full sm:w-80 cart-sidebar transform translate-x-full transition-transform duration-300 z-50 p-4 sm:p-6">
+    <!-- Cart Sidebar - Always Visible -->
+    <div id="cart-sidebar" class="fixed top-0 right-0 h-full w-full sm:w-80 cart-sidebar transform translate-x-0 transition-transform duration-300 z-50 p-4 sm:p-6">
         <div class="flex justify-between items-center mb-4 md:mb-6">
             <h2 id="cart-title" class="text-xl md:text-2xl font-bold text-gray-800">Shopping Cart</h2>
-            <button onclick="closeCart(); console.log('X button clicked');" class="text-gray-500 hover:text-gray-700 p-2 rounded hover:bg-red-100" style="cursor: pointer; z-index: 60;">
-                <i class="fas fa-times text-lg md:text-xl"></i>
-            </button>
         </div>
 
         <div id="cart-items" class="space-y-3 md:space-y-4 mb-4 md:mb-6 max-h-80 md:max-h-96 overflow-y-auto">
@@ -263,22 +260,18 @@
             </div>
 
             <div class="space-y-2 md:space-y-3">
-                <button onclick="payNow()" class="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base font-semibold shadow-md hover:shadow-lg">
+                <button onclick="payNow()" class="w-full bg-black hover:bg-gray-800 text-white py-2 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base font-semibold shadow-md hover:shadow-lg">
                     <i class="fas fa-credit-card mr-2 pay-icon"></i>
                     <span id="pay-now-btn">Pay Now</span>
                 </button>
                 <button onclick="clearCart()" id="clear-cart-btn" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base">
                     Clear Cart
                 </button>
-                <button onclick="closeCart(); console.log('Close Cart button clicked');" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base">
-                    <i class="fas fa-times mr-2"></i>
-                    Close Cart
-                </button>
             </div>
         </div>
     </div>
 
-    <!-- Cart Overlay -->
+    <!-- Cart Overlay - Hidden since cart is always visible -->
     <div id="cart-overlay" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="closeCart(); console.log('Overlay clicked');"></div>
 
     <script>
@@ -387,27 +380,28 @@
         }
 
         function openCart() {
+            // Cart is always visible, no need to open
             const sidebar = document.getElementById('cart-sidebar');
-            const overlay = document.getElementById('cart-overlay');
-
-            sidebar.classList.remove('translate-x-full');
-            overlay.classList.remove('hidden');
+            if (sidebar) {
+                sidebar.classList.remove('translate-x-full');
+                sidebar.classList.add('translate-x-0');
+            }
         }
 
         function closeCart() {
-            console.log('closeCart function called');
+            // Cart is always visible, but allow closing on mobile if needed
             const sidebar = document.getElementById('cart-sidebar');
             const overlay = document.getElementById('cart-overlay');
 
-            if (sidebar && overlay) {
-                console.log('Before close - sidebar classes:', sidebar.className);
-                sidebar.classList.add('translate-x-full');
-                overlay.classList.add('hidden');
-                console.log('After close - sidebar classes:', sidebar.className);
-                console.log('Cart closed successfully');
-            } else {
-                console.error('Cart elements not found - sidebar:', !!sidebar, 'overlay:', !!overlay);
+            // Only close on mobile devices
+            if (window.innerWidth < 640) {
+                if (sidebar && overlay) {
+                    sidebar.classList.add('translate-x-full');
+                    sidebar.classList.remove('translate-x-0');
+                    overlay.classList.add('hidden');
+                }
             }
+            // On desktop, cart stays open
         }
 
         function removeFromCart(itemId) {
@@ -480,12 +474,21 @@
         }
 
         function toggleCart() {
+            // On mobile, allow toggling; on desktop, cart is always visible
             const sidebar = document.getElementById('cart-sidebar');
+            const overlay = document.getElementById('cart-overlay');
 
-            if (sidebar.classList.contains('translate-x-full')) {
-                openCart();
+            if (window.innerWidth < 640) {
+                // Mobile: toggle
+                if (sidebar.classList.contains('translate-x-full')) {
+                    openCart();
+                    overlay.classList.remove('hidden');
+                } else {
+                    closeCart();
+                }
             } else {
-                closeCart();
+                // Desktop: just ensure cart is visible
+                openCart();
             }
         }
 
