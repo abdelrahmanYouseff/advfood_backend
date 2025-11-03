@@ -89,6 +89,52 @@
             top: -8px;
             right: -8px;
         }
+
+        /* Mobile-specific styles */
+        @media (max-width: 640px) {
+            /* Cart at bottom for mobile */
+            #cart-sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 70vh;
+                bottom: 0;
+                top: auto;
+                left: 0;
+                right: 0;
+                transform: translateY(100%);
+                border-radius: 24px 24px 0 0;
+                border-left: none;
+                border-right: none;
+                border-bottom: none;
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            }
+
+            #cart-sidebar.translate-x-0 {
+                transform: translateY(0);
+            }
+
+            /* Menu items grid for mobile */
+            .menu-items-container {
+                padding-bottom: 100px;
+            }
+
+            /* Mobile cart button fixed at bottom */
+            .mobile-cart-button {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: #000;
+                color: white;
+                padding: 16px;
+                z-index: 40;
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .mobile-cart-button.hidden {
+                display: none;
+            }
+        }
         .line-clamp-2 {
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -189,37 +235,37 @@
             </div>
 
             <!-- Menu Items Grid - Adjusted for visible cart -->
-            <div class="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6 pr-0 sm:pr-80">
+            <div class="menu-items-container grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pr-0 sm:pr-80">
                 @forelse($menuItems as $item)
-                    <div class="menu-card rounded-xl md:rounded-2xl p-3 md:p-6">
-                        <div class="flex flex-col h-full">
-                            <!-- Item Image -->
-                            <div class="mb-3 md:mb-4">
+                    <div class="menu-card rounded-2xl p-4 sm:p-6 bg-white">
+                        <div class="flex gap-4 sm:flex-col sm:gap-0">
+                            <!-- Item Image - Mobile: side, Desktop: top -->
+                            <div class="mb-0 sm:mb-4 flex-shrink-0 sm:flex-shrink w-24 h-24 sm:w-full sm:h-auto">
                                 @if($item->image)
                                     <img src="{{ asset('storage/' . $item->image) }}"
                                          alt="{{ $item->name }}"
-                                         class="menu-item-image w-full h-24 md:h-48 object-cover rounded-lg"
+                                         class="w-24 h-24 sm:w-full sm:h-48 object-cover rounded-xl sm:rounded-lg"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 @endif
-                                <div class="menu-item-image w-full h-24 md:h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center rounded-lg"
+                                <div class="w-24 h-24 sm:w-full sm:h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center rounded-xl sm:rounded-lg"
                                      style="{{ $item->image ? 'display: none;' : '' }}">
-                                    <i class="fas fa-utensils text-lg md:text-4xl text-white"></i>
+                                    <i class="fas fa-utensils text-2xl sm:text-4xl text-white"></i>
                                 </div>
                             </div>
 
                             <!-- Item Details -->
-                            <div class="flex-1 flex flex-col">
-                                <h3 class="text-sm md:text-xl font-semibold text-gray-800 mb-1 md:mb-2 line-clamp-2">{{ $item->name }}</h3>
-                                <p class="text-black text-xs md:text-sm mb-3 md:mb-4 flex-1 line-clamp-2">{{ $item->description ?? 'Delicious item' }}</p>
+                            <div class="flex-1 flex flex-col min-w-0">
+                                <h3 class="text-base sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2 line-clamp-2">{{ $item->name }}</h3>
+                                <p class="text-gray-600 text-xs sm:text-sm mb-3 sm:mb-4 flex-1 line-clamp-2 leading-relaxed">{{ $item->description ?? 'Delicious item' }}</p>
 
                                 <!-- Price and Add Button -->
-                                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                                    <div class="text-lg md:text-2xl font-bold text-purple-600">
-                                        {{ number_format($item->price, 2) }} <span class="currency-text">رس</span>
+                                <div class="flex items-center justify-between gap-3 mt-auto">
+                                    <div class="text-xl sm:text-2xl font-bold text-purple-600 whitespace-nowrap">
+                                        {{ number_format($item->price, 2) }} <span class="currency-text text-sm sm:text-base">رس</span>
                                     </div>
-                                    <button onclick="addToCart({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->price }}, '{{ addslashes(str_replace(["\r", "\n"], ' ', $item->description ?? 'Delicious item')) }}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 md:px-4 py-2 rounded-full transition-all duration-300 flex items-center justify-center gap-1 md:gap-2 text-sm md:text-base shadow-md hover:shadow-lg add-to-cart-btn">
-                                        <i class="fas fa-plus text-xs md:text-sm"></i>
-                                        <span class="add-btn-text">Add</span>
+                                    <button onclick="addToCart({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->price }}, '{{ addslashes(str_replace(["\r", "\n"], ' ', $item->description ?? 'Delicious item')) }}')" class="bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white px-5 sm:px-4 py-2.5 sm:py-2 rounded-full transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-md hover:shadow-lg active:scale-95 add-to-cart-btn flex-shrink-0">
+                                        <i class="fas fa-plus text-xs sm:text-sm"></i>
+                                        <span class="add-btn-text hidden sm:inline">Add</span>
                                     </button>
                                 </div>
                             </div>
@@ -243,36 +289,55 @@
         </div>
     </div>
 
-    <!-- Cart Sidebar - Always Visible -->
-    <div id="cart-sidebar" class="fixed top-0 right-0 h-full w-full sm:w-80 cart-sidebar transform translate-x-0 transition-transform duration-300 z-50 p-4 sm:p-6">
+    <!-- Mobile Cart Button (Fixed Bottom) -->
+    <div id="mobile-cart-button" class="mobile-cart-button sm:hidden" onclick="toggleCart()">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <i class="fas fa-shopping-cart text-xl text-white"></i>
+                    <div id="mobile-cart-badge" class="cart-badge" style="display: none;">0</div>
+                </div>
+                <div class="text-left">
+                    <div class="text-white text-sm font-medium" id="mobile-cart-total">0.00 رس</div>
+                    <div class="text-gray-300 text-xs" id="mobile-cart-items">0 items</div>
+                </div>
+            </div>
+            <div class="text-white font-bold text-lg">
+                View Cart <i class="fas fa-chevron-up ml-2"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart Sidebar - Desktop: Right Side, Mobile: Bottom -->
+    <div id="cart-sidebar" class="fixed top-0 right-0 h-full w-full sm:w-80 cart-sidebar transform translate-x-0 sm:translate-x-0 translate-y-full sm:translate-y-0 transition-transform duration-300 z-50 p-4 sm:p-6">
         <div class="flex justify-between items-center mb-4 md:mb-6">
             <h2 id="cart-title" class="text-xl md:text-2xl font-bold text-gray-800">Shopping Cart</h2>
         </div>
 
-        <div id="cart-items" class="space-y-3 md:space-y-4 mb-4 md:mb-6 max-h-80 md:max-h-96 overflow-y-auto">
+        <div id="cart-items" class="space-y-3 md:space-y-4 mb-4 md:mb-6 max-h-[40vh] sm:max-h-80 md:max-h-96 overflow-y-auto">
             <!-- Cart items will be added here -->
         </div>
 
-        <div class="border-t border-gray-200 pt-3 md:pt-4">
+        <div class="border-t border-gray-200 pt-3 md:pt-4 pb-4 sm:pb-0">
             <div class="flex justify-between items-center mb-3 md:mb-4">
                 <span id="total-text" class="text-gray-700 text-base md:text-lg font-semibold">Total:</span>
                 <span id="cart-total" class="text-purple-600 text-lg md:text-xl font-bold">0.00 رس</span>
             </div>
 
             <div class="space-y-2 md:space-y-3">
-                <button onclick="payNow()" class="w-full bg-black hover:bg-gray-800 text-white py-2 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base font-semibold shadow-md hover:shadow-lg">
+                <button onclick="payNow()" class="w-full bg-black hover:bg-gray-800 active:bg-gray-900 text-white py-3 md:py-3 rounded-full transition-all duration-300 text-base md:text-base font-semibold shadow-md hover:shadow-lg active:scale-95">
                     <i class="fas fa-credit-card mr-2 pay-icon"></i>
                     <span id="pay-now-btn">Pay Now</span>
                 </button>
-                <button onclick="clearCart()" id="clear-cart-btn" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base">
+                <button onclick="clearCart()" id="clear-cart-btn" class="w-full bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 py-2.5 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base active:scale-95">
                     Clear Cart
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Cart Overlay - Hidden since cart is always visible -->
-    <div id="cart-overlay" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="closeCart(); console.log('Overlay clicked');"></div>
+    <!-- Cart Overlay - For mobile -->
+    <div id="cart-overlay" class="fixed inset-0 bg-black/50 z-40 hidden sm:hidden" onclick="closeCart();"></div>
 
     <script>
         let cart = [];
@@ -344,9 +409,12 @@
 
             updateCartDisplay();
             updateCartBadge();
+            updateMobileCartButton();
 
             // Open cart sidebar automatically (stays open while adding more items)
-            openCart();
+            if (window.innerWidth >= 640) {
+                openCart(); // Only auto-open on desktop
+            }
 
             // Add pulse animation to cart
             pulseCart();
@@ -380,25 +448,47 @@
         }
 
         function openCart() {
-            // Cart is always visible, no need to open
             const sidebar = document.getElementById('cart-sidebar');
-            if (sidebar) {
-                sidebar.classList.remove('translate-x-full');
-                sidebar.classList.add('translate-x-0');
+            const overlay = document.getElementById('cart-overlay');
+            const mobileButton = document.getElementById('mobile-cart-button');
+
+            if (window.innerWidth < 640) {
+                // Mobile: slide up from bottom
+                if (sidebar) {
+                    sidebar.classList.remove('translate-y-full');
+                    sidebar.classList.add('translate-y-0');
+                }
+                if (overlay) {
+                    overlay.classList.remove('hidden');
+                }
+                if (mobileButton) {
+                    mobileButton.classList.add('hidden');
+                }
+            } else {
+                // Desktop: show on right
+                if (sidebar) {
+                    sidebar.classList.remove('translate-x-full');
+                    sidebar.classList.add('translate-x-0');
+                }
             }
         }
 
         function closeCart() {
-            // Cart is always visible, but allow closing on mobile if needed
             const sidebar = document.getElementById('cart-sidebar');
             const overlay = document.getElementById('cart-overlay');
+            const mobileButton = document.getElementById('mobile-cart-button');
 
-            // Only close on mobile devices
             if (window.innerWidth < 640) {
-                if (sidebar && overlay) {
-                    sidebar.classList.add('translate-x-full');
-                    sidebar.classList.remove('translate-x-0');
+                // Mobile: slide down
+                if (sidebar) {
+                    sidebar.classList.add('translate-y-full');
+                    sidebar.classList.remove('translate-y-0');
+                }
+                if (overlay) {
                     overlay.classList.add('hidden');
+                }
+                if (mobileButton) {
+                    mobileButton.classList.remove('hidden');
                 }
             }
             // On desktop, cart stays open
@@ -463,32 +553,65 @@
 
         function updateCartBadge() {
             const badge = document.getElementById('cart-badge');
+            const mobileBadge = document.getElementById('mobile-cart-badge');
             const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
 
             if (totalItems > 0) {
-                badge.textContent = totalItems;
-                badge.style.display = 'flex';
+                if (badge) {
+                    badge.textContent = totalItems;
+                    badge.style.display = 'flex';
+                }
+                if (mobileBadge) {
+                    mobileBadge.textContent = totalItems;
+                    mobileBadge.style.display = 'flex';
+                }
             } else {
-                badge.style.display = 'none';
+                if (badge) badge.style.display = 'none';
+                if (mobileBadge) mobileBadge.style.display = 'none';
+            }
+        }
+
+        function updateMobileCartButton() {
+            const mobileButton = document.getElementById('mobile-cart-button');
+            const mobileCartTotal = document.getElementById('mobile-cart-total');
+            const mobileCartItems = document.getElementById('mobile-cart-items');
+            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+
+            if (mobileCartTotal) {
+                mobileCartTotal.textContent = cartTotal.toFixed(2) + ' رس';
+            }
+
+            if (mobileCartItems) {
+                const itemText = totalItems === 1 ? 'item' : 'items';
+                mobileCartItems.textContent = totalItems + ' ' + itemText;
+            }
+
+            if (mobileButton && window.innerWidth < 640) {
+                if (totalItems > 0) {
+                    mobileButton.classList.remove('hidden');
+                } else {
+                    mobileButton.classList.add('hidden');
+                }
             }
         }
 
         function toggleCart() {
-            // On mobile, allow toggling; on desktop, cart is always visible
             const sidebar = document.getElementById('cart-sidebar');
-            const overlay = document.getElementById('cart-overlay');
 
             if (window.innerWidth < 640) {
-                // Mobile: toggle
-                if (sidebar.classList.contains('translate-x-full')) {
+                // Mobile: toggle slide up/down
+                if (sidebar.classList.contains('translate-y-full')) {
                     openCart();
-                    overlay.classList.remove('hidden');
                 } else {
                     closeCart();
                 }
             } else {
-                // Desktop: just ensure cart is visible
-                openCart();
+                // Desktop: toggle side
+                if (sidebar.classList.contains('translate-x-full')) {
+                    openCart();
+                } else {
+                    closeCart();
+                }
             }
         }
 
@@ -496,6 +619,10 @@
             cart = [];
             updateCartDisplay();
             updateCartBadge();
+            updateMobileCartButton();
+            if (window.innerWidth < 640) {
+                closeCart();
+            }
         }
 
         function payNow() {
@@ -629,6 +756,9 @@
 
                 cartTotalElement.textContent = cartTotal.toFixed(2) + ' رس';
             }
+
+            // Update mobile cart button
+            updateMobileCartButton();
         };
 
         // Load saved language preference on page load
