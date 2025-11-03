@@ -46,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Menu Items
     Route::resource('menu-items', MenuItemController::class);
+    // Allow POST for updates with file uploads (Inertia converts PUT to POST with _method)
+    Route::post('menu-items/{menuItem}', [MenuItemController::class, 'update'])->where('menuItem', '[0-9]+');
 
     // Orders
     Route::resource('orders', OrderController::class);

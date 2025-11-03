@@ -66,9 +66,12 @@ const selectedRestaurant = computed(() => {
 });
 
 const submit = () => {
-    // Always use PUT - Inertia handles file uploads with PUT method
-    // Laravel supports PUT with multipart/form-data
-    form.put(route('menu-items.update', props.menuItem.id), {
+    // Inertia automatically converts PUT to POST with _method when uploading files
+    // So we use POST directly with method spoofing to match the route
+    form.transform((data) => ({
+        ...data,
+        _method: 'PUT',
+    })).post(route('menu-items.update', props.menuItem.id), {
         forceFormData: true,
         preserveScroll: true,
         onError: (errors) => {
