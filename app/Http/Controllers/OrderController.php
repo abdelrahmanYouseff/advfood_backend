@@ -67,22 +67,26 @@ class OrderController extends Controller
             // Generate order number
             $orderNumber = 'TEST-' . time();
 
+            // Get shop_id from restaurant
+            $shopId = $restaurant->shop_id ?? (string) $restaurant->id;
+
             // Create test order
             $order = Order::create([
                 'order_number' => $orderNumber,
                 'user_id' => $user->id,
                 'restaurant_id' => $restaurant->id,
+                'shop_id' => $shopId, // Required for shipping
                 'status' => 'pending',
                 'shipping_status' => 'New Order',
                 'subtotal' => 50.00,
                 'delivery_fee' => 10.00,
                 'tax' => 5.00,
                 'total' => 65.00,
-                'delivery_address' => 'عنوان تجريبي للاختبار',
+                'delivery_address' => 'مبنى 123، الطابق 2، شقة 5، شارع الملك فهد، الرياض',
                 'delivery_phone' => '0501234567',
                 'delivery_name' => 'عميل تجريبي',
                 'payment_method' => 'online',
-                'payment_status' => 'paid', // Must be paid to show in orders list
+                'payment_status' => 'paid', // Must be paid to show in orders list and trigger shipping
                 'sound' => true,
             ]);
 

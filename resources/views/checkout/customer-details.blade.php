@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" id="html-root">
+<html lang="ar" dir="rtl" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Details - Checkout</title>
+    <title>بيانات العميل - الدفع</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
@@ -132,8 +132,8 @@
             <!-- Back Button -->
             <div class="mb-6">
                 <button onclick="goBack()" class="inline-flex items-center gap-2 back-button rounded-full px-4 py-2">
-                    <i class="fas fa-arrow-left back-arrow"></i>
-                    <span id="back-text">Back</span>
+                    <i class="fas fa-arrow-right back-arrow"></i>
+                    <span id="back-text">رجوع</span>
                 </button>
             </div>
 
@@ -142,8 +142,8 @@
                 <div class="mx-auto h-20 w-20 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
                     <i class="fas fa-user text-3xl text-white"></i>
                 </div>
-                <h1 id="page-title" class="text-3xl font-bold text-gray-800 mb-2">Customer Details</h1>
-                <p id="page-subtitle" class="text-gray-600 text-lg">Please provide your information</p>
+                <h1 id="page-title" class="text-3xl font-bold text-gray-800 mb-2">بيانات العميل</h1>
+                <p id="page-subtitle" class="text-gray-600 text-lg">يرجى تقديم معلوماتك</p>
             </div>
 
             <!-- Form -->
@@ -155,27 +155,27 @@
                             <!-- Full Name -->
                             <div>
                                 <label class="block text-gray-700 text-sm font-medium mb-2">
-                                    <i class="fas fa-user mr-2"></i><span id="label-fullname">Full Name</span>
+                                    <i class="fas fa-user ml-2"></i><span id="label-fullname">الاسم الكامل</span>
                                 </label>
                                 <input type="text"
                                        name="full_name"
                                        required
                                        class="form-input w-full px-4 py-2.5 rounded-lg"
                                        id="input-fullname"
-                                       placeholder="Enter your full name">
+                                       placeholder="أدخل اسمك الكامل">
                             </div>
 
                             <!-- Phone Number -->
                             <div>
                                 <label class="block text-gray-700 text-sm font-medium mb-2">
-                                    <i class="fas fa-phone mr-2"></i><span id="label-phone">Phone Number</span>
+                                    <i class="fas fa-phone ml-2"></i><span id="label-phone">رقم الهاتف</span>
                                 </label>
                                 <input type="tel"
                                        name="phone_number"
                                        required
                                        class="form-input w-full px-4 py-2.5 rounded-lg"
                                        id="input-phone"
-                                       placeholder="Enter your phone number">
+                                       placeholder="أدخل رقم هاتفك">
                             </div>
                         </div>
 
@@ -184,27 +184,27 @@
                             <!-- Building No -->
                             <div>
                                 <label class="block text-gray-700 text-sm font-medium mb-2">
-                                    <i class="fas fa-building mr-2"></i><span id="label-building">Building No</span>
+                                    <i class="fas fa-building ml-2"></i><span id="label-building">رقم المبنى</span>
                                 </label>
                                 <input type="text"
                                        name="building_no"
                                        required
                                        class="form-input w-full px-4 py-2.5 rounded-lg"
                                        id="input-building"
-                                       placeholder="Enter building number">
+                                       placeholder="أدخل رقم المبنى">
                             </div>
 
                             <!-- Floor -->
                             <div>
                                 <label class="block text-gray-700 text-sm font-medium mb-2">
-                                    <i class="fas fa-layer-group mr-2"></i><span id="label-floor">Floor</span>
+                                    <i class="fas fa-layer-group ml-2"></i><span id="label-floor">الطابق</span>
                                 </label>
                                 <input type="text"
                                        name="floor"
                                        required
                                        class="form-input w-full px-4 py-2.5 rounded-lg"
                                        id="input-floor"
-                                       placeholder="Enter floor number">
+                                       placeholder="أدخل رقم الطابق">
                             </div>
                         </div>
 
@@ -213,40 +213,40 @@
                             <!-- Apartment Number -->
                             <div>
                                 <label class="block text-gray-700 text-sm font-medium mb-2">
-                                    <i class="fas fa-home mr-2"></i><span id="label-apartment">Apartment Number</span>
+                                    <i class="fas fa-home ml-2"></i><span id="label-apartment">رقم الشقة</span>
                                 </label>
                                 <input type="text"
                                        name="apartment_number"
                                        required
                                        class="form-input w-full px-4 py-2.5 rounded-lg"
                                        id="input-apartment"
-                                       placeholder="Enter apartment number">
+                                       placeholder="أدخل رقم الشقة">
                             </div>
 
                             <!-- Street -->
                             <div>
                                 <label class="block text-gray-700 text-sm font-medium mb-2">
-                                    <i class="fas fa-road mr-2"></i><span id="label-street">Street</span>
+                                    <i class="fas fa-road ml-2"></i><span id="label-street">الشارع</span>
                                 </label>
                                 <input type="text"
                                        name="street"
                                        required
                                        class="form-input w-full px-4 py-2.5 rounded-lg"
                                        id="input-street"
-                                       placeholder="Enter street name">
+                                       placeholder="أدخل اسم الشارع">
                             </div>
                         </div>
 
                         <!-- Note -->
                         <div>
                             <label class="block text-gray-700 text-sm font-medium mb-2">
-                                <i class="fas fa-sticky-note mr-2"></i><span id="label-note">Note (Optional)</span>
+                                <i class="fas fa-sticky-note ml-2"></i><span id="label-note">ملاحظات (اختياري)</span>
                             </label>
                             <textarea name="note"
                                       rows="2"
                                       class="form-input w-full px-4 py-2.5 rounded-lg resize-none"
                                       id="input-note"
-                                      placeholder="Any additional notes or special instructions..."></textarea>
+                                      placeholder="أي ملاحظات أو تعليمات خاصة..."></textarea>
                         </div>
 
                         <!-- Get Location Button -->
@@ -254,11 +254,11 @@
                             <button type="button"
                                     onclick="getCurrentLocation()"
                                     class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 font-semibold">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <span id="location-btn-text">Get My Location</span>
+                                    <i class="fas fa-map-marker-alt"></i>
+                                <span id="location-btn-text">احصل على موقعي</span>
                             </button>
                             <p id="location-hint" class="text-gray-500 text-xs text-center mt-2">
-                                Allow location access to auto-fill address fields
+                                السماح بالوصول إلى الموقع لملء حقول العنوان تلقائياً
                             </p>
                         </div>
                     </div>
@@ -266,8 +266,8 @@
                     <!-- Continue Button -->
                     <div class="mt-6">
                         <button type="submit" class="continue-button w-full text-white py-3 rounded-lg font-semibold text-lg">
-                            <i class="fas fa-arrow-right mr-2 continue-arrow"></i>
-                            <span id="continue-btn-text">Continue</span>
+                            <i class="fas fa-arrow-left ml-2 continue-arrow"></i>
+                            <span id="continue-btn-text">متابعة</span>
                         </button>
                     </div>
                 </form>
@@ -276,7 +276,7 @@
             <!-- Footer -->
             <div class="text-center mt-8">
                 <div class="text-gray-500 text-sm">
-                    <p><span id="powered-by-text">Powered by</span> <span class="font-semibold" style="color: #cf4823;">AdvFood</span></p>
+                    <p><span id="powered-by-text">مدعوم بواسطة</span> <span class="font-semibold" style="color: #cf4823;">AdvFood</span></p>
                 </div>
             </div>
         </div>
@@ -286,7 +286,7 @@
     <div id="mapPopup" class="map-popup" style="display: none;">
         <div class="map-container">
             <div class="map-header">
-                <h3 id="map-title" class="text-lg font-semibold">Select Your Location</h3>
+                <h3 id="map-title" class="text-lg font-semibold">اختر موقعك</h3>
                 <button onclick="closeMapPopup()" class="text-white hover:text-gray-200">
                     <i class="fas fa-times text-xl"></i>
                 </button>
@@ -295,8 +295,8 @@
                 <div id="map" style="width: 100%; height: 100%;"></div>
             </div>
             <div class="map-actions">
-                <button onclick="closeMapPopup()" id="map-cancel-btn" class="map-btn map-btn-cancel">Cancel</button>
-                <button onclick="confirmLocation()" id="map-confirm-btn" class="map-btn map-btn-confirm">Confirm Location</button>
+                <button onclick="closeMapPopup()" id="map-cancel-btn" class="map-btn map-btn-cancel">إلغاء</button>
+                <button onclick="confirmLocation()" id="map-confirm-btn" class="map-btn map-btn-confirm">تأكيد الموقع</button>
             </div>
         </div>
     </div>
@@ -710,12 +710,10 @@
             }
         }
 
-        // Load saved language preference on page load
+        // Load saved language preference on page load, default to Arabic
         document.addEventListener('DOMContentLoaded', function() {
-            const savedLang = localStorage.getItem('preferred_language');
-            if (savedLang) {
-                applyTranslations(savedLang);
-            }
+            const savedLang = localStorage.getItem('preferred_language') || 'ar';
+            applyTranslations(savedLang);
         });
     </script>
 </body>

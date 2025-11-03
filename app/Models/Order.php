@@ -98,6 +98,110 @@ class Order extends Model
             if (in_array($order->status, ['pending', 'confirmed'])) {
                 $order->createInvoice();
             }
+
+            // Send order to shipping company automatically after order is created
+            // Only send if order has shop_id and payment is paid or we want to send all orders
+            if (!empty($order->shop_id) && $order->payment_status === 'paid') {
+                try {
+                    $shippingService = new \App\Services\ShippingService();
+                    $shippingResult = $shippingService->createOrder($order);
+
+                    if ($shippingResult) {
+                        \Illuminate\Support\Facades\Log::info('✅ Order automatically sent to shipping company after creation', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null,
+                            'shipping_status' => $shippingResult['shipping_status'] ?? null,
+                            'shop_id' => $order->shop_id,
+                            'customer_name' => $order->delivery_name,
+                            'customer_phone' => $order->delivery_phone,
+                            'customer_address' => $order->delivery_address,
+                            'total' => $order->total,
+                            'payment_method' => $order->payment_method,
+                            'payment_status' => $order->payment_status,
+                        ]);
+
+                        // Update order with shipping information
+                        if (isset($shippingResult['dsp_order_id'])) {
+                            $order->dsp_order_id = $shippingResult['dsp_order_id'];
+                            $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
+                            $order->save();
+                        }
+                    } else {
+                        \Illuminate\Support\Facades\Log::warning('⚠️ Failed to automatically send order to shipping company after creation', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'shop_id' => $order->shop_id,
+                            'reason' => 'Shipping service returned null'
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('❌ Error automatically sending order to shipping company after creation', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'shop_id' => $order->shop_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            } else {
+                \Illuminate\Support\Facades\Log::info('📋 Order created but not sent to shipping (will be sent when payment is confirmed)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'shop_id' => $order->shop_id ?? 'MISSING',
+                    'payment_status' => $order->payment_status,
+                ]);
+            }
+        });
+
+        // Also send to shipping when payment_status is updated to 'paid'
+        static::updated(function ($order) {
+            // Check if payment_status was just changed to 'paid'
+            if ($order->wasChanged('payment_status') && $order->payment_status === 'paid') {
+                // Only send if not already sent (no dsp_order_id)
+                if (empty($order->dsp_order_id) && !empty($order->shop_id)) {
+                    try {
+                        $shippingService = new \App\Services\ShippingService();
+                        $shippingResult = $shippingService->createOrder($order);
+
+                        if ($shippingResult) {
+                            \Illuminate\Support\Facades\Log::info('✅ Order automatically sent to shipping company after payment confirmed', [
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null,
+                                'shipping_status' => $shippingResult['shipping_status'] ?? null,
+                                'shop_id' => $order->shop_id,
+                                'customer_name' => $order->delivery_name,
+                                'customer_phone' => $order->delivery_phone,
+                                'customer_address' => $order->delivery_address,
+                                'total' => $order->total,
+                            ]);
+
+                            // Update order with shipping information
+                            if (isset($shippingResult['dsp_order_id'])) {
+                                $order->dsp_order_id = $shippingResult['dsp_order_id'];
+                                $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
+                                $order->save();
+                            }
+                        } else {
+                            \Illuminate\Support\Facades\Log::warning('⚠️ Failed to automatically send order to shipping company after payment confirmed', [
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'shop_id' => $order->shop_id,
+                                'reason' => 'Shipping service returned null'
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('❌ Error automatically sending order to shipping company after payment confirmed', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'shop_id' => $order->shop_id,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                }
+            }
         });
     }
 

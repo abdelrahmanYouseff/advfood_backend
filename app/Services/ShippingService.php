@@ -43,14 +43,45 @@ class ShippingService
 
             $orderObj = is_array($order) ? (object) $order : $order;
             $orderIdString = (string) ($orderObj->order_number ?? $orderObj->id ?? '');
+            // Get shop_id - try from order, then from restaurant, then use default
             $shopIdString = isset($orderObj->shop_id) ? (string) $orderObj->shop_id : null;
+
+            // If shop_id is not set, try to get it from restaurant
+            if (empty($shopIdString) && isset($orderObj->restaurant_id)) {
+                try {
+                    $restaurant = \App\Models\Restaurant::find($orderObj->restaurant_id);
+                    if ($restaurant && !empty($restaurant->shop_id)) {
+                        $shopIdString = (string) $restaurant->shop_id;
+                        Log::info('🔍 Got shop_id from restaurant', [
+                            'restaurant_id' => $orderObj->restaurant_id,
+                            'shop_id' => $shopIdString,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Could not fetch restaurant for shop_id', [
+                        'restaurant_id' => $orderObj->restaurant_id ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Fallback to default shop_id if still empty
+            if (empty($shopIdString)) {
+                $shopIdString = '11183';
+                Log::info('🔍 Using default shop_id', [
+                    'shop_id' => $shopIdString,
+                    'order_id' => $orderObj->id ?? null,
+                ]);
+            }
 
             Log::info('🚀 Starting shipping order creation', [
                 'order_id' => $orderObj->id ?? null,
                 'order_number' => $orderIdString,
                 'shop_id' => $shopIdString,
+                'shop_id_type' => gettype($shopIdString),
                 'customer_name' => $orderObj->delivery_name ?? null,
                 'total' => $orderObj->total ?? null,
+                'restaurant_id' => $orderObj->restaurant_id ?? null,
             ]);
 
             if ($orderIdString === '' || empty($shopIdString)) {
@@ -59,9 +90,26 @@ class ShippingService
                     'order_id' => $orderObj->id ?? null,
                     'order_number' => $orderIdString ?: 'EMPTY',
                     'shop_id' => $shopIdString ?: 'EMPTY',
+                    'restaurant_id' => $orderObj->restaurant_id ?? null,
                     'message' => 'Order must have order_number and shop_id',
                 ]);
                 return null;
+            }
+
+            // Validate shop_id format - try different formats
+            $shopIdForApi = $shopIdString;
+            if (is_numeric($shopIdString)) {
+                // Clean the string first
+                $shopIdForApi = trim((string) $shopIdString);
+
+                // Some APIs expect integer, try that if string fails
+                // We'll log which format is being used
+                Log::info('🔍 Shop ID format check', [
+                    'original' => $shopIdString,
+                    'formatted' => $shopIdForApi,
+                    'is_numeric' => is_numeric($shopIdString),
+                    'as_integer' => (int) $shopIdString,
+                ]);
             }
 
             $latitude = isset($orderObj->latitude) ? $orderObj->latitude : null;
@@ -80,7 +128,7 @@ class ShippingService
 
             $payload = [
                 'id' => $orderIdString,
-                'shop_id' => $shopIdString,
+                'shop_id' => $shopIdForApi,
                 'delivery_details' => [
                     'name' => $orderObj->delivery_name ?? null,
                     'phone' => $uniquePhone,
@@ -104,8 +152,11 @@ class ShippingService
             Log::info('📤 Sending order to shipping company', [
                 'order_id' => $orderObj->id ?? null,
                 'order_number' => $orderIdString,
-                'shop_id' => $shopIdString,
+                'shop_id' => $shopIdForApi,
+                'shop_id_original' => $shopIdString,
                 'url' => $url,
+                'api_base_url' => $this->apiBaseUrl,
+                'api_key_exists' => !empty($this->apiKey),
                 'payload' => $payload,
             ]);
 
@@ -143,11 +194,33 @@ class ShippingService
                     Log::error('🔴 Validation Error (422) - Details:', [
                         'validation_errors' => $responseJson['errors'] ?? 'No specific errors provided',
                         'message' => $responseJson['message'] ?? 'Validation failed',
+                        'shop_id_sent' => $shopIdForApi,
+                        'shop_id_type' => gettype($shopIdForApi),
+                        'order_id' => $orderIdString,
+                        'full_response' => $responseJson,
+                        'suggestion' => 'Please verify shop_id is registered in shipping company system',
                     ]);
+
+                    // If "Invalid shop" error, log additional details
+                    if (isset($responseJson['message']) && stripos($responseJson['message'], 'shop') !== false) {
+                        Log::error('⚠️ SHOP_ID VALIDATION ISSUE', [
+                            'shop_id_used' => $shopIdForApi,
+                            'restaurant_id' => $orderObj->restaurant_id ?? null,
+                            'order_number' => $orderIdString,
+                            'action_required' => 'Verify shop_id in shipping company dashboard',
+                            'current_shop_id_source' => 'From order.shop_id or restaurant.shop_id',
+                        ]);
+                    }
                 } elseif ($statusCode === 401) {
-                    Log::error('🔴 Authentication Error (401) - Invalid API Token');
+                    Log::error('🔴 Authentication Error (401) - Invalid API Token', [
+                        'api_key_length' => strlen($this->apiKey ?? ''),
+                        'api_key_prefix' => substr($this->apiKey ?? '', 0, 20) . '...',
+                    ]);
                 } elseif ($statusCode === 404) {
-                    Log::error('🔴 Not Found (404) - Invalid endpoint or order not found');
+                    Log::error('🔴 Not Found (404) - Invalid endpoint or order not found', [
+                        'url' => $url,
+                        'endpoint' => $this->endpoints['create'],
+                    ]);
                 } elseif ($statusCode === 500) {
                     Log::error('🔴 Server Error (500) - Shipping company server error');
                 }

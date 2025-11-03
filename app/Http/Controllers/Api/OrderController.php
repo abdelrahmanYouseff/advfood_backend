@@ -112,8 +112,11 @@ class OrderController extends Controller
             $items = $orderData['items'] ?? [];
             unset($orderData['items']);
 
-            // Set fixed shop_id for shipping integration
-            $orderData['shop_id'] = '821017371';
+            // Set shop_id for shipping integration - get from restaurant or use default
+            if (!isset($orderData['shop_id']) || empty($orderData['shop_id'])) {
+                $restaurant = \App\Models\Restaurant::find($orderData['restaurant_id'] ?? null);
+                $orderData['shop_id'] = $restaurant?->shop_id ?? '11183';
+            }
 
             // Generate order number
             $orderData['order_number'] = $this->generateOrderNumber();
