@@ -109,15 +109,16 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: 'لوحة التحكم',
         href: '/dashboard',
     },
     {
-        title: 'Orders',
+        title: 'الطلبات',
         href: '/orders',
     },
     {
-        title: `Order #${props.order.order_number}`,
+        title: `طلب #${props.order.order_number}`,
+        href: `/orders/${props.order.id}`,
     },
 ];
 
@@ -136,11 +137,47 @@ const getStatusColor = (status: string) => {
 
 const getPaymentTypeText = (type: number) => {
     const types: Record<number, string> = {
-        0: 'Prepaid',
-        1: 'Cash on Delivery',
-        10: 'Card Machine',
+        0: 'دفع مسبق',
+        1: 'الدفع عند الاستلام',
+        10: 'آلة البطاقات',
     };
-    return types[type] || 'Unknown';
+    return types[type] || 'غير معروف';
+};
+
+const getStatusText = (status: string) => {
+    const statusMap: Record<string, string> = {
+        pending: 'قيد الانتظار',
+        confirmed: 'مؤكد',
+        preparing: 'قيد التحضير',
+        ready: 'جاهز',
+        delivering: 'قيد التوصيل',
+        delivered: 'تم التسليم',
+        cancelled: 'ملغي',
+    };
+    return statusMap[status.toLowerCase()] || status;
+};
+
+const getShippingStatusText = (status?: string) => {
+    if (!status) return 'طلب جديد';
+    const statusMap: Record<string, string> = {
+        'New Order': 'طلب جديد',
+        'Confirmed': 'مؤكد',
+        'Preparing': 'قيد التحضير',
+        'Ready': 'جاهز',
+        'Out for Delivery': 'خارج للتوصيل',
+        'Delivered': 'تم التسليم',
+        'Cancelled': 'ملغي',
+    };
+    return statusMap[status] || status;
+};
+
+const getPaymentMethodText = (method: string) => {
+    const methods: Record<string, string> = {
+        cash: 'نقدي',
+        card: 'بطاقة',
+        online: 'أونلاين',
+    };
+    return methods[method.toLowerCase()] || method;
 };
 
 // Helper function to check if order is delivered
@@ -151,7 +188,7 @@ const isDelivered = (order: any) => {
 </script>
 
 <template>
-    <Head :title="`Order #${order.order_number}`" />
+    <Head :title="`طلب #${order.order_number}`" />
 
     <AppLayout>
         <template #header>
@@ -172,7 +209,7 @@ const isDelivered = (order: any) => {
                         ]"
                     >
                         <ArrowLeft class="w-4 h-4 mr-2" />
-                        Back to Orders
+                        العودة للطلبات
                     </Link>
                     <div>
                         <h1 class="text-2xl font-bold">{{ order.order_number }}</h1>
@@ -181,7 +218,7 @@ const isDelivered = (order: any) => {
                             isDelivered(order)
                                 ? 'text-gray-200'
                                 : 'text-blue-100'
-                        ]">Order placed on {{ new Date(order.created_at).toLocaleDateString() }}</p>
+                        ]">تم إنشاء الطلب في {{ new Date(order.created_at).toLocaleDateString('ar-SA') }}</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
@@ -193,7 +230,7 @@ const isDelivered = (order: any) => {
                         <AlertCircle v-else-if="order.status === 'pending'" class="w-4 h-4 mr-1" />
                         <XCircle v-else-if="order.status === 'cancelled'" class="w-4 h-4 mr-1" />
                         <Clock v-else class="w-4 h-4 mr-1" />
-                        {{ order.status.toUpperCase() }}
+                        {{ getStatusText(order.status) }}
                     </span>
                     <span
                         v-if="order.shipping_status"
@@ -205,7 +242,7 @@ const isDelivered = (order: any) => {
                         ]"
                     >
                         <Truck class="w-4 h-4 mr-1" />
-                        {{ order.shipping_status }}
+                        {{ getShippingStatusText(order.shipping_status) }}
                     </span>
                 </div>
             </div>
@@ -221,11 +258,11 @@ const isDelivered = (order: any) => {
                     <div class="bg-white p-6 rounded-lg shadow-sm border">
                         <div class="flex items-center">
                             <div class="p-2 bg-blue-100 rounded-lg">
-                                <span class="text-sm font-bold text-blue-600">SAR</span>
+                                        <span class="text-sm font-bold text-blue-600">ر.س</span>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-500">Total Amount</p>
-                                <p class="text-2xl font-bold text-gray-900">{{ order.total }} SAR</p>
+                                <p class="text-sm font-medium text-gray-500">المبلغ الإجمالي</p>
+                                <p class="text-2xl font-bold text-gray-900">{{ order.total }} ر.س</p>
                             </div>
                         </div>
                     </div>
@@ -235,7 +272,7 @@ const isDelivered = (order: any) => {
                                 <Package class="w-6 h-6 text-green-600" />
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-500">Items</p>
+                                <p class="text-sm font-medium text-gray-500">العناصر</p>
                                 <p class="text-2xl font-bold text-gray-900">{{ calculations.items_count }}</p>
                             </div>
                         </div>
@@ -246,8 +283,8 @@ const isDelivered = (order: any) => {
                                 <CreditCard class="w-6 h-6 text-purple-600" />
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-500">Payment</p>
-                                <p class="text-lg font-bold text-gray-900 capitalize">{{ order.payment_method }}</p>
+                                <p class="text-sm font-medium text-gray-500">طريقة الدفع</p>
+                                <p class="text-lg font-bold text-gray-900">{{ getPaymentMethodText(order.payment_method) }}</p>
                             </div>
                         </div>
                     </div>
@@ -257,8 +294,8 @@ const isDelivered = (order: any) => {
                                 <Timer class="w-6 h-6 text-orange-600" />
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-500">Status</p>
-                                <p class="text-lg font-bold text-gray-900 capitalize">{{ order.status }}</p>
+                                <p class="text-sm font-medium text-gray-500">الحالة</p>
+                                <p class="text-lg font-bold text-gray-900">{{ getStatusText(order.status) }}</p>
                             </div>
                         </div>
                     </div>
@@ -275,16 +312,16 @@ const isDelivered = (order: any) => {
                             <div class="px-6 py-4 border-b border-gray-200">
                                 <h2 class="flex items-center text-xl font-semibold text-gray-900">
                                     <Utensils class="w-6 h-6 mr-3 text-blue-600" />
-                                    Order Items
+                                    عناصر الطلب
                                     <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                                        {{ calculations.items_count }} items
+                                        {{ calculations.items_count }} عنصر
                                     </span>
                                 </h2>
                             </div>
                             <div class="p-6">
                                 <div class="space-y-6">
                                     <div
-                                        v-for="item in order.order_items || order.orderItems"
+                                        v-for="item in order.order_items"
                                         :key="item.id"
                                         class="flex items-start p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
                                     >
@@ -295,21 +332,21 @@ const isDelivered = (order: any) => {
                                             <div class="flex justify-between items-start">
                                                 <div>
                                                     <h3 class="text-lg font-medium text-gray-900">{{ item.item_name }}</h3>
-                                                    <p v-if="item.menu_item?.description || item.menuItem?.description" class="text-sm text-gray-600 mt-1">
-                                                        {{ item.menu_item?.description || item.menuItem?.description }}
+                                                    <p v-if="item.menu_item?.description" class="text-sm text-gray-600 mt-1">
+                                                        {{ item.menu_item?.description }}
                                                     </p>
                                                     <div class="flex items-center space-x-6 mt-3">
                                                         <div class="flex items-center text-sm text-gray-500">
                                                             <Hash class="w-4 h-4 mr-1" />
-                                                            Qty: <span class="font-medium ml-1">{{ item.quantity }}</span>
+                                                            الكمية: <span class="font-medium ml-1">{{ item.quantity }}</span>
                                                         </div>
                                                         <div class="flex items-center text-sm text-gray-500">
-                                                            <span class="text-xs font-bold text-gray-600 mr-1">SAR</span>
-                                                            Unit: <span class="font-medium ml-1">{{ item.price }} SAR</span>
+                                                            <span class="text-xs font-bold text-gray-600 mr-1">ر.س</span>
+                                                            السعر: <span class="font-medium ml-1">{{ item.price }} ر.س</span>
                                                         </div>
-                                                        <div v-if="item.menu_item?.preparation_time || item.menuItem?.preparation_time" class="flex items-center text-sm text-gray-500">
+                                                        <div v-if="item.menu_item?.preparation_time" class="flex items-center text-sm text-gray-500">
                                                             <Timer class="w-4 h-4 mr-1" />
-                                                            <span class="font-medium">{{ item.menu_item?.preparation_time || item.menuItem?.preparation_time }} min</span>
+                                                            <span class="font-medium">{{ item.menu_item?.preparation_time }} دقيقة</span>
                                                         </div>
                                                     </div>
                                                     <div v-if="item.special_instructions" class="mt-3 p-2 bg-orange-50 border border-orange-200 rounded-md">
@@ -320,8 +357,8 @@ const isDelivered = (order: any) => {
                                                     </div>
                                                 </div>
                                                 <div class="text-right">
-                                                    <p class="text-xl font-bold text-gray-900">{{ item.subtotal }} SAR</p>
-                                                    <p class="text-sm text-gray-500">Original: {{ item.menu_item?.price || item.menuItem?.price }} SAR</p>
+                                                    <p class="text-xl font-bold text-gray-900">{{ item.subtotal }} ر.س</p>
+                                                    <p class="text-sm text-gray-500">الأصلي: {{ item.menu_item?.price }} ر.س</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -335,7 +372,7 @@ const isDelivered = (order: any) => {
                             <div class="px-6 py-4 border-b border-gray-200">
                                 <h2 class="flex items-center text-xl font-semibold text-gray-900">
                                     <Truck class="w-6 h-6 mr-3 text-green-600" />
-                                    Shipping & Delivery
+                                    الشحن والتوصيل
                                 </h2>
                             </div>
                             <div class="p-6">
@@ -343,15 +380,15 @@ const isDelivered = (order: any) => {
                                     <div class="bg-blue-50 p-4 rounded-lg">
                                         <div class="flex items-center mb-2">
                                             <Hash class="w-5 h-5 text-blue-600 mr-2" />
-                                            <h4 class="font-medium text-blue-900">Shipping IDs</h4>
+                                            <h4 class="font-medium text-blue-900">أرقام الشحن</h4>
                                         </div>
                                         <div class="space-y-2">
                                             <div>
-                                                <p class="text-xs text-blue-600">Shop ID</p>
+                                                <p class="text-xs text-blue-600">رقم المتجر</p>
                                                 <p class="font-mono text-sm text-blue-900">{{ order.shop_id }}</p>
                                             </div>
                                             <div>
-                                                <p class="text-xs text-blue-600">DSP Order ID</p>
+                                                <p class="text-xs text-blue-600">رقم طلب DSP</p>
                                                 <p class="font-mono text-sm text-blue-900">{{ order.dsp_order_id }}</p>
                                             </div>
                                         </div>
@@ -359,13 +396,13 @@ const isDelivered = (order: any) => {
                                     <div class="bg-green-50 p-4 rounded-lg">
                                         <div class="flex items-center mb-2">
                                             <CheckCircle class="w-5 h-5 text-green-600 mr-2" />
-                                            <h4 class="font-medium text-green-900">Current Status</h4>
+                                            <h4 class="font-medium text-green-900">الحالة الحالية</h4>
                                         </div>
                                         <p class="text-lg font-semibold text-green-900">
-                                            {{ order.shipping_status || 'New Order' }}
+                                            {{ getShippingStatusText(order.shipping_status) }}
                                         </p>
                                         <p v-if="shippingOrder" class="text-sm text-green-600 mt-1">
-                                            Payment: {{ getPaymentTypeText(shippingOrder.payment_type) }}
+                                            الدفع: {{ getPaymentTypeText(shippingOrder.payment_type) }}
                                         </p>
                                     </div>
                                 </div>
@@ -374,7 +411,7 @@ const isDelivered = (order: any) => {
                                 <div v-if="order.driver_name" class="bg-gray-50 p-6 rounded-lg border">
                                     <h4 class="flex items-center font-medium text-gray-900 mb-4">
                                         <User class="w-5 h-5 mr-2 text-gray-600" />
-                                        Driver Information
+                                        معلومات السائق
                                     </h4>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div class="flex items-center space-x-3">
@@ -382,7 +419,7 @@ const isDelivered = (order: any) => {
                                                 <User class="w-5 h-5 text-gray-600" />
                                             </div>
                                             <div>
-                                                <p class="text-sm text-gray-500">Driver Name</p>
+                                                <p class="text-sm text-gray-500">اسم السائق</p>
                                                 <p class="font-medium text-gray-900">{{ order.driver_name }}</p>
                                             </div>
                                         </div>
@@ -391,7 +428,7 @@ const isDelivered = (order: any) => {
                                                 <Phone class="w-5 h-5 text-gray-600" />
                                             </div>
                                             <div>
-                                                <p class="text-sm text-gray-500">Driver Phone</p>
+                                                <p class="text-sm text-gray-500">هاتف السائق</p>
                                                 <p class="font-medium text-gray-900">{{ order.driver_phone }}</p>
                                             </div>
                                         </div>
@@ -401,7 +438,7 @@ const isDelivered = (order: any) => {
                                                     <Navigation class="w-5 h-5 text-gray-600" />
                                                 </div>
                                                 <div>
-                                                    <p class="text-sm text-gray-500">Current Location</p>
+                                                    <p class="text-sm text-gray-500">الموقع الحالي</p>
                                                     <p class="font-mono text-sm text-gray-900">
                                                         {{ order.driver_latitude }}, {{ order.driver_longitude }}
                                                     </p>
@@ -421,7 +458,7 @@ const isDelivered = (order: any) => {
                             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                                 <h3 class="flex items-center text-lg font-semibold text-gray-900">
                                     <User class="w-5 h-5 mr-2 text-blue-600" />
-                                    Customer Details
+                                    تفاصيل العميل
                                 </h3>
                             </div>
                             <div class="p-6 space-y-4">
@@ -430,7 +467,7 @@ const isDelivered = (order: any) => {
                                         <User class="w-5 h-5 text-blue-600" />
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Full Name</p>
+                                        <p class="text-sm text-gray-500">الاسم الكامل</p>
                                         <p class="font-medium text-gray-900">{{ order.user.name }}</p>
                                     </div>
                                 </div>
@@ -439,7 +476,7 @@ const isDelivered = (order: any) => {
                                         <Mail class="w-5 h-5 text-blue-600" />
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Email</p>
+                                        <p class="text-sm text-gray-500">البريد الإلكتروني</p>
                                         <p class="font-medium text-gray-900">{{ order.user.email }}</p>
                                     </div>
                                 </div>
@@ -460,7 +497,7 @@ const isDelivered = (order: any) => {
                             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                                 <h3 class="flex items-center text-lg font-semibold text-gray-900">
                                     <Store class="w-5 h-5 mr-2 text-orange-600" />
-                                    Restaurant
+                                    المطعم
                                 </h3>
                             </div>
                             <div class="p-6 space-y-4">
@@ -484,7 +521,7 @@ const isDelivered = (order: any) => {
                                         <Phone class="w-5 h-5 text-orange-600" />
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Phone</p>
+                                        <p class="text-sm text-gray-500">الهاتف</p>
                                         <p class="font-medium text-gray-900">{{ order.restaurant.phone }}</p>
                                     </div>
                                 </div>
@@ -493,7 +530,7 @@ const isDelivered = (order: any) => {
                                         <Star class="w-5 h-5 text-orange-600" />
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Rating</p>
+                                        <p class="text-sm text-gray-500">التقييم</p>
                                         <p class="font-medium text-gray-900">{{ order.restaurant.rating }}/5</p>
                                     </div>
                                 </div>
@@ -505,7 +542,7 @@ const isDelivered = (order: any) => {
                             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                                 <h3 class="flex items-center text-lg font-semibold text-gray-900">
                                     <MapPin class="w-5 h-5 mr-2 text-green-600" />
-                                    Delivery Information
+                                    معلومات التوصيل
                                 </h3>
                             </div>
                             <div class="p-6 space-y-4">
@@ -514,7 +551,7 @@ const isDelivered = (order: any) => {
                                         <User class="w-5 h-5 text-green-600" />
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Recipient</p>
+                                        <p class="text-sm text-gray-500">المستلم</p>
                                         <p class="font-medium text-gray-900">{{ order.delivery_name }}</p>
                                     </div>
                                 </div>
@@ -523,7 +560,7 @@ const isDelivered = (order: any) => {
                                         <Phone class="w-5 h-5 text-green-600" />
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Contact</p>
+                                        <p class="text-sm text-gray-500">الاتصال</p>
                                         <p class="font-medium text-gray-900">{{ order.delivery_phone }}</p>
                                     </div>
                                 </div>
@@ -532,7 +569,7 @@ const isDelivered = (order: any) => {
                                         <MapPin class="w-5 h-5 text-green-600" />
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Address</p>
+                                        <p class="text-sm text-gray-500">العنوان</p>
                                         <p class="text-sm text-gray-900 leading-relaxed">{{ order.delivery_address }}</p>
                                     </div>
                                 </div>
@@ -540,7 +577,7 @@ const isDelivered = (order: any) => {
                                     <div class="flex items-start space-x-2">
                                         <AlertCircle class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                                         <div>
-                                            <p class="text-sm font-medium text-yellow-800">Special Instructions</p>
+                                            <p class="text-sm font-medium text-yellow-800">تعليمات خاصة</p>
                                             <p class="text-sm text-yellow-700 mt-1">{{ order.special_instructions }}</p>
                                         </div>
                                     </div>
@@ -553,48 +590,48 @@ const isDelivered = (order: any) => {
                             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                                 <h3 class="flex items-center text-lg font-semibold text-gray-900">
                                     <Receipt class="w-5 h-5 mr-2 text-purple-600" />
-                                    Order Summary
+                                    ملخص الطلب
                                 </h3>
                             </div>
                             <div class="p-6">
                                 <div class="space-y-4">
                                     <div class="flex justify-between items-center py-2">
-                                        <span class="text-gray-600">Items Subtotal</span>
-                                        <span class="font-medium text-gray-900">{{ calculations.items_subtotal }} SAR</span>
+                                        <span class="text-gray-600">المجموع الفرعي للعناصر</span>
+                                        <span class="font-medium text-gray-900">{{ calculations.items_subtotal }} ر.س</span>
                                     </div>
                                     <div class="flex justify-between items-center py-2">
-                                        <span class="text-gray-600">Order Subtotal</span>
-                                        <span class="font-medium text-gray-900">{{ order.subtotal }} SAR</span>
+                                        <span class="text-gray-600">المجموع الفرعي للطلب</span>
+                                        <span class="font-medium text-gray-900">{{ order.subtotal }} ر.س</span>
                                     </div>
                                     <div class="flex justify-between items-center py-2">
-                                        <span class="text-gray-600">Delivery Fee</span>
-                                        <span class="font-medium text-gray-900">{{ order.delivery_fee }} SAR</span>
+                                        <span class="text-gray-600">رسوم التوصيل</span>
+                                        <span class="font-medium text-gray-900">{{ order.delivery_fee }} ر.س</span>
                                     </div>
                                     <div class="flex justify-between items-center py-2">
-                                        <span class="text-gray-600">Tax</span>
-                                        <span class="font-medium text-gray-900">{{ order.tax }} SAR</span>
+                                        <span class="text-gray-600">الضريبة</span>
+                                        <span class="font-medium text-gray-900">{{ order.tax }} ر.س</span>
                                     </div>
                                     <div class="border-t border-gray-200 pt-4">
                                         <div class="flex justify-between items-center">
-                                            <span class="text-xl font-bold text-gray-900">Total Amount</span>
-                                            <span class="text-2xl font-bold text-green-600">{{ order.total }} SAR</span>
+                                            <span class="text-xl font-bold text-gray-900">المبلغ الإجمالي</span>
+                                            <span class="text-2xl font-bold text-green-600">{{ order.total }} ر.س</span>
                                         </div>
                                     </div>
                                     <div class="bg-gray-50 p-4 rounded-lg mt-4">
                                         <div class="flex justify-between items-center">
                                             <div class="flex items-center space-x-2">
                                                 <CreditCard class="w-5 h-5 text-gray-600" />
-                                                <span class="text-sm text-gray-600">Payment Method</span>
+                                                <span class="text-sm text-gray-600">طريقة الدفع</span>
                                             </div>
-                                            <span class="font-medium text-gray-900 capitalize">{{ order.payment_method }}</span>
+                                            <span class="font-medium text-gray-900">{{ getPaymentMethodText(order.payment_method) }}</span>
                                         </div>
                                         <div class="flex justify-between items-center mt-2">
-                                            <span class="text-sm text-gray-600">Payment Status</span>
+                                            <span class="text-sm text-gray-600">حالة الدفع</span>
                                             <span
                                                 class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
                                                 :class="order.payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
                                             >
-                                                {{ order.payment_status.toUpperCase() }}
+                                                {{ order.payment_status === 'paid' ? 'مدفوع' : order.payment_status === 'pending' ? 'قيد الانتظار' : 'فاشل' }}
                                             </span>
                                         </div>
                                     </div>
@@ -607,7 +644,7 @@ const isDelivered = (order: any) => {
                             <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
                                 <h3 class="flex items-center text-lg font-semibold text-gray-900">
                                     <Calendar class="w-5 h-5 mr-2 text-indigo-600" />
-                                    Order Timeline
+                                    الخط الزمني للطلب
                                 </h3>
                             </div>
                             <div class="p-6">
@@ -617,8 +654,8 @@ const isDelivered = (order: any) => {
                                             <Calendar class="w-4 h-4 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p class="font-medium text-blue-900">Order Created</p>
-                                            <p class="text-sm text-blue-700">{{ new Date(order.created_at).toLocaleString() }}</p>
+                                            <p class="font-medium text-blue-900">تم إنشاء الطلب</p>
+                                            <p class="text-sm text-blue-700">{{ new Date(order.created_at).toLocaleString('ar-SA') }}</p>
                                         </div>
                                     </div>
                                     <div v-if="order.estimated_delivery_time" class="flex items-center space-x-4 p-3 bg-yellow-50 rounded-lg">
@@ -626,8 +663,8 @@ const isDelivered = (order: any) => {
                                             <Clock class="w-4 h-4 text-yellow-600" />
                                         </div>
                                         <div>
-                                            <p class="font-medium text-yellow-900">Estimated Delivery</p>
-                                            <p class="text-sm text-yellow-700">{{ new Date(order.estimated_delivery_time).toLocaleString() }}</p>
+                                            <p class="font-medium text-yellow-900">وقت التوصيل المتوقع</p>
+                                            <p class="text-sm text-yellow-700">{{ new Date(order.estimated_delivery_time).toLocaleString('ar-SA') }}</p>
                                         </div>
                                     </div>
                                     <div v-if="order.delivered_at" class="flex items-center space-x-4 p-3 bg-green-50 rounded-lg">
@@ -635,8 +672,8 @@ const isDelivered = (order: any) => {
                                             <CheckCircle class="w-4 h-4 text-green-600" />
                                         </div>
                                         <div>
-                                            <p class="font-medium text-green-900">Delivered</p>
-                                            <p class="text-sm text-green-700">{{ new Date(order.delivered_at).toLocaleString() }}</p>
+                                            <p class="font-medium text-green-900">تم التسليم</p>
+                                            <p class="text-sm text-green-700">{{ new Date(order.delivered_at).toLocaleString('ar-SA') }}</p>
                                         </div>
                                     </div>
                                 </div>
