@@ -383,7 +383,7 @@
     <div id="mobile-cart-button" class="mobile-cart-button sm:hidden" onclick="toggleCart()">
         <div class="cart-content">
             <div class="view-cart-text">
-                View Cart (<span id="mobile-cart-count">0</span>)
+                عرض السلة (<span id="mobile-cart-count">0</span>)
             </div>
             <div class="price-container">
                 <div class="old-price" id="mobile-old-price" style="display: none;">
@@ -399,7 +399,7 @@
     <!-- Cart Sidebar - Desktop: Right Side, Mobile: Bottom -->
     <div id="cart-sidebar" class="fixed top-0 right-0 h-full w-full sm:w-80 cart-sidebar transform translate-x-0 sm:translate-x-0 translate-y-full sm:translate-y-0 transition-transform duration-300 z-50 p-4 sm:p-6">
         <div class="flex justify-between items-center mb-4 md:mb-6">
-            <h2 id="cart-title" class="text-xl md:text-2xl font-bold text-gray-800">Shopping Cart</h2>
+            <h2 id="cart-title" class="text-xl md:text-2xl font-bold text-gray-800">سلة التسوق</h2>
         </div>
 
         <div id="cart-items" class="space-y-3 md:space-y-4 mb-4 md:mb-6 max-h-[40vh] sm:max-h-80 md:max-h-96 overflow-y-auto">
@@ -408,17 +408,17 @@
 
         <div class="border-t border-gray-200 pt-3 md:pt-4 pb-4 sm:pb-0">
             <div class="flex justify-between items-center mb-3 md:mb-4">
-                <span id="total-text" class="text-gray-700 text-base md:text-lg font-semibold">Total:</span>
+                <span id="total-text" class="text-gray-700 text-base md:text-lg font-semibold">المجموع:</span>
                 <span id="cart-total" class="text-purple-600 text-lg md:text-xl font-bold">0.00 رس</span>
             </div>
 
             <div class="space-y-2 md:space-y-3">
                 <button onclick="payNow()" class="w-full bg-black hover:bg-gray-800 active:bg-gray-900 text-white py-3 md:py-3 rounded-full transition-all duration-300 text-base md:text-base font-semibold shadow-md hover:shadow-lg active:scale-95">
                     <i class="fas fa-credit-card mr-2 pay-icon"></i>
-                    <span id="pay-now-btn">Pay Now</span>
+                    <span id="pay-now-btn">ادفع الآن</span>
                 </button>
                 <button onclick="clearCart()" id="clear-cart-btn" class="w-full bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 py-2.5 md:py-3 rounded-full transition-all duration-300 text-sm md:text-base active:scale-95">
-                    Clear Cart
+                    إفراغ السلة
                 </button>
             </div>
         </div>
@@ -608,7 +608,7 @@
             cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
             if (cart.length === 0) {
-                cartItems.innerHTML = '<p class="text-gray-500 text-center py-8">Your cart is empty</p>';
+                cartItems.innerHTML = '<p class="text-gray-500 text-center py-8">سلتك فارغة</p>';
                 cartTotalElement.textContent = '0.00 رس';
             } else {
                 cartItems.innerHTML = cart.map(item => `
@@ -728,7 +728,7 @@
 
         function payNow() {
             if (cart.length === 0) {
-                alert('Your cart is empty!');
+                alert('سلتك فارغة!');
                 return;
             }
 

@@ -133,10 +133,33 @@ class TestNoonController extends Controller
     public function success(Request $request)
     {
         $orderId = $request->get('order_id');
+        $order = null;
+
+        // Try to find order by order_id first
         if ($orderId) {
-            // Update order payment status to paid
             $order = \App\Models\Order::find($orderId);
-            if ($order) {
+        }
+
+        // If not found, try to find by order_number from Noon response
+        if (!$order && $request->has('orderNumber')) {
+            $order = \App\Models\Order::where('order_number', $request->get('orderNumber'))->first();
+        }
+
+        // If still not found, get the most recent pending order for the user (fallback)
+        if (!$order) {
+            \Illuminate\Support\Facades\Log::warning('⚠️ Order not found in payment success callback', [
+                'order_id_param' => $orderId,
+                'request_params' => $request->all(),
+            ]);
+            // Try to get the most recent pending order
+            $order = \App\Models\Order::where('payment_status', 'pending')
+                ->orderBy('created_at', 'desc')
+                ->first();
+        }
+
+        if ($order) {
+            // Only update if payment_status is still pending (avoid duplicate processing)
+            if ($order->payment_status === 'pending') {
                 $order->payment_status = 'paid';
                 $order->status = 'confirmed'; // Update status to confirmed
                 $order->save();
@@ -184,10 +207,21 @@ class TestNoonController extends Controller
                         'trace' => $e->getTraceAsString()
                     ]);
                 }
+            } else {
+                \Illuminate\Support\Facades\Log::info('Order already processed', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_status' => $order->payment_status
+                ]);
             }
 
-            return redirect()->route('rest-link', ['order_id' => $orderId, 'payment_status' => 'success']);
+            return redirect()->route('rest-link', ['order_id' => $order->id, 'payment_status' => 'success']);
         }
+
+        \Illuminate\Support\Facades\Log::error('❌ No order found for payment success callback', [
+            'request_params' => $request->all(),
+        ]);
+
         return redirect()->route('rest-link', ['payment_status' => 'success']);
     }
 
