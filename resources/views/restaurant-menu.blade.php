@@ -126,10 +126,12 @@
                 right: 0;
                 background: #FFD700;
                 color: #000;
-                padding: 12px 16px;
+                padding: 14px 20px;
                 z-index: 40;
                 box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15);
                 border-radius: 0;
+                cursor: pointer;
+                user-select: none;
             }
 
             .mobile-cart-button.hidden {
@@ -138,18 +140,38 @@
 
             .mobile-cart-button:active {
                 background: #FFC700;
+                transform: scale(0.98);
+            }
+
+            .mobile-cart-button .view-cart-text {
+                font-weight: 700;
+                font-size: 16px;
+                color: #000;
+            }
+
+            .mobile-cart-button .price-container {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 2px;
             }
 
             .old-price {
                 text-decoration: line-through;
                 color: #666;
-                font-size: 14px;
+                font-size: 13px;
+                line-height: 1.2;
             }
 
             .current-price {
                 color: #000;
-                font-weight: bold;
-                font-size: 16px;
+                font-weight: 700;
+                font-size: 18px;
+                line-height: 1.2;
+            }
+
+            .currency-symbol {
+                font-size: 12px;
             }
         }
         .line-clamp-2 {
@@ -309,10 +331,10 @@
     <!-- Mobile Cart Button (Fixed Bottom) -->
     <div id="mobile-cart-button" class="mobile-cart-button sm:hidden" onclick="toggleCart()">
         <div class="flex items-center justify-between w-full">
-            <div class="text-black font-bold text-base sm:text-lg">
+            <div class="view-cart-text">
                 View Cart (<span id="mobile-cart-count">0</span>)
             </div>
-            <div class="flex flex-col items-end">
+            <div class="price-container">
                 <div class="old-price" id="mobile-old-price" style="display: none;">
                     <span id="mobile-old-price-value">0.00</span> <span class="currency-symbol">رس</span>
                 </div>
