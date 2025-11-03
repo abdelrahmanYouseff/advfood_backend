@@ -118,7 +118,7 @@
                 padding-bottom: 100px;
             }
 
-            /* Mobile cart button fixed at bottom */
+            /* Mobile cart button fixed at bottom - matching design */
             .mobile-cart-button {
                 position: fixed;
                 bottom: 0;
@@ -126,12 +126,15 @@
                 right: 0;
                 background: #FFD700;
                 color: #000;
-                padding: 14px 20px;
+                padding: 16px 20px;
                 z-index: 40;
                 box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15);
                 border-radius: 0;
                 cursor: pointer;
                 user-select: none;
+                min-height: 60px;
+                display: flex;
+                align-items: center;
             }
 
             .mobile-cart-button.hidden {
@@ -143,35 +146,46 @@
                 transform: scale(0.98);
             }
 
+            .mobile-cart-button .cart-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+            }
+
             .mobile-cart-button .view-cart-text {
                 font-weight: 700;
-                font-size: 16px;
+                font-size: 17px;
                 color: #000;
+                letter-spacing: -0.3px;
             }
 
             .mobile-cart-button .price-container {
                 display: flex;
                 flex-direction: column;
                 align-items: flex-end;
-                gap: 2px;
+                gap: 3px;
             }
 
-            .old-price {
+            .mobile-cart-button .old-price {
                 text-decoration: line-through;
                 color: #666;
                 font-size: 13px;
-                line-height: 1.2;
+                line-height: 1.1;
+                font-weight: 400;
             }
 
-            .current-price {
+            .mobile-cart-button .current-price {
                 color: #000;
                 font-weight: 700;
-                font-size: 18px;
-                line-height: 1.2;
+                font-size: 19px;
+                line-height: 1.1;
+                letter-spacing: -0.5px;
             }
 
-            .currency-symbol {
-                font-size: 12px;
+            .mobile-cart-button .currency-symbol {
+                font-size: 13px;
+                margin-right: 2px;
             }
         }
         .line-clamp-2 {
@@ -330,16 +344,16 @@
 
     <!-- Mobile Cart Button (Fixed Bottom) -->
     <div id="mobile-cart-button" class="mobile-cart-button sm:hidden" onclick="toggleCart()">
-        <div class="flex items-center justify-between w-full">
+        <div class="cart-content">
             <div class="view-cart-text">
                 View Cart (<span id="mobile-cart-count">0</span>)
             </div>
             <div class="price-container">
                 <div class="old-price" id="mobile-old-price" style="display: none;">
-                    <span id="mobile-old-price-value">0.00</span> <span class="currency-symbol">رس</span>
+                    <span class="currency-symbol">SR</span> <span id="mobile-old-price-value">0.00</span>
                 </div>
                 <div class="current-price">
-                    <span id="mobile-cart-total-value">0.00</span> <span class="currency-symbol">رس</span>
+                    <span class="currency-symbol">SR</span> <span id="mobile-cart-total-value">0.00</span>
                 </div>
             </div>
         </div>
