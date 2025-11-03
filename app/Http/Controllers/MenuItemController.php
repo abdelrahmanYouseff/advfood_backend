@@ -111,8 +111,8 @@ class MenuItemController extends Controller
             'allergens' => 'nullable|string',
         ]);
 
-        // Handle image upload
-        if ($request->hasFile('image')) {
+        // Handle image upload - only if a new file was uploaded
+        if ($request->hasFile('image') && $request->file('image')->isValid()) {
             // Delete old image if exists
             if ($menuItem->image && Storage::disk('public')->exists($menuItem->image)) {
                 Storage::disk('public')->delete($menuItem->image);
@@ -120,6 +120,9 @@ class MenuItemController extends Controller
 
             $imagePath = $request->file('image')->store('menu-items', 'public');
             $validated['image'] = $imagePath;
+        } else {
+            // If no new image, keep the existing one
+            unset($validated['image']);
         }
 
         $menuItem->update($validated);

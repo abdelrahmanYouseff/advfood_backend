@@ -66,16 +66,15 @@ const selectedRestaurant = computed(() => {
 });
 
 const submit = () => {
-    if (form.image) {
-        // If there's a new image, use post with _method override
-        form.post(route('menu-items.update', props.menuItem.id), {
-            _method: 'PUT',
-            forceFormData: true,
-        });
-    } else {
-        // If no new image, use put directly
-        form.put(route('menu-items.update', props.menuItem.id));
-    }
+    // Always use PUT - Inertia handles file uploads with PUT method
+    // Laravel supports PUT with multipart/form-data
+    form.put(route('menu-items.update', props.menuItem.id), {
+        forceFormData: true,
+        preserveScroll: true,
+        onError: (errors) => {
+            console.error('Form errors:', errors);
+        },
+    });
 };
 
 // Computed property for image preview URL
