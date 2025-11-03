@@ -34,6 +34,27 @@
             object-fit: cover;
             border-radius: 12px;
         }
+
+        /* Mobile menu item image */
+        @media (max-width: 640px) {
+            .menu-item-image {
+                width: 96px !important;
+                height: 96px !important;
+                object-fit: cover !important;
+                border-radius: 12px;
+                flex-shrink: 0;
+                display: block !important;
+            }
+
+            /* Ensure image container has proper size */
+            .menu-card img {
+                min-width: 96px;
+                min-height: 96px;
+                max-width: 96px;
+                max-height: 96px;
+                object-fit: cover;
+            }
+        }
         .restaurant-logo {
             width: 100px;
             height: 100px;
@@ -295,17 +316,23 @@
                     <div class="menu-card rounded-2xl p-4 sm:p-6 bg-white">
                         <div class="flex gap-4 sm:flex-col sm:gap-0">
                             <!-- Item Image - Mobile: side, Desktop: top -->
-                            <div class="mb-0 sm:mb-4 flex-shrink-0 sm:flex-shrink w-24 h-24 sm:w-full sm:h-auto">
+                            <div class="mb-0 sm:mb-4 flex-shrink-0 sm:flex-shrink w-24 h-24 sm:w-full sm:h-auto overflow-hidden">
                                 @if($item->image)
                                     <img src="{{ asset('storage/' . $item->image) }}"
                                          alt="{{ $item->name }}"
-                                         class="w-24 h-24 sm:w-full sm:h-48 object-cover rounded-xl sm:rounded-lg"
-                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                         class="w-full h-full object-cover rounded-xl sm:rounded-lg"
+                                         style="width: 96px; height: 96px; display: block;"
+                                         onerror="console.error('Image failed to load:', this.src); this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+                                         onload="console.log('Image loaded successfully:', this.src);">
+                                    <div class="w-24 h-24 sm:w-full sm:h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center rounded-xl sm:rounded-lg"
+                                         style="display: none;">
+                                        <i class="fas fa-utensils text-2xl sm:text-4xl text-white"></i>
+                                    </div>
+                                @else
+                                    <div class="w-24 h-24 sm:w-full sm:h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center rounded-xl sm:rounded-lg">
+                                        <i class="fas fa-utensils text-2xl sm:text-4xl text-white"></i>
+                                    </div>
                                 @endif
-                                <div class="w-24 h-24 sm:w-full sm:h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center rounded-xl sm:rounded-lg"
-                                     style="{{ $item->image ? 'display: none;' : '' }}">
-                                    <i class="fas fa-utensils text-2xl sm:text-4xl text-white"></i>
-                                </div>
                             </div>
 
                             <!-- Item Details -->
