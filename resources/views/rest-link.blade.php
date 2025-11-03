@@ -29,6 +29,9 @@
             border-color: #667eea;
             box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
         }
+        .link-card:active {
+            transform: translateY(-5px) scale(0.98);
+        }
         .pulse {
             animation: pulse 2s infinite;
         }
@@ -36,81 +39,91 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
+
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .link-card {
+                transition: all 0.2s ease;
+            }
+            .link-card:hover {
+                transform: translateY(-3px);
+            }
+        }
     </style>
 </head>
 <body class="font-sans">
-    <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-3xl mx-auto space-y-8">
+    <div class="min-h-screen py-4 sm:py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-3xl mx-auto space-y-6 sm:space-y-8">
             <!-- Header -->
             <div class="text-center relative">
                 <!-- Language Switcher -->
-                <div class="absolute top-0 right-0">
+                <div class="absolute top-0 right-0 sm:top-0 sm:right-0">
                     <div class="relative">
-                        <button onclick="toggleLanguageMenu()" class="flex items-center gap-2 bg-white hover:bg-gray-50 px-3 py-2 rounded-full shadow-md border-2 border-gray-200 hover:border-purple-300 transition-all">
+                        <button onclick="toggleLanguageMenu()" class="flex items-center gap-1 sm:gap-2 bg-white hover:bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-full shadow-md border-2 border-gray-200 hover:border-purple-300 transition-all">
                             <img id="current-flag" src="{{ asset('icons/united-kingdom.png') }}"
                                  alt="English"
-                                 class="w-6 h-6 rounded-full object-cover">
-                            <span id="current-lang" class="text-gray-700 text-sm font-medium">EN</span>
-                            <i class="fas fa-chevron-down text-gray-500 text-xs"></i>
+                                 class="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover">
+                            <span id="current-lang" class="text-gray-700 text-xs sm:text-sm font-medium">EN</span>
+                            <i class="fas fa-chevron-down text-gray-500 text-xs hidden sm:inline"></i>
                         </button>
 
                         <!-- Language Dropdown -->
-                        <div id="language-menu" class="hidden absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border-2 border-gray-200 overflow-hidden min-w-[140px]">
-                            <button onclick="switchLanguage('en')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-all">
+                        <div id="language-menu" class="hidden absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border-2 border-gray-200 overflow-hidden min-w-[120px] sm:min-w-[140px] z-50">
+                            <button onclick="switchLanguage('en')" class="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 hover:bg-purple-50 transition-all active:bg-purple-100">
                                 <img src="{{ asset('icons/united-kingdom.png') }}"
                                      alt="English"
-                                     class="w-6 h-6 rounded-full object-cover">
-                                <span class="text-gray-700 text-sm font-medium">English</span>
+                                     class="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover">
+                                <span class="text-gray-700 text-xs sm:text-sm font-medium">English</span>
                             </button>
-                            <button onclick="switchLanguage('ar')" class="w-full flex items-center gap-3 px-4 py-3 hover:bg-purple-50 transition-all border-t border-gray-100">
+                            <button onclick="switchLanguage('ar')" class="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 hover:bg-purple-50 transition-all border-t border-gray-100 active:bg-purple-100">
                                 <img src="{{ asset('icons/ain.png') }}"
                                      alt="العربية"
-                                     class="w-6 h-6 rounded-full object-cover">
-                                <span class="text-gray-700 text-sm font-medium">العربية</span>
+                                     class="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover">
+                                <span class="text-gray-700 text-xs sm:text-sm font-medium">العربية</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="mx-auto h-36 w-36 rounded-full flex items-center justify-center mb-6 shadow-lg overflow-hidden" style="background-color: #cf4823;">
+                <div class="mx-auto h-24 w-24 sm:h-36 sm:w-36 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-lg overflow-hidden" style="background-color: #cf4823;">
                     <img src="{{ asset('images/WhatsApp Image 2025-10-12 at 10.20.57 AM.jpeg') }}"
                          alt="AdvFood Logo"
-                         style="width: 150px; height: 150px;" class="object-contain">
+                         style="width: 100px; height: 100px;" class="sm:w-[150px] sm:h-[150px] object-contain">
                 </div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">@AdvFood</h1>
-                <p id="subtitle" class="text-gray-600 text-lg">Discover Amazing Restaurants</p>
-                <div class="mt-4">
-                    <span class="inline-block bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm font-semibold">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">@AdvFood</h1>
+                <p id="subtitle" class="text-gray-600 text-base sm:text-lg px-2">Discover Amazing Restaurants</p>
+                <div class="mt-3 sm:mt-4">
+                    <span class="inline-block bg-purple-100 text-purple-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold">
                         <span id="restaurant-count">{{ $restaurants->count() }}</span> <span id="restaurants-text">Restaurants Available</span>
                     </span>
                 </div>
             </div>
 
             <!-- Restaurant Links - Grid Layout -->
-            <div class="flex justify-center">
-                <div class="grid grid-cols-3 gap-6">
+            <div class="flex justify-center px-2 sm:px-0">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-md sm:max-w-none">
                 @forelse($restaurants as $restaurant)
                     <a href="{{ route('restaurant.menu', $restaurant->id) }}" class="block">
-                        <div class="link-card rounded-3xl p-6 text-center group">
+                        <div class="link-card rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-center group">
                             <!-- Restaurant Circle Image -->
-                            <div class="mb-4 flex justify-center">
+                            <div class="mb-3 sm:mb-4 flex justify-center">
                                 @if($restaurant->logo)
                                     <img src="{{ asset('storage/' . $restaurant->logo) }}"
                                          alt="{{ $restaurant->name }}"
-                                         class="w-28 h-28 object-cover rounded-full border-4 border-white/30 shadow-xl group-hover:scale-110 transition-transform duration-300"
+                                         class="w-20 h-20 sm:w-28 sm:h-28 object-cover rounded-full border-4 border-white/30 shadow-xl group-hover:scale-110 transition-transform duration-300"
                                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                 @endif
-                                <div class="w-28 h-28 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full border-4 border-white/30 shadow-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
+                                <div class="w-20 h-20 sm:w-28 sm:h-28 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full border-4 border-white/30 shadow-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
                                      style="{{ $restaurant->logo ? 'display: none;' : '' }}">
-                                    <i class="fas fa-store text-3xl text-white"></i>
+                                    <i class="fas fa-store text-2xl sm:text-3xl text-white"></i>
                                     </div>
                                 </div>
 
                             <!-- Restaurant Info -->
-                            <h3 class="text-lg font-bold text-gray-800 mb-3 truncate">{{ $restaurant->name }}</h3>
+                            <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-2 sm:mb-3 truncate px-2">{{ $restaurant->name }}</h3>
 
                             @if($restaurant->delivery_time)
-                                <div class="flex items-center justify-center text-gray-600 text-sm">
+                                <div class="flex items-center justify-center text-gray-600 text-xs sm:text-sm">
                                     <i class="fas fa-clock text-xs mr-1 text-purple-500 time-icon"></i>
                                     <span>{{ $restaurant->delivery_time }} <span class="time-unit">min</span></span>
                                 </div>
@@ -128,8 +141,8 @@
             </div>
 
             <!-- Footer -->
-            <div class="text-center pt-8">
-                <p class="text-gray-500 text-sm">
+            <div class="text-center pt-4 sm:pt-8">
+                <p class="text-gray-500 text-xs sm:text-sm">
                     <span id="powered-by-text">Powered by</span> <span class="font-semibold" style="color: #cf4823;">AdvFood</span>
                 </p>
             </div>
