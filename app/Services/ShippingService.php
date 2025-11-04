@@ -219,12 +219,14 @@ class ShippingService
                 'has_coordinates' => !is_null($latitude) && !is_null($longitude),
             ]);
 
-            // Make phone unique by appending order ID
+            // Use phone number as-is (without appending order ID)
+            // Remove any existing suffix if present (from previous orders)
             $uniquePhone = $orderObj->delivery_phone ?? null;
             if ($uniquePhone) {
-                // Remove any existing suffix and add new one
+                // Remove any existing suffix (e.g., #66, #123)
                 $uniquePhone = preg_replace('/#\d+$/', '', $uniquePhone);
-                $uniquePhone .= '#' . ($orderObj->id ?? time());
+                // Clean phone number - remove any extra spaces or characters
+                $uniquePhone = trim($uniquePhone);
             }
 
             // Make email unique by appending order ID
