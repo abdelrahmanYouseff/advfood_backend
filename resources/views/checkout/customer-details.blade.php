@@ -249,7 +249,7 @@
                                       placeholder="أي ملاحظات أو تعليمات خاصة..."></textarea>
                         </div>
 
-                        <!-- Get Location Button -->
+                        <!-- Get Location Button - سيتم التوجيه تلقائياً بعد تأكيد الموقع -->
                         <div class="pt-2">
                             <button type="button"
                                     onclick="getCurrentLocation()"
@@ -258,13 +258,13 @@
                                 <span id="location-btn-text">احصل على موقعي</span>
                             </button>
                             <p id="location-hint" class="text-gray-500 text-xs text-center mt-2">
-                                السماح بالوصول إلى الموقع لملء حقول العنوان تلقائياً
+                                اختر موقعك لتعبئة البيانات تلقائياً والمتابعة للدفع
                             </p>
                         </div>
                     </div>
 
-                    <!-- Continue Button -->
-                    <div class="mt-6">
+                    <!-- Continue Button - مخفي الآن، سيتم التوجيه تلقائياً بعد اختيار الموقع -->
+                    <div class="mt-6" style="display: none;">
                         <button type="submit" class="continue-button w-full text-white py-3 rounded-lg font-semibold text-lg">
                             <i class="fas fa-arrow-left ml-2 continue-arrow"></i>
                             <span id="continue-btn-text">متابعة</span>
@@ -277,6 +277,24 @@
             <div class="text-center mt-8">
                 <div class="text-gray-500 text-sm">
                     <p><span id="powered-by-text">مدعوم بواسطة</span> <span class="font-semibold" style="color: #cf4823;">AdvFood</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Popup - يظهر أثناء تحضير رابط الدفع -->
+    <div id="loadingPopup" class="fixed inset-0 bg-black bg-opacity-60 z-[9999] hidden items-center justify-center" style="display: none;">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all">
+            <div class="text-center">
+                <div class="mb-6 flex justify-center">
+                    <div class="inline-block animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-purple-600"></div>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-3">جاري تحضير رابط الدفع...</h3>
+                <p class="text-gray-600 text-base">يرجى الانتظار بينما نجهز رابط الدفع الخاص بك</p>
+                <div class="mt-4 flex justify-center space-x-1">
+                    <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 0ms;"></div>
+                    <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 150ms;"></div>
+                    <div class="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style="animation-delay: 300ms;"></div>
                 </div>
             </div>
         </div>
@@ -316,12 +334,29 @@
             }
         }
 
-        function submitForm(event) {
-            event.preventDefault();
-
-            const formData = new FormData(event.target);
+        function submitFormAutomatically() {
+            // Get form data
+            const form = document.getElementById('customerForm');
+            const formData = new FormData(form);
             const customerData = Object.fromEntries(formData.entries());
 
+            // Call the same submit logic
+            submitFormData(customerData);
+        }
+
+        function submitForm(event) {
+            if (event) {
+                event.preventDefault();
+            }
+
+            const form = event ? event.target : document.getElementById('customerForm');
+            const formData = new FormData(form);
+            const customerData = Object.fromEntries(formData.entries());
+
+            submitFormData(customerData);
+        }
+
+        function submitFormData(customerData) {
             // Get cart data from sessionStorage
             const cartData = JSON.parse(sessionStorage.getItem('cartData') || '[]');
             const cartTotal = parseFloat(sessionStorage.getItem('cartTotal') || '0');
@@ -333,11 +368,15 @@
                 return;
             }
 
-            // Show loading message
-            const submitButton = event.target.querySelector('button[type="submit"]');
-            const originalButtonText = submitButton.innerHTML;
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>جاري التحميل...';
+            // Validate required fields
+            if (!customerData.full_name || !customerData.phone_number || !customerData.building_no ||
+                !customerData.floor || !customerData.apartment_number || !customerData.street) {
+                alert('يرجى ملء جميع الحقول المطلوبة');
+                return;
+            }
+
+            // Show loading popup
+            showLoadingPopup();
 
             // Prepare payment data
             const paymentData = {
@@ -373,20 +412,22 @@
             })
             .then(response => response.json())
             .then(data => {
+                hideLoadingPopup();
                 if (data.success && data.checkout_url) {
-                    // Redirect to Noon payment page
-                    window.location.href = data.checkout_url;
+                    // Show success message before redirect
+                    showSuccessMessage('تم تحضير رابط الدفع بنجاح! جاري التوجيه...');
+                    // Redirect to Noon payment page after a short delay
+                    setTimeout(() => {
+                        window.location.href = data.checkout_url;
+                    }, 500);
                 } else {
                     alert('خطأ في إنشاء الدفع: ' + (data.message || 'حدث خطأ غير متوقع'));
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                hideLoadingPopup();
                 alert('حدث خطأ أثناء معالجة طلبك. الرجاء المحاولة مرة أخرى.');
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalButtonText;
             });
         }
 
@@ -495,13 +536,13 @@
             if (selectedLatLng) {
                 // Use selected location
                 locationToUse = selectedLatLng;
-                showSuccessMessage('Using selected location...');
+                showSuccessMessage('تم اختيار الموقع...');
             } else if (userCurrentLocation) {
                 // Use current location if no location was selected
                 locationToUse = userCurrentLocation;
-                showSuccessMessage('Using your current location...');
+                showSuccessMessage('جارٍ استخدام موقعك الحالي...');
             } else {
-                alert('Please select a location on the map or allow location access.');
+                alert('يرجى اختيار موقع على الخريطة أو السماح بالوصول إلى الموقع.');
                 return;
             }
 
@@ -525,21 +566,20 @@
             const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
 
             // Show loading message
-            showSuccessMessage('Getting address details...');
+            showSuccessMessage('جارٍ الحصول على تفاصيل العنوان...');
 
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.address) {
                         fillAddressFields(data.address);
-                        showSuccessMessage('Location confirmed! Address fields have been auto-filled.');
                     } else {
-                        alert('Could not get address details from location.');
+                        alert('تعذر الحصول على تفاصيل العنوان من الموقع.');
                     }
                 })
                 .catch(error => {
                     console.error('Reverse geocoding error:', error);
-                    alert('Error getting address details. Please enter manually.');
+                    alert('حدث خطأ في الحصول على تفاصيل العنوان. يرجى إدخال البيانات يدوياً.');
                 });
         }
 
@@ -555,15 +595,63 @@
             }
 
             // For floor and apartment, we can't get this from geocoding
-            // So we'll leave them empty for manual entry
+            // Set default values if not available
+            if (!document.querySelector('input[name="floor"]').value) {
+                document.querySelector('input[name="floor"]').value = '1';
+            }
+            if (!document.querySelector('input[name="apartment_number"]').value) {
+                document.querySelector('input[name="apartment_number"]').value = '1';
+            }
 
-            // Show a message about what was filled
-            const filledFields = [];
-            if (address.road || address.street) filledFields.push('Street');
-            if (address.house_number) filledFields.push('Building Number');
+            // Check if required fields are filled
+            const fullName = document.querySelector('input[name="full_name"]').value;
+            const phoneNumber = document.querySelector('input[name="phone_number"]').value;
+            const buildingNo = document.querySelector('input[name="building_no"]').value;
+            const floor = document.querySelector('input[name="floor"]').value;
+            const apartment = document.querySelector('input[name="apartment_number"]').value;
+            const street = document.querySelector('input[name="street"]').value;
 
-            if (filledFields.length > 0) {
-                showSuccessMessage(`Auto-filled: ${filledFields.join(', ')}. Please complete the remaining fields manually.`);
+            // If name and phone are not filled, prompt user to fill them
+            if (!fullName || !phoneNumber) {
+                showSuccessMessage('يرجى إدخال الاسم الكامل ورقم الهاتف');
+                // Focus on name field if empty
+                if (!fullName) {
+                    document.querySelector('input[name="full_name"]').focus();
+                } else if (!phoneNumber) {
+                    document.querySelector('input[name="phone_number"]').focus();
+                }
+                return;
+            }
+
+            // Check if all required address fields are filled
+            if (buildingNo && floor && apartment && street) {
+                // All fields are filled, auto-submit after a short delay
+                showSuccessMessage('تم ملء البيانات بنجاح! جاري التوجيه للدفع...');
+                setTimeout(() => {
+                    submitFormAutomatically();
+                }, 1500);
+            } else {
+                showSuccessMessage('تم ملء بعض البيانات. يرجى إكمال باقي الحقول');
+            }
+        }
+
+        function showLoadingPopup() {
+            const popup = document.getElementById('loadingPopup');
+            if (popup) {
+                popup.style.display = 'flex';
+                popup.classList.remove('hidden');
+                // Prevent body scroll when popup is shown
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function hideLoadingPopup() {
+            const popup = document.getElementById('loadingPopup');
+            if (popup) {
+                popup.style.display = 'none';
+                popup.classList.add('hidden');
+                // Restore body scroll
+                document.body.style.overflow = '';
             }
         }
 
