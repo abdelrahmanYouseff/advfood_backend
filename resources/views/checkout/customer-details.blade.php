@@ -355,6 +355,13 @@
                 customer_longitude: savedCustomerLongitude || null
             };
 
+            // Debug: Log the coordinates being sent
+            console.log('📍 Customer coordinates being sent:', {
+                latitude: savedCustomerLatitude,
+                longitude: savedCustomerLongitude,
+                hasCoordinates: savedCustomerLatitude !== null && savedCustomerLongitude !== null
+            });
+
             // Send request to initiate payment
             fetch('{{ route("checkout.initiate-payment") }}', {
                 method: 'POST',
@@ -501,6 +508,12 @@
             // Save latitude and longitude for later use
             savedCustomerLatitude = locationToUse.lat;
             savedCustomerLongitude = locationToUse.lng;
+
+            // Debug: Log saved coordinates
+            console.log('✅ Location saved:', {
+                latitude: savedCustomerLatitude,
+                longitude: savedCustomerLongitude
+            });
 
             // Get address from location
             reverseGeocode(locationToUse.lat, locationToUse.lng);

@@ -208,6 +208,13 @@ class RestLinkController extends Controller
             $restaurant = \App\Models\Restaurant::find($request->restaurant_id);
             $shopId = $restaurant?->shop_id ?? (string) $request->restaurant_id;
 
+            // Log customer coordinates received from request
+            Log::info('📍 Customer coordinates received in initiatePayment', [
+                'customer_latitude' => $request->customer_latitude ?? 'NULL',
+                'customer_longitude' => $request->customer_longitude ?? 'NULL',
+                'has_coordinates' => !empty($request->customer_latitude) && !empty($request->customer_longitude),
+            ]);
+
             // Create order in orders table
             $order = \App\Models\Order::create([
                 'order_number' => $orderNumber,
@@ -227,6 +234,13 @@ class RestLinkController extends Controller
                 'special_instructions' => $request->note,
                 'payment_method' => 'online',
                 'payment_status' => 'pending',
+            ]);
+
+            Log::info('✅ Order created with customer coordinates', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'customer_latitude' => $order->customer_latitude ?? 'NULL',
+                'customer_longitude' => $order->customer_longitude ?? 'NULL',
             ]);
 
             Log::info('✅ Order created for payment', [
