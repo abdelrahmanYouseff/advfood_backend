@@ -60,17 +60,26 @@ class ShippingService
 
             $orderObj = is_array($order) ? (object) $order : $order;
 
-            // Ensure we use order_number (the unique identifier) not the internal id
-            // This is the order_number that appears in the system (e.g., ORD-20251104-02EEA5)
-            $orderIdString = (string) ($orderObj->order_number ?? $orderObj->id ?? '');
+            // IMPORTANT: We MUST use order_number (e.g., ORD-20251104-D80175) NOT the internal id
+            // The shipping company expects order_number, not the database id
+            if (empty($orderObj->order_number)) {
+                Log::error('❌ CRITICAL: order_number is missing! Cannot send to shipping company', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number_exists' => false,
+                    'order_object_keys' => is_object($orderObj) ? array_keys(get_object_vars($orderObj)) : 'N/A',
+                    'message' => 'Order must have order_number (e.g., ORD-20251104-D80175) to send to shipping company. Internal id cannot be used.',
+                ]);
+                return null;
+            }
 
-            Log::info('🔍 Order identifier for shipping', [
+            // Use ONLY order_number, never use id as fallback
+            $orderIdString = (string) $orderObj->order_number;
+
+            Log::info('🔍 Order identifier for shipping (using order_number ONLY)', [
                 'order_id' => $orderObj->id ?? null,
-                'order_number' => $orderObj->order_number ?? 'MISSING',
-                'order_number_exists' => !empty($orderObj->order_number),
-                'id_fallback_used' => empty($orderObj->order_number) && !empty($orderObj->id),
-                'final_order_id_string' => $orderIdString,
-                'order_id_string_type' => gettype($orderIdString),
+                'order_number' => $orderIdString,
+                'order_number_type' => gettype($orderIdString),
+                'confirmation' => 'Using order_number (NOT id) for shipping company',
             ]);
 
             // Get shop_id - try from order, then from restaurant, then use default
@@ -115,16 +124,17 @@ class ShippingService
                 'restaurant_id' => $orderObj->restaurant_id ?? null,
             ]);
 
-            // Validate that we have order_number (the unique identifier used throughout the system)
-            if (empty($orderIdString)) {
-                Log::error('❌ Shipping order creation aborted - Missing order_number', [
-                    'reason' => 'order_number is required but is empty',
+            // Double-check: order_number must exist (we already checked above, but this is a safety check)
+            if (empty($orderIdString) || empty($orderObj->order_number)) {
+                Log::error('❌ Shipping order creation aborted - Missing order_number (CRITICAL)', [
+                    'reason' => 'order_number is required but is empty or missing',
                     'order_id' => $orderObj->id ?? null,
                     'order_number_exists' => !empty($orderObj->order_number ?? null),
                     'order_number_value' => $orderObj->order_number ?? 'MISSING',
-                    'id_fallback_available' => !empty($orderObj->id ?? null),
+                    'order_id_string' => $orderIdString ?: 'EMPTY',
                     'restaurant_id' => $orderObj->restaurant_id ?? null,
-                    'message' => 'Order must have order_number (e.g., ORD-20251104-02EEA5) to send to shipping company',
+                    'message' => 'Order MUST have order_number (e.g., ORD-20251104-D80175) to send to shipping company. Internal database id cannot be used.',
+                    'note' => 'We ONLY use order_number, never the internal id field',
                 ]);
                 return null;
             }
@@ -179,10 +189,11 @@ class ShippingService
             $uniqueEmail = 'order' . ($orderObj->id ?? time()) . '@advfood.local';
 
             // Payload with order_number as the unique identifier
-            // The 'id' field will contain the order_number (e.g., ORD-20251104-02EEA5)
+            // IMPORTANT: The 'id' field MUST contain order_number (e.g., ORD-20251104-D80175)
+            // We NEVER use the internal database id - only order_number
             // This is the same order_number that appears in the system and is tracked everywhere
             $payload = [
-                'id' => $orderIdString, // This is the order_number (ORD-20251104-02EEA5)
+                'id' => $orderIdString, // This is the order_number (e.g., ORD-20251104-D80175) - NOT the database id
                 'shop_id' => $shopIdForApi,
                 'delivery_details' => [
                     'name' => $orderObj->delivery_name ?? null,
@@ -201,11 +212,12 @@ class ShippingService
                 ],
             ];
 
-            Log::info('📋 Shipping payload prepared with order_number', [
+            Log::info('📋 Shipping payload prepared with order_number (NOT id)', [
                 'order_id' => $orderObj->id ?? null,
                 'order_number' => $orderObj->order_number ?? 'MISSING',
-                'payload_id_field' => $payload['id'], // This should be the order_number
+                'payload_id_field' => $payload['id'], // This is the order_number (e.g., ORD-20251104-D80175)
                 'payload_id_type' => gettype($payload['id']),
+                'confirmation' => 'Payload uses order_number, NOT database id',
                 'shop_id' => $shopIdForApi,
                 'customer_name' => $orderObj->delivery_name ?? null,
                 'total' => $payload['order']['total'],
@@ -213,11 +225,12 @@ class ShippingService
 
             $url = $this->buildUrl($this->endpoints['create']);
 
-            // Log the request details with emphasis on order_number
-            Log::info('📤 Sending order to shipping company (using order_number)', [
-                'order_id' => $orderObj->id ?? null,
-                'order_number' => $orderObj->order_number ?? 'MISSING',
-                'order_number_sent_in_payload' => $payload['id'], // This is what gets sent as 'id'
+            // Log the request details with emphasis on order_number (NOT id)
+            Log::info('📤 Sending order to shipping company (using order_number ONLY)', [
+                'order_id' => $orderObj->id ?? null, // Internal database id (for reference only, NOT sent)
+                'order_number' => $orderObj->order_number ?? 'MISSING', // This is what we send
+                'order_number_sent_in_payload' => $payload['id'], // This is order_number (e.g., ORD-20251104-D80175)
+                'confirmation' => 'Shipping company will receive order_number, NOT database id',
                 'shop_id' => $shopIdForApi,
                 'shop_id_original' => $shopIdString,
                 'url' => $url,
@@ -226,7 +239,7 @@ class ShippingService
                 'api_key_length' => strlen($this->apiKey ?? ''),
                 'api_key_prefix' => substr($this->apiKey ?? '', 0, 10) . '...',
                 'payload' => $payload,
-                'payload_id_field_value' => $payload['id'], // Explicitly show what's being sent
+                'payload_id_field_value' => $payload['id'], // This is order_number (ORD-20251104-D80175)
                 'environment' => config('app.env'),
                 'server_ip' => request()->server('SERVER_ADDR') ?? 'unknown',
             ]);
@@ -245,6 +258,19 @@ class ShippingService
             $response = $this->sendAsForm
                 ? $request->asForm()->post($url, $this->flattenArray($payload))
                 : $request->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
+
+            // Log immediate response details
+            Log::info('📡 Shipping API Response Received (immediate)', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderObj->order_number ?? 'MISSING',
+                'response_exists' => !is_null($response),
+                'response_type' => gettype($response),
+                'http_status' => $response ? $response->status() : 'NO_RESPONSE',
+                'response_successful' => $response ? $response->successful() : false,
+                'response_failed' => $response ? $response->failed() : true,
+                'response_body_preview' => $response ? substr($response->body(), 0, 500) : 'NO_RESPONSE',
+                'url' => $url,
+            ]);
 
             // Log the response details
             if (!$response || $response->failed()) {
@@ -302,8 +328,28 @@ class ShippingService
                         'endpoint' => $this->endpoints['create'],
                     ]);
                 } elseif ($statusCode === 500) {
-                    Log::error('🔴 Server Error (500) - Shipping company server error');
+                    Log::error('🔴 Server Error (500) - Shipping company server error', [
+                        'order_id' => $orderObj->id ?? null,
+                        'order_number' => $orderObj->order_number ?? 'MISSING',
+                        'full_response' => $responseJson,
+                    ]);
+                } else {
+                    Log::error('🔴 Unknown HTTP Error Status', [
+                        'order_id' => $orderObj->id ?? null,
+                        'order_number' => $orderObj->order_number ?? 'MISSING',
+                        'http_status' => $statusCode,
+                        'full_response' => $responseJson,
+                        'response_body' => $responseBody,
+                    ]);
                 }
+
+                Log::error('🛑 ShippingService::createOrder() returning NULL due to failed response', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderObj->order_number ?? 'MISSING',
+                    'http_status' => $statusCode,
+                    'reason' => 'HTTP request failed or returned error status',
+                    'url' => $url,
+                ]);
 
                 return null;
             }
@@ -393,6 +439,12 @@ class ShippingService
                 'exception_code' => $e->getCode(),
                 'suggestion' => 'Check network connectivity, DNS resolution, firewall, and API URL on server',
             ]);
+            Log::error('🛑 ShippingService::createOrder() returning NULL due to ConnectionException', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderObj->order_number ?? 'UNKNOWN',
+                'exception_type' => 'ConnectionException',
+                'exception_message' => $e->getMessage(),
+            ]);
             return null;
         } catch (\Throwable $e) {
             Log::error('💥 Exception during shipping order creation', [
@@ -406,6 +458,14 @@ class ShippingService
                 'exception_file' => $e->getFile(),
                 'exception_line' => $e->getLine(),
                 'exception_trace' => $e->getTraceAsString(),
+            ]);
+            Log::error('🛑 ShippingService::createOrder() returning NULL due to Exception', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderObj->order_number ?? 'UNKNOWN',
+                'exception_type' => get_class($e),
+                'exception_message' => $e->getMessage(),
+                'exception_file' => $e->getFile(),
+                'exception_line' => $e->getLine(),
             ]);
             return null;
         }
