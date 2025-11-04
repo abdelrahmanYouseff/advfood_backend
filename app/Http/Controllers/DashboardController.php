@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Restaurant;
-use App\Models\User;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +13,6 @@ class DashboardController extends Controller
     public function index()
     {
         $stats = [
-            'total_users' => User::count(),
             'total_restaurants' => Restaurant::count(),
             'total_orders' => Order::where('payment_status', 'paid')->count(),
             'total_revenue' => Invoice::where('status', 'paid')->sum('total'),

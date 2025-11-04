@@ -3,7 +3,6 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import {
-    Users,
     Store,
     ShoppingCart,
     DollarSign,
@@ -15,7 +14,6 @@ import {
 
 interface Props {
     stats: {
-        total_users: number;
         total_restaurants: number;
         total_orders: number;
         total_revenue: number;
@@ -201,19 +199,7 @@ onMounted(() => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
             <!-- Stats Cards -->
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-xl border bg-card p-6 shadow-sm">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-muted-foreground">إجمالي المستخدمين</p>
-                            <p class="text-2xl font-bold">{{ stats.total_users }}</p>
-                        </div>
-                        <div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/20">
-                            <Users class="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                    </div>
-                </div>
-
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <div class="rounded-xl border bg-card p-6 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
