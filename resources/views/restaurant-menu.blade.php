@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" id="html-root">
+<html lang="ar" dir="rtl" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -259,7 +259,7 @@
                 <!-- Cart Button -->
                 <button onclick="toggleCart()" class="relative inline-flex items-center gap-1 md:gap-2 back-button rounded-full px-3 md:px-4 py-2 text-gray-700 hover:text-purple-600 text-sm md:text-base">
                     <i class="fas fa-shopping-cart text-sm md:text-base"></i>
-                    <span class="hidden sm:inline" id="cart-text">Cart</span>
+                    <span class="hidden sm:inline" id="cart-text">السلة</span>
                     <div id="cart-badge" class="cart-badge" style="display: none;">0</div>
                 </button>
             </div>
@@ -355,7 +355,7 @@
                                     </div>
                                     <button onclick="addToCart({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->price }}, '{{ addslashes(str_replace(["\r", "\n"], ' ', $item->description ?? 'Delicious item')) }}')" class="bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white px-5 sm:px-4 py-2.5 sm:py-2 rounded-full transition-all duration-300 flex items-center justify-center gap-2 text-sm sm:text-base shadow-md hover:shadow-lg active:scale-95 add-to-cart-btn flex-shrink-0">
                                         <i class="fas fa-plus text-xs sm:text-sm"></i>
-                                        <span class="add-btn-text hidden sm:inline">Add</span>
+                                        <span class="add-btn-text hidden sm:inline">إضافة</span>
                                     </button>
                                 </div>
                             </div>
@@ -473,7 +473,7 @@
             }
         };
 
-        let currentLang = 'en';
+        let currentLang = 'ar'; // Default to Arabic
 
         function addToCart(itemId, itemName, itemPrice, itemDescription) {
             const existingItem = cart.find(item => item.id === itemId);
@@ -872,12 +872,10 @@
             updateMobileCartButton();
         };
 
-        // Load saved language preference on page load
+        // Load saved language preference on page load, default to Arabic
         document.addEventListener('DOMContentLoaded', function() {
-            const savedLang = localStorage.getItem('preferred_language');
-            if (savedLang) {
-                applyTranslations(savedLang);
-            }
+            const savedLang = localStorage.getItem('preferred_language') || 'ar';
+            applyTranslations(savedLang);
 
             // Add event listeners for cart close functionality
             const closeBtn = document.getElementById('close-cart-btn');
