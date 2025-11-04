@@ -132,22 +132,53 @@ class TestNoonController extends Controller
 
     public function success(Request $request)
     {
+        \Illuminate\Support\Facades\Log::info('💰 PAYMENT SUCCESS CALLBACK STARTED', [
+            'request_all_params' => $request->all(),
+            'request_url' => $request->fullUrl(),
+            'request_method' => $request->method(),
+            'ip' => $request->ip(),
+            'environment' => config('app.env'),
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+
         $orderId = $request->get('order_id');
         $order = null;
 
         // Try to find order by order_id first
         if ($orderId) {
+            \Illuminate\Support\Facades\Log::info('🔍 STEP 1: Searching for order by order_id', [
+                'order_id' => $orderId,
+            ]);
             $order = \App\Models\Order::find($orderId);
+            if ($order) {
+                \Illuminate\Support\Facades\Log::info('✅ Order found by order_id', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_status' => $order->payment_status,
+                    'shop_id' => $order->shop_id ?? 'MISSING',
+                ]);
+            }
         }
 
         // If not found, try to find by order_number from Noon response
         if (!$order && $request->has('orderNumber')) {
+            \Illuminate\Support\Facades\Log::info('🔍 STEP 2: Searching for order by order_number', [
+                'order_number' => $request->get('orderNumber'),
+            ]);
             $order = \App\Models\Order::where('order_number', $request->get('orderNumber'))->first();
+            if ($order) {
+                \Illuminate\Support\Facades\Log::info('✅ Order found by order_number', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_status' => $order->payment_status,
+                    'shop_id' => $order->shop_id ?? 'MISSING',
+                ]);
+            }
         }
 
         // If still not found, get the most recent pending order for the user (fallback)
         if (!$order) {
-            \Illuminate\Support\Facades\Log::warning('⚠️ Order not found in payment success callback', [
+            \Illuminate\Support\Facades\Log::warning('⚠️ STEP 3: Order not found, trying fallback (most recent pending)', [
                 'order_id_param' => $orderId,
                 'request_params' => $request->all(),
             ]);
@@ -155,11 +186,29 @@ class TestNoonController extends Controller
             $order = \App\Models\Order::where('payment_status', 'pending')
                 ->orderBy('created_at', 'desc')
                 ->first();
+            if ($order) {
+                \Illuminate\Support\Facades\Log::info('✅ Order found by fallback (most recent pending)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_status' => $order->payment_status,
+                    'shop_id' => $order->shop_id ?? 'MISSING',
+                ]);
+            }
         }
 
         if ($order) {
+            \Illuminate\Support\Facades\Log::info('📦 ORDER FOUND - Starting payment status update process', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'current_payment_status' => $order->payment_status,
+                'current_status' => $order->status,
+                'current_shop_id' => $order->shop_id ?? 'MISSING',
+                'restaurant_id' => $order->restaurant_id,
+            ]);
+
             // Only update if payment_status is still pending (avoid duplicate processing)
             if ($order->payment_status === 'pending') {
+                \Illuminate\Support\Facades\Log::info('✅ Payment status is pending, proceeding with update');
                 // Ensure shop_id is set before updating payment status
                 if (empty($order->shop_id) && !empty($order->restaurant_id)) {
                     $restaurant = \App\Models\Restaurant::find($order->restaurant_id);
@@ -255,21 +304,24 @@ class TestNoonController extends Controller
                     ]);
                 }
             } else {
-                \Illuminate\Support\Facades\Log::info('Order already processed', [
+                \Illuminate\Support\Facades\Log::warning('⚠️ Order already processed - payment_status is NOT pending', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
-                    'payment_status' => $order->payment_status
+                    'payment_status' => $order->payment_status,
+                    'dsp_order_id' => $order->dsp_order_id ?? 'MISSING',
+                    'shipping_status' => $order->shipping_status ?? 'MISSING',
                 ]);
             }
 
             return redirect()->route('rest-link', ['order_id' => $order->id, 'payment_status' => 'success']);
+        } else {
+            \Illuminate\Support\Facades\Log::error('❌ NO ORDER FOUND - Cannot process payment success', [
+                'order_id_param' => $orderId,
+                'request_params' => $request->all(),
+            ]);
+
+            return redirect()->route('rest-link', ['payment_status' => 'success']);
         }
-
-        \Illuminate\Support\Facades\Log::error('❌ No order found for payment success callback', [
-            'request_params' => $request->all(),
-        ]);
-
-        return redirect()->route('rest-link', ['payment_status' => 'success']);
     }
 
     public function fail()

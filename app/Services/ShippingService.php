@@ -31,15 +31,32 @@ class ShippingService
 
     public function createOrder($order)
     {
+        Log::info('📦 SHIPPINGSERVICE::createOrder CALLED', [
+            'order_type' => gettype($order),
+            'order_id' => is_object($order) ? ($order->id ?? 'N/A') : (is_array($order) ? ($order['id'] ?? 'N/A') : 'N/A'),
+            'environment' => config('app.env'),
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+
         try {
+            Log::info('🔍 STEP 1: Checking API credentials', [
+                'api_url_exists' => !empty($this->apiBaseUrl),
+                'api_url' => $this->apiBaseUrl ?: 'NOT_SET',
+                'api_key_exists' => !empty($this->apiKey),
+                'api_key_length' => strlen($this->apiKey ?? ''),
+            ]);
+
             if (empty($this->apiBaseUrl) || empty($this->apiKey)) {
                 Log::error('❌ Shipping API credentials missing!', [
                     'api_url' => $this->apiBaseUrl ?: 'NOT_SET',
                     'api_key_exists' => !empty($this->apiKey),
                     'message' => 'Please check SHIPPING_API_URL and SHIPPING_API_KEY in .env file',
+                    'environment' => config('app.env'),
                 ]);
                 return null;
             }
+
+            Log::info('✅ API credentials OK');
 
             $orderObj = is_array($order) ? (object) $order : $order;
             $orderIdString = (string) ($orderObj->order_number ?? $orderObj->id ?? '');

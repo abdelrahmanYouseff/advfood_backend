@@ -156,10 +156,35 @@ class Order extends Model
 
         // Also send to shipping when payment_status is updated to 'paid'
         static::updated(function ($order) {
+            \Illuminate\Support\Facades\Log::info('🔄 ORDER MODEL UPDATED EVENT TRIGGERED', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_status_changed' => $order->wasChanged('payment_status'),
+                'current_payment_status' => $order->payment_status,
+                'previous_payment_status' => $order->getOriginal('payment_status'),
+                'dsp_order_id' => $order->dsp_order_id ?? 'MISSING',
+                'shop_id' => $order->shop_id ?? 'MISSING',
+                'environment' => config('app.env'),
+            ]);
+
             // Check if payment_status was just changed to 'paid'
             if ($order->wasChanged('payment_status') && $order->payment_status === 'paid') {
+                \Illuminate\Support\Facades\Log::info('✅ PAYMENT_STATUS CHANGED TO PAID - Checking conditions for shipping', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'dsp_order_id' => $order->dsp_order_id ?? 'MISSING',
+                    'shop_id' => $order->shop_id ?? 'MISSING',
+                    'has_dsp_order_id' => !empty($order->dsp_order_id),
+                    'has_shop_id' => !empty($order->shop_id),
+                ]);
+
                 // Only send if not already sent (no dsp_order_id)
                 if (empty($order->dsp_order_id) && !empty($order->shop_id)) {
+                    \Illuminate\Support\Facades\Log::info('🚀 CONDITIONS MET - Calling ShippingService::createOrder', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'shop_id' => $order->shop_id,
+                    ]);
                     try {
                         $shippingService = new \App\Services\ShippingService();
                         $shippingResult = $shippingService->createOrder($order);
