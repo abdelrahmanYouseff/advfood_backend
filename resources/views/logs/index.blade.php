@@ -132,6 +132,16 @@
                         <span class="text-gray-600">آخر تعديل:</span>
                         <span class="font-semibold">{{ $stats['last_modified'] }}</span>
                     </div>
+                    <div>
+                        <span class="text-gray-600">Log Channel:</span>
+                        <span class="font-semibold {{ $stats['log_channel'] === 'single' ? 'text-green-600' : 'text-yellow-600' }}">
+                            {{ $stats['log_channel'] ?? 'N/A' }}
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Log Level:</span>
+                        <span class="font-semibold">{{ $stats['log_level'] ?? 'N/A' }}</span>
+                    </div>
                 </div>
             </div>
 

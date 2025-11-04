@@ -10,10 +10,13 @@ class LogController extends Controller
 {
     public function index(Request $request)
     {
-        // التحقق من الصلاحيات - يمكنك إضافة middleware للتحقق من الصلاحيات
-        // if (!auth()->check() || !auth()->user()->is_admin) {
-        //     abort(403, 'Unauthorized');
-        // }
+        // Log access to logs page
+        $user = $request->user();
+        Log::info('📋 Logs page accessed', [
+            'user_id' => $user?->id ?? 'guest',
+            'user_name' => $user?->name ?? 'guest',
+            'ip' => $request->ip(),
+        ]);
 
         $logFile = storage_path('logs/laravel.log');
         $lines = (int) $request->get('lines', 500); // عدد الأسطر الافتراضي 500
@@ -26,19 +29,30 @@ class LogController extends Controller
         $infoCount = 0;
 
         if (File::exists($logFile)) {
-            $fileContent = File::get($logFile);
-            $allLines = explode("\n", $fileContent);
+            // استخدام tail command للأداء الأفضل مع الملفات الكبيرة
+            $fileSize = File::size($logFile);
 
-            // عكس المصفوفة للحصول على آخر الأسطر
-            $allLines = array_reverse($allLines);
+            // إذا كان الملف كبير جداً، استخدم tail command
+            if ($fileSize > 10 * 1024 * 1024) { // أكبر من 10MB
+                $command = "tail -n {$lines} " . escapeshellarg($logFile);
+                $fileContent = shell_exec($command);
+                $allLines = explode("\n", $fileContent);
+            } else {
+                // للملفات الصغيرة، استخدم الطريقة العادية
+                $fileContent = File::get($logFile);
+                $allLines = explode("\n", $fileContent);
 
-            // أخذ عدد الأسطر المطلوبة
-            $selectedLines = array_slice($allLines, 0, $lines);
+                // عكس المصفوفة للحصول على آخر الأسطر
+                $allLines = array_reverse($allLines);
 
-            // عكس مرة أخرى للحصول على الترتيب الصحيح
-            $selectedLines = array_reverse($selectedLines);
+                // أخذ عدد الأسطر المطلوبة
+                $selectedLines = array_slice($allLines, 0, $lines);
 
-            foreach ($selectedLines as $line) {
+                // عكس مرة أخرى للحصول على الترتيب الصحيح
+                $allLines = array_reverse($selectedLines);
+            }
+
+            foreach ($allLines as $line) {
                 if (empty(trim($line))) {
                     continue;
                 }
@@ -98,7 +112,17 @@ class LogController extends Controller
             'file_exists' => File::exists($logFile),
             'file_size' => File::exists($logFile) ? $this->formatBytes(File::size($logFile)) : '0 B',
             'last_modified' => File::exists($logFile) ? date('Y-m-d H:i:s', File::lastModified($logFile)) : 'N/A',
+            'log_channel' => config('logging.default'),
+            'log_level' => config('logging.channels.single.level', 'debug'),
         ];
+
+        // Log if file doesn't exist
+        if (!File::exists($logFile)) {
+            Log::warning('⚠️ Log file does not exist', [
+                'log_file_path' => $logFile,
+                'log_channel' => config('logging.default'),
+            ]);
+        }
 
         return view('logs.index', compact('logs', 'stats', 'lines', 'filter', 'level'));
     }
@@ -107,9 +131,16 @@ class LogController extends Controller
     {
         $logFile = storage_path('logs/laravel.log');
 
+        $user = request()->user();
+        Log::info('🗑️ Log file clear requested', [
+            'user_id' => $user?->id ?? 'guest',
+            'user_name' => $user?->name ?? 'guest',
+            'ip' => request()->ip(),
+        ]);
+
         if (File::exists($logFile)) {
             File::put($logFile, '');
-            Log::info('Log file cleared by user');
+            Log::info('✅ Log file cleared successfully');
         }
 
         return redirect()->route('logs.index')->with('success', 'تم مسح الـ logs بنجاح');
@@ -118,6 +149,13 @@ class LogController extends Controller
     public function download()
     {
         $logFile = storage_path('logs/laravel.log');
+
+        $user = request()->user();
+        Log::info('⬇️ Log file download requested', [
+            'user_id' => $user?->id ?? 'guest',
+            'user_name' => $user?->name ?? 'guest',
+            'ip' => request()->ip(),
+        ]);
 
         if (!File::exists($logFile)) {
             abort(404, 'Log file not found');
