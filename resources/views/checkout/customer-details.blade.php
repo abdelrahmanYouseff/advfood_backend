@@ -350,7 +350,9 @@
                 street: customerData.street,
                 note: customerData.note || '',
                 total: cartTotal,
-                cart_items: cartData
+                cart_items: cartData,
+                customer_latitude: savedCustomerLatitude || null,
+                customer_longitude: savedCustomerLongitude || null
             };
 
             // Send request to initiate payment
@@ -385,6 +387,8 @@
         let selectedMarker;
         let selectedLatLng;
         let userCurrentLocation;
+        let savedCustomerLatitude = null;
+        let savedCustomerLongitude = null;
 
         function getCurrentLocation() {
             // Show map popup
@@ -493,6 +497,10 @@
                 alert('Please select a location on the map or allow location access.');
                 return;
             }
+
+            // Save latitude and longitude for later use
+            savedCustomerLatitude = locationToUse.lat;
+            savedCustomerLongitude = locationToUse.lng;
 
             // Get address from location
             reverseGeocode(locationToUse.lat, locationToUse.lng);

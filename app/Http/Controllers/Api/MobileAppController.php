@@ -145,6 +145,8 @@ class MobileAppController extends Controller
                 'delivery_address' => $deliveryAddress,
                 'delivery_phone' => $request->phone_number,
                 'delivery_name' => $request->full_name,
+                'customer_latitude' => $request->customer_latitude ?? null,
+                'customer_longitude' => $request->customer_longitude ?? null,
                 'special_instructions' => $request->note,
                 'payment_method' => 'online',
                 'payment_status' => 'pending',

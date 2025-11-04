@@ -206,8 +206,18 @@ class ShippingService
                 ]);
             }
 
-            $latitude = isset($orderObj->latitude) ? $orderObj->latitude : null;
-            $longitude = isset($orderObj->longitude) ? $orderObj->longitude : null;
+            // Use customer_latitude and customer_longitude from order
+            // These are the coordinates set by the customer when they select their location
+            $latitude = isset($orderObj->customer_latitude) ? $orderObj->customer_latitude : null;
+            $longitude = isset($orderObj->customer_longitude) ? $orderObj->customer_longitude : null;
+
+            Log::info('📍 Customer location coordinates', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString,
+                'customer_latitude' => $latitude,
+                'customer_longitude' => $longitude,
+                'has_coordinates' => !is_null($latitude) && !is_null($longitude),
+            ]);
 
             // Make phone unique by appending order ID
             $uniquePhone = $orderObj->delivery_phone ?? null;
