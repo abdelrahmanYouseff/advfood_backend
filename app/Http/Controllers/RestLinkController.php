@@ -177,6 +177,19 @@ class RestLinkController extends Controller
                 'cart_items' => 'required|array',
             ]);
 
+            // Debug: Dump and die to show full request
+            dd([
+                'request_all' => $request->all(),
+                'request_headers' => $request->headers->all(),
+                'request_method' => $request->method(),
+                'request_url' => $request->fullUrl(),
+                'request_ip' => $request->ip(),
+                'customer_latitude' => $request->customer_latitude,
+                'customer_longitude' => $request->customer_longitude,
+                'cart_items_count' => count($request->cart_items ?? []),
+                'cart_items' => $request->cart_items,
+            ]);
+
             // Get or create guest user
             $guestUser = \App\Models\User::firstOrCreate(
                 ['email' => 'guest@advfood.com'],
