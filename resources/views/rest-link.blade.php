@@ -85,10 +85,10 @@
                     </div>
                 </div>
 
-                <div class="mx-auto h-24 w-24 sm:h-36 sm:w-36 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-lg overflow-hidden" style="background-color: #cf4823;">
+                <div class="mx-auto h-24 w-24 sm:h-36 sm:w-36 rounded-full flex items-center justify-center mb-4 sm:mb-6 shadow-lg overflow-hidden p-1.5 sm:p-2" style="background-color: #cf4823;">
                     <img src="{{ asset('images/WhatsApp Image 2025-10-12 at 10.20.57 AM.jpeg') }}"
                          alt="AdvFood Logo"
-                         style="width: 100px; height: 100px;" class="sm:w-[150px] sm:h-[150px] object-contain">
+                         class="w-full h-full object-contain rounded-full">
                 </div>
                 <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">@AdvFood</h1>
                 <p id="subtitle" class="text-gray-600 text-base sm:text-lg px-2">Discover Amazing Restaurants</p>
