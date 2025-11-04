@@ -82,35 +82,65 @@ class ShippingService
                 'confirmation' => 'Using order_number (NOT id) for shipping company',
             ]);
 
-            // Get shop_id - try from order, then from restaurant, then use default
-            $shopIdString = isset($orderObj->shop_id) ? (string) $orderObj->shop_id : null;
+            // Get shop_id - ALWAYS get it from restaurant to ensure it's correct and up-to-date
+            // Even if order has shop_id, we verify it from restaurant to ensure accuracy
+            $shopIdString = null;
+            $shopIdSource = 'unknown';
 
-            // If shop_id is not set, try to get it from restaurant
-            if (empty($shopIdString) && isset($orderObj->restaurant_id)) {
+            if (isset($orderObj->restaurant_id)) {
                 try {
                     $restaurant = \App\Models\Restaurant::find($orderObj->restaurant_id);
-                    if ($restaurant && !empty($restaurant->shop_id)) {
-                        $shopIdString = (string) $restaurant->shop_id;
-                        Log::info('🔍 Got shop_id from restaurant', [
+                    if ($restaurant) {
+                        if (!empty($restaurant->shop_id)) {
+                            $shopIdString = (string) $restaurant->shop_id;
+                            $shopIdSource = 'restaurant.shop_id';
+                            Log::info('✅ Got shop_id from restaurant', [
+                                'restaurant_id' => $orderObj->restaurant_id,
+                                'restaurant_name' => $restaurant->name ?? 'N/A',
+                                'shop_id' => $shopIdString,
+                                'shop_id_type' => gettype($shopIdString),
+                            ]);
+                        } else {
+                            Log::warning('⚠️ Restaurant exists but shop_id is empty', [
+                                'restaurant_id' => $orderObj->restaurant_id,
+                                'restaurant_name' => $restaurant->name ?? 'N/A',
+                                'order_shop_id' => $orderObj->shop_id ?? 'MISSING',
+                            ]);
+                        }
+                    } else {
+                        Log::warning('⚠️ Restaurant not found', [
                             'restaurant_id' => $orderObj->restaurant_id,
-                            'shop_id' => $shopIdString,
                         ]);
                     }
                 } catch (\Exception $e) {
-                    Log::warning('Could not fetch restaurant for shop_id', [
+                    Log::error('❌ Error fetching restaurant for shop_id', [
                         'restaurant_id' => $orderObj->restaurant_id ?? null,
                         'error' => $e->getMessage(),
                     ]);
                 }
             }
 
-            // Fallback to default shop_id if still empty (should not happen if restaurant has shop_id)
-            if (empty($shopIdString)) {
-                $shopIdString = '11183'; // Default fallback
-                Log::warning('⚠️ Using default shop_id (restaurant shop_id not found)', [
+            // If restaurant doesn't have shop_id, try order's shop_id
+            if (empty($shopIdString) && !empty($orderObj->shop_id)) {
+                $shopIdString = (string) $orderObj->shop_id;
+                $shopIdSource = 'order.shop_id';
+                Log::warning('⚠️ Using shop_id from order (restaurant shop_id not available)', [
                     'shop_id' => $shopIdString,
                     'order_id' => $orderObj->id ?? null,
                     'restaurant_id' => $orderObj->restaurant_id ?? null,
+                ]);
+            }
+
+            // Final fallback to default shop_id (should not happen if data is correct)
+            if (empty($shopIdString)) {
+                $shopIdString = '11183'; // Default fallback
+                $shopIdSource = 'default_fallback';
+                Log::error('❌ CRITICAL: Using default shop_id (restaurant and order shop_id not found)', [
+                    'shop_id' => $shopIdString,
+                    'order_id' => $orderObj->id ?? null,
+                    'restaurant_id' => $orderObj->restaurant_id ?? null,
+                    'order_shop_id' => $orderObj->shop_id ?? 'MISSING',
+                    'message' => 'This should not happen! Please ensure restaurant has shop_id set in database.',
                 ]);
             }
 
@@ -119,9 +149,11 @@ class ShippingService
                 'order_number' => $orderIdString,
                 'shop_id' => $shopIdString,
                 'shop_id_type' => gettype($shopIdString),
+                'shop_id_source' => $shopIdSource,
+                'restaurant_id' => $orderObj->restaurant_id ?? null,
+                'order_shop_id' => $orderObj->shop_id ?? 'MISSING',
                 'customer_name' => $orderObj->delivery_name ?? null,
                 'total' => $orderObj->total ?? null,
-                'restaurant_id' => $orderObj->restaurant_id ?? null,
             ]);
 
             // Double-check: order_number must exist (we already checked above, but this is a safety check)
@@ -299,22 +331,36 @@ class ShippingService
                         'validation_errors' => $responseJson['errors'] ?? 'No specific errors provided',
                         'message' => $responseJson['message'] ?? 'Validation failed',
                         'shop_id_sent' => $shopIdForApi,
+                        'shop_id_original' => $shopIdString,
                         'shop_id_type' => gettype($shopIdForApi),
+                        'shop_id_source' => $shopIdSource,
                         'order_id' => $orderObj->id ?? null,
                         'order_number' => $orderObj->order_number ?? 'MISSING',
                         'order_number_sent' => $orderIdString, // The order_number sent in payload
+                        'restaurant_id' => $orderObj->restaurant_id ?? null,
+                        'order_shop_id' => $orderObj->shop_id ?? 'MISSING',
                         'full_response' => $responseJson,
-                        'suggestion' => 'Please verify shop_id and order_number format are correct in shipping company system',
+                        'suggestion' => 'Please verify shop_id is correct in restaurant table and registered in shipping company system',
+                        'action_required' => 'Check restaurant.shop_id in database and verify it matches shipping company records',
                     ]);
 
                     // If "Invalid shop" error, log additional details
                     if (isset($responseJson['message']) && stripos($responseJson['message'], 'shop') !== false) {
-                        Log::error('⚠️ SHOP_ID VALIDATION ISSUE', [
+                        Log::error('🚨 CRITICAL: SHOP_ID VALIDATION ISSUE - "Invalid shop" error', [
                             'shop_id_used' => $shopIdForApi,
+                            'shop_id_original' => $shopIdString,
+                            'shop_id_source' => $shopIdSource,
                             'restaurant_id' => $orderObj->restaurant_id ?? null,
+                            'order_shop_id' => $orderObj->shop_id ?? 'MISSING',
                             'order_number' => $orderIdString,
-                            'action_required' => 'Verify shop_id in shipping company dashboard',
-                            'current_shop_id_source' => 'From order.shop_id or restaurant.shop_id',
+                            'order_id' => $orderObj->id ?? null,
+                            'action_required' => [
+                                '1' => 'Verify shop_id in restaurant table matches shipping company records',
+                                '2' => 'Check if shop_id is registered in shipping company dashboard',
+                                '3' => 'Ensure shop_id format is correct (should be string like "11183", "11184", "11185")',
+                                '4' => 'Verify restaurant name and shop_id mapping in shipping company system',
+                            ],
+                            'current_shop_id_source' => $shopIdSource,
                         ]);
                     }
                 } elseif ($statusCode === 401) {

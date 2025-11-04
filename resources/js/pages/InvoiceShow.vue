@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Printer, Download, FileText, User, Store, Calendar, DollarSign } from 'lucide-vue-next';
+import { ArrowLeft, Printer, Download, FileText, User, Store, Calendar, DollarSign, Phone } from 'lucide-vue-next';
 
 interface Props {
     invoice: {
@@ -155,11 +155,11 @@ const printInvoice = () => {
                                 <div class="space-y-2 text-sm">
                                     <div class="flex items-center space-x-2">
                                         <User class="h-4 w-4 text-muted-foreground" />
-                                        <span>{{ invoice.user.name }}</span>
+                                        <span>{{ invoice.order.delivery_name }}</span>
                                     </div>
                                     <div class="flex items-center space-x-2">
-                                        <Calendar class="h-4 w-4 text-muted-foreground" />
-                                        <span>{{ invoice.user.email }}</span>
+                                        <Phone class="h-4 w-4 text-muted-foreground" />
+                                        <span>{{ invoice.order.delivery_phone }}</span>
                                     </div>
                                     <div class="flex items-center space-x-2">
                                         <Store class="h-4 w-4 text-muted-foreground" />
