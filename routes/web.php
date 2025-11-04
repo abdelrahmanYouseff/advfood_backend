@@ -5,6 +5,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryTripController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\RestLinkController;
@@ -70,6 +71,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('delivery-trips/{deliveryTrip}/start', [DeliveryTripController::class, 'start'])->name('delivery-trips.start');
     Route::patch('delivery-trips/{deliveryTrip}/complete', [DeliveryTripController::class, 'complete'])->name('delivery-trips.complete');
     Route::patch('delivery-trips/{deliveryTrip}/orders/{order}/update-status', [DeliveryTripController::class, 'updateOrderStatus'])->name('delivery-trips.update-order-status');
+
+    // Logs - عرض الـ logs
+    Route::get('logs', [LogController::class, 'index'])->name('logs.index');
+    Route::post('logs/clear', [LogController::class, 'clear'])->name('logs.clear');
+    Route::get('logs/download', [LogController::class, 'download'])->name('logs.download');
 });
 
 
