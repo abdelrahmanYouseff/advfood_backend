@@ -59,7 +59,20 @@ class ShippingService
             Log::info('✅ API credentials OK');
 
             $orderObj = is_array($order) ? (object) $order : $order;
+
+            // Ensure we use order_number (the unique identifier) not the internal id
+            // This is the order_number that appears in the system (e.g., ORD-20251104-02EEA5)
             $orderIdString = (string) ($orderObj->order_number ?? $orderObj->id ?? '');
+
+            Log::info('🔍 Order identifier for shipping', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderObj->order_number ?? 'MISSING',
+                'order_number_exists' => !empty($orderObj->order_number),
+                'id_fallback_used' => empty($orderObj->order_number) && !empty($orderObj->id),
+                'final_order_id_string' => $orderIdString,
+                'order_id_string_type' => gettype($orderIdString),
+            ]);
+
             // Get shop_id - try from order, then from restaurant, then use default
             $shopIdString = isset($orderObj->shop_id) ? (string) $orderObj->shop_id : null;
 
@@ -102,17 +115,38 @@ class ShippingService
                 'restaurant_id' => $orderObj->restaurant_id ?? null,
             ]);
 
-            if ($orderIdString === '' || empty($shopIdString)) {
-                Log::error('❌ Shipping order creation aborted', [
-                    'reason' => 'Missing order_id or shop_id',
+            // Validate that we have order_number (the unique identifier used throughout the system)
+            if (empty($orderIdString)) {
+                Log::error('❌ Shipping order creation aborted - Missing order_number', [
+                    'reason' => 'order_number is required but is empty',
                     'order_id' => $orderObj->id ?? null,
-                    'order_number' => $orderIdString ?: 'EMPTY',
-                    'shop_id' => $shopIdString ?: 'EMPTY',
+                    'order_number_exists' => !empty($orderObj->order_number ?? null),
+                    'order_number_value' => $orderObj->order_number ?? 'MISSING',
+                    'id_fallback_available' => !empty($orderObj->id ?? null),
                     'restaurant_id' => $orderObj->restaurant_id ?? null,
-                    'message' => 'Order must have order_number and shop_id',
+                    'message' => 'Order must have order_number (e.g., ORD-20251104-02EEA5) to send to shipping company',
                 ]);
                 return null;
             }
+
+            // Validate shop_id
+            if (empty($shopIdString)) {
+                Log::error('❌ Shipping order creation aborted - Missing shop_id', [
+                    'reason' => 'shop_id is required but is empty',
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderIdString,
+                    'restaurant_id' => $orderObj->restaurant_id ?? null,
+                    'message' => 'Order must have shop_id to send to shipping company',
+                ]);
+                return null;
+            }
+
+            Log::info('✅ Validation passed - Ready to send to shipping', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString,
+                'shop_id' => $shopIdString,
+                'order_number_format' => 'ORD-YYYYMMDD-XXXXXX',
+            ]);
 
             // Validate shop_id format - try different formats
             $shopIdForApi = $shopIdString;
@@ -144,8 +178,11 @@ class ShippingService
             // Make email unique by appending order ID
             $uniqueEmail = 'order' . ($orderObj->id ?? time()) . '@advfood.local';
 
+            // Payload with order_number as the unique identifier
+            // The 'id' field will contain the order_number (e.g., ORD-20251104-02EEA5)
+            // This is the same order_number that appears in the system and is tracked everywhere
             $payload = [
-                'id' => $orderIdString,
+                'id' => $orderIdString, // This is the order_number (ORD-20251104-02EEA5)
                 'shop_id' => $shopIdForApi,
                 'delivery_details' => [
                     'name' => $orderObj->delivery_name ?? null,
@@ -164,12 +201,23 @@ class ShippingService
                 ],
             ];
 
+            Log::info('📋 Shipping payload prepared with order_number', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderObj->order_number ?? 'MISSING',
+                'payload_id_field' => $payload['id'], // This should be the order_number
+                'payload_id_type' => gettype($payload['id']),
+                'shop_id' => $shopIdForApi,
+                'customer_name' => $orderObj->delivery_name ?? null,
+                'total' => $payload['order']['total'],
+            ]);
+
             $url = $this->buildUrl($this->endpoints['create']);
 
-            // Log the request details
-            Log::info('📤 Sending order to shipping company', [
+            // Log the request details with emphasis on order_number
+            Log::info('📤 Sending order to shipping company (using order_number)', [
                 'order_id' => $orderObj->id ?? null,
-                'order_number' => $orderIdString,
+                'order_number' => $orderObj->order_number ?? 'MISSING',
+                'order_number_sent_in_payload' => $payload['id'], // This is what gets sent as 'id'
                 'shop_id' => $shopIdForApi,
                 'shop_id_original' => $shopIdString,
                 'url' => $url,
@@ -178,6 +226,7 @@ class ShippingService
                 'api_key_length' => strlen($this->apiKey ?? ''),
                 'api_key_prefix' => substr($this->apiKey ?? '', 0, 10) . '...',
                 'payload' => $payload,
+                'payload_id_field_value' => $payload['id'], // Explicitly show what's being sent
                 'environment' => config('app.env'),
                 'server_ip' => request()->server('SERVER_ADDR') ?? 'unknown',
             ]);
@@ -205,7 +254,8 @@ class ShippingService
 
                 Log::error('❌ Failed to send order to shipping company', [
                     'order_id' => $orderObj->id ?? null,
-                    'order_number' => $orderIdString,
+                    'order_number' => $orderObj->order_number ?? 'MISSING',
+                    'order_number_sent' => $orderIdString, // The order_number that was sent
                     'shop_id' => $shopIdString,
                     'http_status' => $statusCode,
                     'url' => $url,
@@ -214,6 +264,7 @@ class ShippingService
                     'full_response_body' => $responseBody,
                     'full_response_json' => $responseJson,
                     'request_payload' => $payload,
+                    'payload_id_field' => $payload['id'], // Show what was sent as 'id'
                 ]);
 
                 // More detailed error logging
@@ -223,9 +274,11 @@ class ShippingService
                         'message' => $responseJson['message'] ?? 'Validation failed',
                         'shop_id_sent' => $shopIdForApi,
                         'shop_id_type' => gettype($shopIdForApi),
-                        'order_id' => $orderIdString,
+                        'order_id' => $orderObj->id ?? null,
+                        'order_number' => $orderObj->order_number ?? 'MISSING',
+                        'order_number_sent' => $orderIdString, // The order_number sent in payload
                         'full_response' => $responseJson,
-                        'suggestion' => 'Please verify shop_id is registered in shipping company system',
+                        'suggestion' => 'Please verify shop_id and order_number format are correct in shipping company system',
                     ]);
 
                     // If "Invalid shop" error, log additional details

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class RestLinkController extends Controller
 {
@@ -12,6 +13,12 @@ class RestLinkController extends Controller
      */
     public function index(Request $request)
     {
+        Log::info('🏠 Rest Link page accessed', [
+            'has_order_id' => $request->has('order_id'),
+            'order_id' => $request->get('order_id'),
+            'ip' => $request->ip(),
+        ]);
+
         $restaurants = Restaurant::where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -19,6 +26,12 @@ class RestLinkController extends Controller
         $order = null;
         if ($request->has('order_id')) {
             $order = \App\Models\Order::with(['restaurant', 'orderItems.menuItem'])->find($request->get('order_id'));
+            if ($order) {
+                Log::info('📦 Order found in rest-link', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                ]);
+            }
         }
 
         return view('rest-link', compact('restaurants', 'order'));
@@ -45,11 +58,22 @@ class RestLinkController extends Controller
 
     public function show($id)
     {
+        Log::info('🍽️ Restaurant menu page accessed', [
+            'restaurant_id' => $id,
+            'ip' => request()->ip(),
+        ]);
+
         $restaurant = Restaurant::where('is_active', true)->findOrFail($id);
         $menuItems = $restaurant->menuItems()
             ->where('is_available', true)
             ->orderBy('name')
             ->get();
+
+        Log::info('📋 Restaurant menu loaded', [
+            'restaurant_id' => $restaurant->id,
+            'restaurant_name' => $restaurant->name,
+            'menu_items_count' => $menuItems->count(),
+        ]);
 
         return view('restaurant-menu', compact('restaurant', 'menuItems'));
     }
@@ -66,6 +90,13 @@ class RestLinkController extends Controller
 
     public function saveOrder(Request $request)
     {
+        Log::info('💾 SAVE ORDER REQUEST', [
+            'restaurant_id' => $request->restaurant_id,
+            'total' => $request->total,
+            'items_count' => count($request->cart_items ?? []),
+            'ip' => $request->ip(),
+        ]);
+
         try {
             $request->validate([
                 'restaurant_id' => 'required|exists:restaurants,id',
@@ -94,6 +125,12 @@ class RestLinkController extends Controller
                 'cart_items' => $request->cart_items,
             ]);
 
+            Log::info('✅ LinkOrder created successfully', [
+                'order_id' => $order->id,
+                'restaurant_id' => $order->restaurant_id,
+                'total' => $order->total,
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Order saved successfully',
@@ -101,6 +138,11 @@ class RestLinkController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('❌ Error saving LinkOrder', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error saving order: ' . $e->getMessage()
@@ -113,6 +155,14 @@ class RestLinkController extends Controller
      */
     public function initiatePayment(Request $request)
     {
+        Log::info('💳 INITIATE PAYMENT REQUEST', [
+            'restaurant_id' => $request->restaurant_id,
+            'total' => $request->total,
+            'items_count' => count($request->cart_items ?? []),
+            'customer_name' => $request->full_name,
+            'ip' => $request->ip(),
+        ]);
+
         try {
             $request->validate([
                 'restaurant_id' => 'required|exists:restaurants,id',
@@ -177,6 +227,15 @@ class RestLinkController extends Controller
                 'payment_status' => 'pending',
             ]);
 
+            Log::info('✅ Order created for payment', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'restaurant_id' => $order->restaurant_id,
+                'shop_id' => $order->shop_id,
+                'total' => $order->total,
+                'payment_status' => $order->payment_status,
+            ]);
+
             // Create order items
             foreach ($request->cart_items as $item) {
                 \App\Models\OrderItem::create([
@@ -211,6 +270,13 @@ class RestLinkController extends Controller
             $apiKey = config('noon.api_key');
             $authString = base64_encode($businessId . '.' . $applicationId . ':' . $apiKey);
 
+            Log::info('🌐 Sending Noon Payment Request', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'amount' => $request->total,
+                'api_url' => config('noon.api_url'),
+            ]);
+
             // Send request to Noon
             $response = \Illuminate\Support\Facades\Http::timeout(config('noon.defaults.timeout', 30))
                 ->withHeaders([
@@ -219,17 +285,19 @@ class RestLinkController extends Controller
                 ])
                 ->post(config('noon.api_url') . '/payment/v1/order', $noonRequestData);
 
-            \Illuminate\Support\Facades\Log::info('Noon Payment Request', [
+            Log::info('📡 Noon Payment Response Received', [
                 'order_id' => $order->id,
-                'request' => $noonRequestData,
-                'response' => $response->json()
+                'status_code' => $response->status(),
+                'response_data' => $response->json(),
             ]);
 
             if ($response->failed()) {
-                \Illuminate\Support\Facades\Log::error('Noon Payment Failed', [
+                Log::error('❌ Noon Payment Request Failed', [
                     'order_id' => $order->id,
-                    'status' => $response->status(),
-                    'response' => $response->json()
+                    'order_number' => $order->order_number,
+                    'status_code' => $response->status(),
+                    'response' => $response->json(),
+                    'request_data' => $noonRequestData,
                 ]);
 
                 return response()->json([
@@ -243,8 +311,9 @@ class RestLinkController extends Controller
 
             // Get checkout URL from response
             if (!isset($data['result']['checkoutData']['postUrl'])) {
-                \Illuminate\Support\Facades\Log::error('Noon Payment: checkout URL missing', [
+                Log::error('❌ Noon Payment: checkout URL missing', [
                     'order_id' => $order->id,
+                    'order_number' => $order->order_number,
                     'response' => $data
                 ]);
 
@@ -257,8 +326,9 @@ class RestLinkController extends Controller
 
             $checkoutUrl = $data['result']['checkoutData']['postUrl'];
 
-            \Illuminate\Support\Facades\Log::info('Noon Payment Success', [
+            Log::info('✅ Noon Payment Success - Redirecting to checkout', [
                 'order_id' => $order->id,
+                'order_number' => $order->order_number,
                 'checkout_url' => $checkoutUrl,
                 'noon_order_id' => $data['result']['order']['id'] ?? null
             ]);

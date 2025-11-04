@@ -16,6 +16,12 @@ class OrderController extends Controller
      */
     public function index()
     {
+        $user = request()->user();
+        Log::info('📋 Orders page accessed', [
+            'user_id' => $user?->id ?? 'guest',
+            'user_name' => $user?->name ?? 'guest',
+        ]);
+
         // Only show orders that have been successfully paid
         $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem'])
             ->where('payment_status', 'paid')
@@ -28,6 +34,10 @@ class OrderController extends Controller
             $order->setAttribute('items_subtotal', $order->orderItems->sum('subtotal'));
             return $order;
         });
+
+        Log::info('📋 Orders loaded', [
+            'orders_count' => $orders->count(),
+        ]);
 
         return Inertia::render('Orders', [
             'orders' => $orders,
@@ -172,7 +182,21 @@ class OrderController extends Controller
      */
     public function accept(string $id)
     {
+        $user = request()->user();
+        Log::info('✅ ORDER ACCEPT ACTION', [
+            'order_id' => $id,
+            'user_id' => $user?->id ?? 'guest',
+            'user_name' => $user?->name ?? 'guest',
+        ]);
+
         $order = Order::findOrFail($id);
+
+        Log::info('📦 Order found for accept', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'current_status' => $order->status,
+            'current_shipping_status' => $order->shipping_status,
+        ]);
 
         // Update order status to confirmed and turn off sound
         $order->update([
@@ -181,12 +205,25 @@ class OrderController extends Controller
             'sound' => false
         ]);
 
+        Log::info('✅ Order status updated', [
+            'order_id' => $order->id,
+            'new_status' => $order->status,
+            'new_shipping_status' => $order->shipping_status,
+        ]);
+
         // Create invoice for the accepted order
         $invoice = $this->createInvoiceForOrder($order);
 
         if ($invoice) {
+            Log::info('✅ Invoice created for accepted order', [
+                'order_id' => $order->id,
+                'invoice_id' => $invoice->id,
+            ]);
             return redirect()->back()->with('success', 'Order accepted and invoice created successfully!');
         } else {
+            Log::warning('⚠️ Failed to create invoice for accepted order', [
+                'order_id' => $order->id,
+            ]);
             return redirect()->back()->with('success', 'Order accepted, but failed to create invoice.');
         }
     }

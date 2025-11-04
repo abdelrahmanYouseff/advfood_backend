@@ -6,12 +6,19 @@ use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\Invoice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        $user = request()->user();
+        Log::info('📊 Dashboard accessed', [
+            'user_id' => $user?->id ?? 'guest',
+            'user_name' => $user?->name ?? 'guest',
+        ]);
+
         $stats = [
             'total_restaurants' => Restaurant::count(),
             'total_orders' => Order::where('payment_status', 'paid')->count(),
