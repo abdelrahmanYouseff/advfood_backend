@@ -158,10 +158,19 @@ class ShippingService
                 'url' => $url,
                 'api_base_url' => $this->apiBaseUrl,
                 'api_key_exists' => !empty($this->apiKey),
+                'api_key_length' => strlen($this->apiKey ?? ''),
+                'api_key_prefix' => substr($this->apiKey ?? '', 0, 10) . '...',
                 'payload' => $payload,
+                'environment' => config('app.env'),
+                'server_ip' => request()->server('SERVER_ADDR') ?? 'unknown',
             ]);
 
             $request = Http::timeout(30)
+                ->retry(3, 100) // Retry 3 times with 100ms delay
+                ->withOptions([
+                    'verify' => env('SHIPPING_API_VERIFY_SSL', true), // Allow disabling SSL verification if needed
+                    'http_errors' => false, // Don't throw exceptions on HTTP errors
+                ])
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'Accept' => 'application/json',
@@ -303,11 +312,25 @@ class ShippingService
             ]);
 
             return $row;
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            // Handle connection errors (network issues, DNS, etc.)
+            Log::error('🔴 Connection Exception - Cannot reach shipping API', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString ?? 'UNKNOWN',
+                'shop_id' => $shopIdString ?? 'UNKNOWN',
+                'api_url' => $this->apiBaseUrl ?? 'NOT_SET',
+                'exception_message' => $e->getMessage(),
+                'exception_code' => $e->getCode(),
+                'suggestion' => 'Check network connectivity, DNS resolution, firewall, and API URL on server',
+            ]);
+            return null;
         } catch (\Throwable $e) {
             Log::error('💥 Exception during shipping order creation', [
                 'order_id' => $orderObj->id ?? null,
                 'order_number' => $orderIdString ?? 'UNKNOWN',
                 'shop_id' => $shopIdString ?? 'UNKNOWN',
+                'api_url' => $this->apiBaseUrl ?? 'NOT_SET',
+                'api_key_exists' => !empty($this->apiKey),
                 'exception_message' => $e->getMessage(),
                 'exception_code' => $e->getCode(),
                 'exception_file' => $e->getFile(),
