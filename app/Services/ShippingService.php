@@ -65,12 +65,13 @@ class ShippingService
                 }
             }
 
-            // Fallback to default shop_id if still empty
+            // Fallback to default shop_id if still empty (should not happen if restaurant has shop_id)
             if (empty($shopIdString)) {
-                $shopIdString = '11183';
-                Log::info('🔍 Using default shop_id', [
+                $shopIdString = '11183'; // Default fallback
+                Log::warning('⚠️ Using default shop_id (restaurant shop_id not found)', [
                     'shop_id' => $shopIdString,
                     'order_id' => $orderObj->id ?? null,
+                    'restaurant_id' => $orderObj->restaurant_id ?? null,
                 ]);
             }
 
