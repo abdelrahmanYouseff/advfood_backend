@@ -155,29 +155,6 @@ class RestLinkController extends Controller
      */
     public function initiatePayment(Request $request)
     {
-        // Debug: Return JSON response to show full request (FIRST THING)
-        return response()->json([
-            'debug' => true,
-            'message' => 'Debug: Full Request Data',
-            'request_all' => $request->all(),
-            'request_method' => $request->method(),
-            'request_url' => $request->fullUrl(),
-            'request_ip' => $request->ip(),
-            'customer_latitude' => $request->customer_latitude ?? 'NOT SET',
-            'customer_longitude' => $request->customer_longitude ?? 'NOT SET',
-            'cart_items_count' => count($request->cart_items ?? []),
-            'cart_items' => $request->cart_items,
-            'full_name' => $request->full_name ?? 'NOT SET',
-            'phone_number' => $request->phone_number ?? 'NOT SET',
-            'restaurant_id' => $request->restaurant_id ?? 'NOT SET',
-            'building_no' => $request->building_no ?? 'NOT SET',
-            'floor' => $request->floor ?? 'NOT SET',
-            'apartment_number' => $request->apartment_number ?? 'NOT SET',
-            'street' => $request->street ?? 'NOT SET',
-            'note' => $request->note ?? 'NOT SET',
-            'total' => $request->total ?? 'NOT SET',
-        ], 200, [], JSON_PRETTY_PRINT);
-
         Log::info('💳 INITIATE PAYMENT REQUEST', [
             'restaurant_id' => $request->restaurant_id,
             'total' => $request->total,
