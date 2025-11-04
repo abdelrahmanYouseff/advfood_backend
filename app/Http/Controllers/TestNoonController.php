@@ -160,20 +160,67 @@ class TestNoonController extends Controller
         if ($order) {
             // Only update if payment_status is still pending (avoid duplicate processing)
             if ($order->payment_status === 'pending') {
+                // Ensure shop_id is set before updating payment status
+                if (empty($order->shop_id) && !empty($order->restaurant_id)) {
+                    $restaurant = \App\Models\Restaurant::find($order->restaurant_id);
+                    if ($restaurant && !empty($restaurant->shop_id)) {
+                        $order->shop_id = $restaurant->shop_id;
+                        \Illuminate\Support\Facades\Log::info('🔍 Set shop_id from restaurant before payment update', [
+                            'order_id' => $order->id,
+                            'restaurant_id' => $order->restaurant_id,
+                            'shop_id' => $restaurant->shop_id,
+                        ]);
+                    } else {
+                        // Fallback to default shop_id
+                        $order->shop_id = '11183';
+                        \Illuminate\Support\Facades\Log::warning('⚠️ Using default shop_id for order', [
+                            'order_id' => $order->id,
+                            'restaurant_id' => $order->restaurant_id,
+                            'shop_id' => '11183',
+                        ]);
+                    }
+                }
+
                 $order->payment_status = 'paid';
                 $order->status = 'confirmed'; // Update status to confirmed
                 $order->save();
 
-                \Illuminate\Support\Facades\Log::info('Payment successful for order', [
+                \Illuminate\Support\Facades\Log::info('✅ Payment successful for order', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
-                    'total' => $order->total
+                    'shop_id' => $order->shop_id ?? 'MISSING',
+                    'restaurant_id' => $order->restaurant_id,
+                    'total' => $order->total,
+                    'payment_status' => $order->payment_status,
+                    'environment' => config('app.env'),
                 ]);
 
                 // Send to shipping company automatically
+                // Note: The Order model's updated event should handle this automatically,
+                // but we'll also try here as a backup if the event didn't trigger
                 try {
-                    $shippingService = new \App\Services\ShippingService();
-                    $shippingResult = $shippingService->createOrder($order);
+                    // Refresh order to ensure we have latest data (including dsp_order_id from event)
+                    $order->refresh();
+
+                    // Only send if not already sent by the Order model's updated event
+                    if (empty($order->dsp_order_id)) {
+                        \Illuminate\Support\Facades\Log::info('🚀 Attempting to send order to shipping company (manual backup)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'shop_id' => $order->shop_id ?? 'MISSING',
+                            'has_dsp_order_id' => false,
+                        ]);
+
+                        $shippingService = new \App\Services\ShippingService();
+                        $shippingResult = $shippingService->createOrder($order);
+                    } else {
+                        \Illuminate\Support\Facades\Log::info('✅ Order already sent to shipping company via event listener', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'dsp_order_id' => $order->dsp_order_id,
+                        ]);
+                        $shippingResult = null; // Already sent, skip manual send
+                    }
 
                     if ($shippingResult) {
                         \Illuminate\Support\Facades\Log::info('✅ Order sent to shipping company successfully', [
