@@ -36,6 +36,7 @@ class Order extends Model
         'special_instructions',
         'payment_method',
         'payment_status',
+        'payment_order_reference',
         'sound',
         'estimated_delivery_time',
         'delivered_at',
@@ -263,6 +264,10 @@ class Order extends Model
             $invoice->paid_at = now();
             $invoice->due_date = now(); // Due immediately since it's paid
             $invoice->notes = 'Invoice for order: ' . $this->order_number;
+            // Save payment order reference from order
+            if (!empty($this->payment_order_reference)) {
+                $invoice->order_reference = $this->payment_order_reference;
+            }
             $invoice->save();
 
             \Illuminate\Support\Facades\Log::info('Invoice created successfully for order', [
@@ -270,6 +275,8 @@ class Order extends Model
                 'order_number' => $this->order_number,
                 'invoice_id' => $invoice->id,
                 'invoice_number' => $invoice->invoice_number,
+                'order_reference' => $invoice->order_reference ?? 'N/A',
+                'payment_order_reference' => $this->payment_order_reference ?? 'N/A',
             ]);
 
             return $invoice;

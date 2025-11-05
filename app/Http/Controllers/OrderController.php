@@ -361,6 +361,7 @@ class OrderController extends Controller
             }
 
             // Use the Order model's createInvoice method to ensure consistency
+            // This will automatically save order_reference if it exists in the order
             return $order->createInvoice();
         } catch (\Exception $e) {
             Log::error('Failed to create invoice for order ' . $order->id . ': ' . $e->getMessage());

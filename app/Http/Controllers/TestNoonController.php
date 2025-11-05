@@ -230,8 +230,58 @@ class TestNoonController extends Controller
                     }
                 }
 
+                // Extract order reference from Noon response
+                // Noon may send order reference in different formats:
+                // 1. orderReference from callback parameters
+                // 2. order.id from Noon response
+                // 3. orderId from callback parameters
+                // 4. merchantOrderReference from callback parameters
+                // 5. Check in nested arrays (result.order.id, result.order.reference, etc.)
+                $orderReference = null;
+                
+                // Log all request parameters to help debug
+                \Illuminate\Support\Facades\Log::info('🔍 Extracting order reference from Noon callback', [
+                    'all_params' => $request->all(),
+                    'has_orderReference' => $request->has('orderReference'),
+                    'has_orderId' => $request->has('orderId'),
+                    'has_merchantOrderReference' => $request->has('merchantOrderReference'),
+                ]);
+                
+                // Try to get from request parameters (Noon callback)
+                if ($request->has('orderReference')) {
+                    $orderReference = $request->get('orderReference');
+                } elseif ($request->has('orderId')) {
+                    $orderReference = $request->get('orderId');
+                } elseif ($request->has('merchantOrderReference')) {
+                    $orderReference = $request->get('merchantOrderReference');
+                } elseif ($request->has('order.id')) {
+                    $orderReference = $request->get('order.id');
+                }
+                
+                // If still not found, check nested arrays
+                if (!$orderReference && $request->has('result')) {
+                    $result = $request->get('result');
+                    if (is_array($result)) {
+                        if (isset($result['order']['id'])) {
+                            $orderReference = $result['order']['id'];
+                        } elseif (isset($result['order']['reference'])) {
+                            $orderReference = $result['order']['reference'];
+                        } elseif (isset($result['orderId'])) {
+                            $orderReference = $result['orderId'];
+                        }
+                    }
+                }
+                
+                \Illuminate\Support\Facades\Log::info('📝 Order reference extracted', [
+                    'order_reference' => $orderReference,
+                    'order_id' => $order->id,
+                ]);
+                
                 $order->payment_status = 'paid';
                 $order->status = 'confirmed'; // Update status to confirmed
+                if ($orderReference) {
+                    $order->payment_order_reference = $orderReference;
+                }
                 $order->save();
 
                 \Illuminate\Support\Facades\Log::info('✅ Payment successful for order', [
