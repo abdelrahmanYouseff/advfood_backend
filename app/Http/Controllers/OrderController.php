@@ -226,6 +226,55 @@ class OrderController extends Controller
     }
 
     /**
+     * Update order status
+     */
+    public function updateStatus(Request $request, string $id)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,confirmed,preparing,ready,delivering,delivered,cancelled',
+        ]);
+
+        $order = Order::findOrFail($id);
+        
+        // Map status to shipping_status
+        $statusMap = [
+            'pending' => 'New Order',
+            'confirmed' => 'Confirmed',
+            'preparing' => 'Preparing',
+            'ready' => 'Ready',
+            'delivering' => 'Out for Delivery',
+            'delivered' => 'Delivered',
+            'cancelled' => 'Cancelled',
+        ];
+
+        $updateData = [
+            'status' => $request->status,
+            'shipping_status' => $statusMap[$request->status] ?? 'New Order',
+        ];
+
+        // If status is delivered, set delivered_at
+        if ($request->status === 'delivered') {
+            $updateData['delivered_at'] = now();
+        }
+
+        // If status is confirmed, turn off sound
+        if ($request->status === 'confirmed') {
+            $updateData['sound'] = false;
+        }
+
+        $order->update($updateData);
+
+        Log::info('✅ Order status updated', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'new_status' => $order->status,
+            'new_shipping_status' => $order->shipping_status,
+        ]);
+
+        return redirect()->back()->with('success', 'تم تحديث حالة الطلب بنجاح!');
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)

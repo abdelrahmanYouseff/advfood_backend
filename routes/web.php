@@ -53,6 +53,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Orders
     Route::resource('orders', OrderController::class);
     Route::patch('orders/{order}/accept', [OrderController::class, 'accept'])->name('orders.accept');
+    Route::post('orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::post('orders/create-test', [OrderController::class, 'createTestOrder'])->name('orders.create-test');
 
     // Invoices

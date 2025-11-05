@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft, User, Store, MapPin, Phone, Clock, DollarSign, Package, Truck,
     CheckCircle, AlertCircle, XCircle, Navigation, Calendar, CreditCard,
@@ -185,6 +185,31 @@ const isDelivered = (order: any) => {
     return order.shipping_status === 'Delivered' ||
            order.shipping_status?.toLowerCase() === 'delivered';
 };
+
+// Order status options
+const statusOptions = [
+    { value: 'pending', label: 'قيد الانتظار', color: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200', icon: AlertCircle },
+    { value: 'confirmed', label: 'مؤكد', color: 'bg-blue-100 text-blue-800 hover:bg-blue-200', icon: CheckCircle },
+    { value: 'preparing', label: 'قيد التحضير', color: 'bg-orange-100 text-orange-800 hover:bg-orange-200', icon: Clock },
+    { value: 'ready', label: 'جاهز', color: 'bg-green-100 text-green-800 hover:bg-green-200', icon: CheckCircle },
+    { value: 'delivering', label: 'قيد التوصيل', color: 'bg-purple-100 text-purple-800 hover:bg-purple-200', icon: Truck },
+    { value: 'delivered', label: 'تم التسليم', color: 'bg-green-100 text-green-800 hover:bg-green-200', icon: CheckCircle },
+    { value: 'cancelled', label: 'ملغي', color: 'bg-red-100 text-red-800 hover:bg-red-200', icon: XCircle },
+];
+
+// Update order status
+const updateOrderStatus = (status: string) => {
+    if (confirm(`هل أنت متأكد من تغيير حالة الطلب إلى "${statusOptions.find(s => s.value === status)?.label}"؟`)) {
+        router.post(route('orders.update-status', props.order.id), {
+            status: status,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Status will be updated via Inertia response
+            },
+        });
+    }
+};
 </script>
 
 <template>
@@ -297,6 +322,36 @@ const isDelivered = (order: any) => {
                                 <p class="text-sm font-medium text-gray-500">الحالة</p>
                                 <p class="text-lg font-bold text-gray-900">{{ getStatusText(order.status) }}</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Order Status Section -->
+                <div class="bg-white shadow-sm rounded-lg border mb-8">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h3 class="flex items-center text-lg font-semibold text-gray-900">
+                            <Clock class="w-5 h-5 mr-2 text-indigo-600" />
+                            تعديل حالة الطلب
+                        </h3>
+                        <p class="text-sm text-gray-500 mt-1">اختر حالة جديدة للطلب</p>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex flex-wrap gap-3">
+                            <button
+                                v-for="statusOption in statusOptions"
+                                :key="statusOption.value"
+                                @click="updateOrderStatus(statusOption.value)"
+                                :class="[
+                                    'inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer',
+                                    statusOption.color,
+                                    order.status === statusOption.value
+                                        ? 'ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105'
+                                        : 'shadow-sm hover:shadow-md hover:scale-102'
+                                ]"
+                            >
+                                <component :is="statusOption.icon" class="w-4 h-4 mr-2" />
+                                {{ statusOption.label }}
+                            </button>
                         </div>
                     </div>
                 </div>
