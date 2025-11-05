@@ -236,6 +236,14 @@ class OrderController extends Controller
 
         $order = Order::findOrFail($id);
         
+        // Prevent updating status if order is already delivered
+        if ($order->status === 'delivered' || 
+            $order->shipping_status === 'Delivered' || 
+            !empty($order->delivered_at)) {
+            return redirect()->back()
+                ->with('error', 'لا يمكن تعديل حالة الطلب بعد التسليم!');
+        }
+        
         // Map status to shipping_status
         $statusMap = [
             'pending' => 'New Order',

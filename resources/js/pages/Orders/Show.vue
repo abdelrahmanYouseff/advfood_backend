@@ -336,17 +336,31 @@ const updateOrderStatus = (status: string) => {
                         <p class="text-sm text-gray-500 mt-1">اختر حالة جديدة للطلب</p>
                     </div>
                     <div class="p-6">
+                        <div v-if="order.status === 'delivered' || isDelivered(order)" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                            <div class="flex items-center">
+                                <CheckCircle class="w-5 h-5 text-green-600 mr-2" />
+                                <p class="text-sm font-medium text-green-800">
+                                    تم تسليم الطلب - لا يمكن تعديل الحالة بعد التسليم
+                                </p>
+                            </div>
+                        </div>
                         <div class="flex flex-wrap gap-3">
                             <button
                                 v-for="statusOption in statusOptions"
                                 :key="statusOption.value"
                                 @click="updateOrderStatus(statusOption.value)"
+                                :disabled="order.status === 'delivered' || isDelivered(order)"
                                 :class="[
-                                    'inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer',
-                                    statusOption.color,
-                                    order.status === statusOption.value
-                                        ? 'ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105'
-                                        : 'shadow-sm hover:shadow-md hover:scale-102'
+                                    'inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                                    order.status === 'delivered' || isDelivered(order)
+                                        ? 'opacity-50 cursor-not-allowed bg-gray-100 text-gray-400'
+                                        : [
+                                            statusOption.color,
+                                            'cursor-pointer',
+                                            order.status === statusOption.value
+                                                ? 'ring-2 ring-offset-2 ring-indigo-500 shadow-lg scale-105'
+                                                : 'shadow-sm hover:shadow-md hover:scale-102'
+                                        ]
                                 ]"
                             >
                                 <component :is="statusOption.icon" class="w-4 h-4 mr-2" />
