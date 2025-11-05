@@ -238,6 +238,19 @@ class Order extends Model
     public function createInvoice()
     {
         try {
+            // Check if invoice already exists for this order
+            $existingInvoice = \App\Models\Invoice::where('order_id', $this->id)->first();
+            
+            if ($existingInvoice) {
+                \Illuminate\Support\Facades\Log::info('Invoice already exists for order', [
+                    'order_id' => $this->id,
+                    'order_number' => $this->order_number,
+                    'invoice_id' => $existingInvoice->id,
+                    'invoice_number' => $existingInvoice->invoice_number,
+                ]);
+                return $existingInvoice;
+            }
+
             $invoice = new \App\Models\Invoice();
             $invoice->order_id = $this->id;
             $invoice->user_id = $this->user_id;
@@ -251,6 +264,13 @@ class Order extends Model
             $invoice->due_date = now(); // Due immediately since it's paid
             $invoice->notes = 'Invoice for order: ' . $this->order_number;
             $invoice->save();
+
+            \Illuminate\Support\Facades\Log::info('Invoice created successfully for order', [
+                'order_id' => $this->id,
+                'order_number' => $this->order_number,
+                'invoice_id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+            ]);
 
             return $invoice;
         } catch (\Exception $e) {

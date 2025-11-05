@@ -234,21 +234,21 @@ class OrderController extends Controller
     private function createInvoiceForOrder(Order $order)
     {
         try {
-            $invoice = new Invoice();
-            $invoice->order_id = $order->id;
-            $invoice->user_id = $order->user_id;
-            $invoice->restaurant_id = $order->restaurant_id;
-            $invoice->subtotal = $order->subtotal;
-            $invoice->delivery_fee = $order->delivery_fee;
-            $invoice->tax = $order->tax;
-            $invoice->total = $order->total;
-            $invoice->status = 'paid';
-            $invoice->paid_at = now();
-            $invoice->due_date = now(); // Due immediately since it's paid
-            $invoice->notes = 'Invoice for order: ' . $order->order_number;
-            $invoice->save();
+            // Check if invoice already exists for this order
+            $existingInvoice = Invoice::where('order_id', $order->id)->first();
+            
+            if ($existingInvoice) {
+                Log::info('Invoice already exists for order (accept action)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'invoice_id' => $existingInvoice->id,
+                    'invoice_number' => $existingInvoice->invoice_number,
+                ]);
+                return $existingInvoice;
+            }
 
-            return $invoice;
+            // Use the Order model's createInvoice method to ensure consistency
+            return $order->createInvoice();
         } catch (\Exception $e) {
             Log::error('Failed to create invoice for order ' . $order->id . ': ' . $e->getMessage());
             return null;

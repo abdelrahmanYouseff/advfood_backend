@@ -28,10 +28,10 @@ foreach ($restaurants as $restaurant) {
     $shopId = $restaurant->shop_id ?? 'NULL';
     $shopIdType = gettype($shopId);
     $status = empty($restaurant->shop_id) ? '⚠️ MISSING' : '✅';
-    printf("%-15s | %-30s | %-15s | %-10s %s\n", 
-        $restaurant->id, 
-        $restaurant->name, 
-        $shopId, 
+    printf("%-15s | %-30s | %-15s | %-10s %s\n",
+        $restaurant->id,
+        $restaurant->name,
+        $shopId,
         $shopIdType,
         $status
     );
@@ -67,7 +67,7 @@ foreach ($expectedShopIds as $name => $expectedId) {
         $currentIdString = (string) $currentId;
         $match = ($currentIdString === $expectedId) ? '✅' : '❌';
         echo "   {$match} {$name}: Expected '{$expectedId}', Found '{$currentId}' (type: " . gettype($currentId) . ")\n";
-        
+
         if ($currentIdString !== $expectedId) {
             echo "      ⚠️  MISMATCH! Please update this restaurant.\n";
         }
