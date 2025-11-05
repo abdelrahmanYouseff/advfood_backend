@@ -46,19 +46,49 @@ class OrderController extends Controller
             ->count();
 
         // Closed orders: orders that are delivered or cancelled
+        // Check multiple conditions to ensure we catch all closed orders
+        // An order is considered closed if:
+        // 1. status is 'delivered' or 'cancelled' (any case)
+        // 2. shipping_status is 'Delivered' or 'Cancelled' (any case)
+        // 3. delivered_at is not null (has delivery timestamp)
         $totalClosedOrders = Order::where('payment_status', 'paid')
             ->where(function ($query) {
-                $query->where('status', 'delivered')
-                    ->orWhere('shipping_status', 'Delivered')
-                    ->orWhere('shipping_status', 'Cancelled')
-                    ->orWhere('status', 'cancelled');
+                $query->where(function ($q) {
+                    // Check status field (case insensitive)
+                    $q->whereRaw('LOWER(status) = ?', ['delivered'])
+                      ->orWhereRaw('LOWER(status) = ?', ['cancelled']);
+                })
+                ->orWhere(function ($q) {
+                    // Check shipping_status field (case insensitive)
+                    $q->whereRaw('LOWER(shipping_status) = ?', ['delivered'])
+                      ->orWhereRaw('LOWER(shipping_status) = ?', ['cancelled']);
+                })
+                ->orWhereNotNull('delivered_at'); // Has delivery timestamp
             })
             ->count();
 
-        Log::info('📋 Orders loaded', [
+        // Debug: Get sample of closed orders to verify logic
+        $sampleClosedOrders = Order::where('payment_status', 'paid')
+            ->where(function ($query) {
+                $query->where(function ($q) {
+                    $q->whereRaw('LOWER(status) = ?', ['delivered'])
+                      ->orWhereRaw('LOWER(status) = ?', ['cancelled']);
+                })
+                ->orWhere(function ($q) {
+                    $q->whereRaw('LOWER(shipping_status) = ?', ['delivered'])
+                      ->orWhereRaw('LOWER(shipping_status) = ?', ['cancelled']);
+                })
+                ->orWhereNotNull('delivered_at');
+            })
+            ->select('id', 'order_number', 'status', 'shipping_status', 'delivered_at')
+            ->get()
+            ->toArray();
+
+        Log::info('📋 Orders loaded with statistics', [
             'orders_count' => $orders->count(),
             'total_new_orders' => $totalNewOrders,
             'total_closed_orders' => $totalClosedOrders,
+            'sample_closed_orders' => $sampleClosedOrders,
         ]);
 
         return Inertia::render('Orders', [
