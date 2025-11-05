@@ -2,12 +2,13 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Printer, Download, FileText, User, Store, Calendar, DollarSign, Phone } from 'lucide-vue-next';
+import { ArrowLeft, Printer, Download, FileText, User, Store, Calendar, DollarSign, Phone, Hash } from 'lucide-vue-next';
 
 interface Props {
     invoice: {
         id: number;
         invoice_number: string;
+        order_reference?: string;
         status: string;
         subtotal: number;
         delivery_fee: number;
@@ -273,6 +274,10 @@ const printInvoice = () => {
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-muted-foreground">رقم الطلب:</span>
                                 <span class="text-sm font-medium">{{ invoice.order.order_number }}</span>
+                            </div>
+                            <div v-if="invoice.order_reference" class="flex items-center justify-between">
+                                <span class="text-sm text-muted-foreground">Order Reference:</span>
+                                <span class="text-sm font-medium text-blue-600">{{ invoice.order_reference }}</span>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-muted-foreground">اسم المستلم:</span>

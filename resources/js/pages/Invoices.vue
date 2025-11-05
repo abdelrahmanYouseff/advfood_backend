@@ -2,12 +2,13 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, FileText, User, Store, DollarSign, Calendar, CreditCard } from 'lucide-vue-next';
+import { Plus, FileText, User, Store, DollarSign, Calendar, CreditCard, Hash } from 'lucide-vue-next';
 
 interface Props {
     invoices: Array<{
         id: number;
         invoice_number: string;
+        order_reference?: string;
         status: string;
         total: number;
         due_date: string;
@@ -123,6 +124,10 @@ const getStatusText = (status: string) => {
                                     <div v-if="invoice.due_date" class="flex items-center space-x-1">
                                         <Calendar class="h-4 w-4" />
                                         <span>Due: {{ new Date(invoice.due_date).toLocaleDateString() }}</span>
+                                    </div>
+                                    <div v-if="invoice.order_reference" class="flex items-center space-x-1">
+                                        <Hash class="h-4 w-4" />
+                                        <span>Order Ref: {{ invoice.order_reference }}</span>
                                     </div>
                                 </div>
                             </div>
