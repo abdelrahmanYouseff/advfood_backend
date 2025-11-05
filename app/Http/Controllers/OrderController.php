@@ -35,12 +35,38 @@ class OrderController extends Controller
             return $order;
         });
 
+        // Calculate statistics
+        // New orders: orders that haven't been accepted yet (status is pending OR shipping_status is New Order)
+        $totalNewOrders = Order::where('payment_status', 'paid')
+            ->where(function ($query) {
+                $query->where('status', 'pending')
+                    ->orWhere('shipping_status', 'New Order');
+            })
+            ->where('status', '!=', 'confirmed') // Exclude confirmed orders
+            ->count();
+
+        // Closed orders: orders that are delivered or cancelled
+        $totalClosedOrders = Order::where('payment_status', 'paid')
+            ->where(function ($query) {
+                $query->where('status', 'delivered')
+                    ->orWhere('shipping_status', 'Delivered')
+                    ->orWhere('shipping_status', 'Cancelled')
+                    ->orWhere('status', 'cancelled');
+            })
+            ->count();
+
         Log::info('📋 Orders loaded', [
             'orders_count' => $orders->count(),
+            'total_new_orders' => $totalNewOrders,
+            'total_closed_orders' => $totalClosedOrders,
         ]);
 
         return Inertia::render('Orders', [
             'orders' => $orders,
+            'statistics' => [
+                'total_new_orders' => $totalNewOrders,
+                'total_closed_orders' => $totalClosedOrders,
+            ],
         ]);
     }
 

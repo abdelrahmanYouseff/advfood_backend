@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter } from 'lucide-vue-next';
+import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2 } from 'lucide-vue-next';
 
 interface Props {
     orders: Array<{
@@ -30,6 +30,10 @@ interface Props {
             subtotal: string;
         }>;
     }>;
+    statistics?: {
+        total_new_orders: number;
+        total_closed_orders: number;
+    };
 }
 
 const props = defineProps<Props>();
@@ -801,6 +805,37 @@ onMounted(() => {
                         <Plus class="h-4 w-4" />
                         إنشاء طلب
                     </Link>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <!-- Total New Orders Card -->
+                <div class="rounded-xl border bg-card p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">الطلبات الجديدة</p>
+                            <p class="text-3xl font-bold text-yellow-600">{{ props.statistics?.total_new_orders || 0 }}</p>
+                            <p class="text-xs text-muted-foreground mt-1">طلبات لم يتم قبولها بعد</p>
+                        </div>
+                        <div class="rounded-lg bg-yellow-100 p-3 dark:bg-yellow-900/20">
+                            <AlertCircle class="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Closed Orders Card -->
+                <div class="rounded-xl border bg-card p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">الطلبات المغلقة</p>
+                            <p class="text-3xl font-bold text-green-600">{{ props.statistics?.total_closed_orders || 0 }}</p>
+                            <p class="text-xs text-muted-foreground mt-1">طلبات تم تسليمها أو إلغاؤها</p>
+                        </div>
+                        <div class="rounded-lg bg-green-100 p-3 dark:bg-green-900/20">
+                            <CheckCircle2 class="h-8 w-8 text-green-600 dark:text-green-400" />
+                        </div>
+                    </div>
                 </div>
             </div>
 
