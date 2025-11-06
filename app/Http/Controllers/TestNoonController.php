@@ -208,6 +208,18 @@ class TestNoonController extends Controller
 
             // Only update if payment_status is still pending (avoid duplicate processing)
             if ($order->payment_status === 'pending') {
+                if (!$request->boolean('allow_direct_update', false)) {
+                    \Illuminate\Support\Facades\Log::info('⌛ Payment success redirect received - waiting for webhook confirmation', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                    ]);
+
+                    return redirect()->route('rest-link', [
+                        'order_id' => $order->id,
+                        'payment_status' => 'pending_verification',
+                    ]);
+                }
+
                 \Illuminate\Support\Facades\Log::info('✅ Payment status is pending, proceeding with update');
                 // Ensure shop_id is set before updating payment status
                 if (empty($order->shop_id) && !empty($order->restaurant_id)) {

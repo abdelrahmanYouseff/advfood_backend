@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\SimpleOrderController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\ShippingController;
+use App\Http\Controllers\PaymentWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,9 +31,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::post('/webhook', function (Request $request) {
-    return response()->json(['status' => 'ok']);
-});
+Route::post('/webhook', [PaymentWebhookController::class, 'handleNoon']);
 
 // Public routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);
