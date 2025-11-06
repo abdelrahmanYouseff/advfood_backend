@@ -8,6 +8,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OnlineCustomerController;
 use App\Http\Controllers\RestLinkController;
 use App\Http\Controllers\LinkOrderController;
 use App\Http\Controllers\RestaurantController;
@@ -55,6 +56,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('orders/{order}/accept', [OrderController::class, 'accept'])->name('orders.accept');
     Route::post('orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
     Route::post('orders/create-test', [OrderController::class, 'createTestOrder'])->name('orders.create-test');
+
+    Route::get('online-customers', [OnlineCustomerController::class, 'index'])->name('online-customers.index');
 
     // Invoices
     Route::resource('invoices', InvoiceController::class);

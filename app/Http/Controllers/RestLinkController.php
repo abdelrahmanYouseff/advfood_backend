@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OnlineCustomer;
 use App\Models\Restaurant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -109,6 +110,8 @@ class RestLinkController extends Controller
                 'note' => 'nullable|string',
                 'total' => 'required|numeric|min:0',
                 'cart_items' => 'required|array',
+                'customer_latitude' => 'nullable|numeric',
+                'customer_longitude' => 'nullable|numeric',
             ]);
 
             $order = \App\Models\LinkOrder::create([
@@ -123,6 +126,27 @@ class RestLinkController extends Controller
                 'note' => $request->note,
                 'total' => $request->total,
                 'cart_items' => $request->cart_items,
+            ]);
+
+            $this->recordOnlineCustomer([
+                'restaurant_id' => $order->restaurant_id,
+                'link_order_id' => $order->id,
+                'full_name' => $order->full_name,
+                'phone_number' => $order->phone_number,
+                'building_no' => $order->building_no,
+                'floor' => $order->floor,
+                'apartment_number' => $order->apartment_number,
+                'street' => $order->street,
+                'note' => $order->note,
+                'customer_latitude' => $request->input('customer_latitude'),
+                'customer_longitude' => $request->input('customer_longitude'),
+                'source' => 'save_order',
+                'latest_status' => 'link_order_saved',
+                'meta' => [
+                    'link_order_total' => $order->total,
+                    'link_order_items_count' => count($request->cart_items ?? []),
+                    'ip' => $request->ip(),
+                ],
             ]);
 
             Log::info('✅ LinkOrder created successfully', [
@@ -175,6 +199,8 @@ class RestLinkController extends Controller
                 'note' => 'nullable|string',
                 'total' => 'required|numeric|min:0',
                 'cart_items' => 'required|array',
+                'customer_latitude' => 'nullable|numeric',
+                'customer_longitude' => 'nullable|numeric',
             ]);
 
             // Get or create guest user
@@ -234,6 +260,28 @@ class RestLinkController extends Controller
                 'special_instructions' => $request->note,
                 'payment_method' => 'online',
                 'payment_status' => 'pending',
+            ]);
+
+            $this->recordOnlineCustomer([
+                'restaurant_id' => $order->restaurant_id,
+                'order_id' => $order->id,
+                'full_name' => $order->delivery_name,
+                'phone_number' => $order->delivery_phone,
+                'building_no' => $request->building_no,
+                'floor' => $request->floor,
+                'apartment_number' => $request->apartment_number,
+                'street' => $request->street,
+                'note' => $request->note,
+                'customer_latitude' => $request->input('customer_latitude'),
+                'customer_longitude' => $request->input('customer_longitude'),
+                'source' => 'initiate_payment',
+                'latest_status' => 'order_created_pending_payment',
+                'meta' => [
+                    'order_number' => $order->order_number,
+                    'order_total' => $order->total,
+                    'cart_items_count' => count($request->cart_items ?? []),
+                    'ip' => $request->ip(),
+                ],
             ]);
 
             Log::info('✅ Order created with customer coordinates', [
@@ -366,5 +414,53 @@ class RestLinkController extends Controller
                 'message' => 'Error initiating payment: ' . $e->getMessage()
             ], 500);
         }
+
+    }
+
+    private function recordOnlineCustomer(array $attributes): OnlineCustomer
+    {
+        if (empty($attributes['phone_number'])) {
+            throw new \InvalidArgumentException('Phone number is required to record online customer.');
+        }
+
+        $lookup = [
+            'phone_number' => $attributes['phone_number'],
+            'restaurant_id' => $attributes['restaurant_id'] ?? null,
+        ];
+
+        $onlineCustomer = OnlineCustomer::firstOrNew($lookup);
+
+        foreach ([
+            'full_name',
+            'building_no',
+            'floor',
+            'apartment_number',
+            'street',
+            'note',
+            'customer_latitude',
+            'customer_longitude',
+            'source',
+            'latest_status',
+        ] as $field) {
+            if (array_key_exists($field, $attributes)) {
+                $onlineCustomer->{$field} = $attributes[$field];
+            }
+        }
+
+        if (array_key_exists('link_order_id', $attributes)) {
+            $onlineCustomer->link_order_id = $attributes['link_order_id'];
+        }
+
+        if (array_key_exists('order_id', $attributes)) {
+            $onlineCustomer->order_id = $attributes['order_id'];
+        }
+
+        if (isset($attributes['meta']) && is_array($attributes['meta'])) {
+            $onlineCustomer->meta = array_merge($onlineCustomer->meta ?? [], $attributes['meta']);
+        }
+
+        $onlineCustomer->save();
+
+        return $onlineCustomer;
     }
 }

@@ -18,7 +18,8 @@ import {
     Settings,
     Megaphone,
     Link as LinkIcon,
-    Truck
+    Truck,
+    UserCircle2
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed } from 'vue';
@@ -84,6 +85,11 @@ const mainNavItems = computed(() => {
                 href: '/invoices',
                 icon: FileText,
             },
+            {
+                title: 'العملاء',
+                href: '/online-customers',
+                icon: UserCircle2,
+            },
         ];
     }
 
@@ -120,6 +126,11 @@ const mainNavItems = computed(() => {
                 title: 'الفواتير',
                 href: '/invoices',
                 icon: FileText,
+            },
+            {
+                title: 'العملاء',
+                href: '/online-customers',
+                icon: UserCircle2,
             },
             {
                 title: 'الإعلانات',
@@ -167,6 +178,11 @@ const mainNavItems = computed(() => {
             title: 'الفواتير',
             href: '/invoices',
             icon: FileText,
+        },
+        {
+            title: 'العملاء',
+            href: '/online-customers',
+            icon: UserCircle2,
         },
         {
             title: 'الإعلانات',
