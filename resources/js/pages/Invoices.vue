@@ -133,17 +133,8 @@ const getStatusText = (status: string) => {
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="flex items-center space-x-2">
-                                <DollarSign class="h-4 w-4 text-green-600" />
-                                <span class="text-lg font-semibold text-green-600">{{ formatCurrency(invoice.total) }}</span>
-                            </div>
+                            <div class="text-lg font-semibold text-green-600">{{ formatCurrency(invoice.total) }}</div>
                             <div class="mt-2 flex space-x-2">
-                                <Link
-                                    :href="route('invoices.edit', invoice.id)"
-                                    class="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                                >
-                                    تعديل
-                                </Link>
                                 <Link
                                     :href="route('invoices.show', invoice.id)"
                                     class="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
