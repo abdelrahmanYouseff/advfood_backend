@@ -105,6 +105,22 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
+const currentTimestamp = ref(Date.now());
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+    elapsedTimer = setInterval(() => {
+        currentTimestamp.value = Date.now();
+    }, 1000);
+});
+
+onUnmounted(() => {
+    if (elapsedTimer !== null) {
+        clearInterval(elapsedTimer);
+        elapsedTimer = null;
+    }
+});
+
 const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -114,6 +130,28 @@ const formatDate = (dateString: string) => {
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return date.toLocaleDateString();
+};
+
+const padTime = (value: number) => value.toString().padStart(2, '0');
+
+const formatElapsedTime = (order: any) => {
+    if (!order?.created_at) {
+        return '00:00';
+    }
+    const createdAt = new Date(order.created_at).getTime();
+    if (Number.isNaN(createdAt)) {
+        return '00:00';
+    }
+    let diff = Math.max(0, Math.floor((currentTimestamp.value - createdAt) / 1000));
+    const hours = Math.floor(diff / 3600);
+    diff %= 3600;
+    const minutes = Math.floor(diff / 60);
+    const seconds = diff % 60;
+
+    if (hours > 0) {
+        return `${padTime(hours)}:${padTime(minutes)}:${padTime(seconds)}`;
+    }
+    return `${padTime(minutes)}:${padTime(seconds)}`;
 };
 
 const isNewOrder = (order: any) => {
@@ -886,7 +924,7 @@ onMounted(() => {
 
                     <!-- Order Header -->
                     <div class="p-6 pb-4">
-                        <div class="flex items-center space-x-3 mb-4">
+                        <div class="flex items-start space-x-3 mb-4">
                             <div :class="[
                                 'rounded-lg p-3',
                                 isDelivered(order)
@@ -909,6 +947,14 @@ onMounted(() => {
                                 ]">{{ order.order_number }}</h3>
                                 <p class="text-sm text-muted-foreground">{{ formatDate(order.created_at) }}</p>
                             </div>
+                        </div>
+
+                        <div
+                            v-if="!isDelivered(order)"
+                            class="mt-2 flex items-center justify-end space-x-2 text-sm font-semibold"
+                        >
+                            <Timer class="h-4 w-4 text-red-600" />
+                            <span class="text-xl font-bold text-red-600">{{ formatElapsedTime(order) }}</span>
                         </div>
 
                         <!-- Order Details -->
@@ -1002,6 +1048,7 @@ onMounted(() => {
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
 
