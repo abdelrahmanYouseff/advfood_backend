@@ -149,15 +149,6 @@ class MobileAppController extends Controller
     public function getPaymentCheckoutUrl(Request $request)
     {
         try {
-            // Debug: Check if restaurant exists
-            $restaurant = Restaurant::find($request->restaurant_id);
-            if (!$restaurant) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Restaurant not found with ID: ' . $request->restaurant_id
-                ], 404);
-            }
-
             $validated = $request->validate([
                 'restaurant_id' => 'required|integer',
                 'user_id' => 'nullable|integer',
@@ -192,6 +183,15 @@ class MobileAppController extends Controller
                     'success' => false,
                     'message' => 'User identification is required for mobile orders',
                 ], 422);
+            }
+
+            // Fetch restaurant after validation to ensure we have a shop_id
+            $restaurant = Restaurant::find($validated['restaurant_id']);
+            if (!$restaurant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Restaurant not found with ID: ' . $validated['restaurant_id']
+                ], 404);
             }
 
             // Build delivery address
