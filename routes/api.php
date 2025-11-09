@@ -135,6 +135,7 @@ Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'g
 
 // Mobile App Payment API routes
 Route::post('/mobile/payment/checkout-url', [MobileAppController::class, 'getPaymentCheckoutUrl']);
+Route::get('/mobile/orders', [MobileAppController::class, 'getUserOrders']);
 
 // Direct points API by customer ID
 Route::get('/points/{pointCustomerId}', function($pointCustomerId) {

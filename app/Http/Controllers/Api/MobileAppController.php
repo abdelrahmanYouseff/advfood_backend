@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Services\PointsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -70,6 +71,76 @@ class MobileAppController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Get orders created by a user (mobile app)
+     */
+    public function getUserOrders(Request $request)
+    {
+        $request->validate([
+            'phone_number' => 'nullable|string|max:20',
+            'user_id' => 'nullable|integer|exists:users,id',
+            'limit' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        if (!$request->filled('phone_number') && !$request->filled('user_id')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Either phone_number or user_id is required',
+            ], 422);
+        }
+
+        $query = Order::with(['restaurant:id,name,address,phone', 'orderItems:id,order_id,item_name,quantity,price,subtotal'])
+            ->orderByDesc('created_at');
+
+        if ($request->filled('phone_number')) {
+            $query->where('delivery_phone', $request->string('phone_number'));
+        }
+
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->integer('user_id'));
+        }
+
+        $limit = $request->integer('limit', 20);
+        $orders = $query->take($limit)->get();
+
+        $formatted = $orders->map(function (Order $order) {
+            return [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'shipping_status' => $order->shipping_status,
+                'payment_status' => $order->payment_status,
+                'total' => (float) $order->total,
+                'delivery_name' => $order->delivery_name,
+                'delivery_phone' => $order->delivery_phone,
+                'delivery_address' => $order->delivery_address,
+                'restaurant' => $order->restaurant ? [
+                    'id' => $order->restaurant->id,
+                    'name' => $order->restaurant->name,
+                    'address' => $order->restaurant->address,
+                    'phone' => $order->restaurant->phone,
+                ] : null,
+                'items' => $order->orderItems->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->item_name,
+                        'quantity' => $item->quantity,
+                        'price' => (float) $item->price,
+                        'subtotal' => (float) $item->subtotal,
+                    ];
+                }),
+                'created_at' => optional($order->created_at)->toDateTimeString(),
+                'updated_at' => optional($order->updated_at)->toDateTimeString(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'count' => $formatted->count(),
+            'orders' => $formatted,
+        ]);
     }
 
     /**
