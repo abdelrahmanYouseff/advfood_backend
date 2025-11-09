@@ -158,7 +158,7 @@ class MobileAppController extends Controller
                 ], 404);
             }
 
-            $request->validate([
+            $validated = $request->validate([
                 'restaurant_id' => 'required|integer',
                 'user_id' => 'nullable|integer',
                 'full_name' => 'required|string|max:255',
@@ -173,14 +173,16 @@ class MobileAppController extends Controller
             ]);
 
             // Resolve user ID
-            if ($request->filled('user_id')) {
-                $userId = $request->integer('user_id');
-                if (!\App\Models\User::where('id', $userId)->exists()) {
+            if (isset($validated['user_id'])) {
+                $userId = (int) $validated['user_id'];
+                $user = \App\Models\User::find($userId);
+                if (!$user) {
                     return response()->json([
                         'success' => false,
                         'message' => 'User not found',
                     ], 404);
                 }
+                $deliveryName = $user->name ?? $request->full_name;
             } else {
                 $guestUser = \App\Models\User::firstOrCreate(
                     ['email' => 'guest@advfood.com'],
@@ -191,6 +193,7 @@ class MobileAppController extends Controller
                     ]
                 );
                 $userId = $guestUser->id;
+                $deliveryName = $request->full_name ?? $guestUser->name;
             }
 
             // Build delivery address
@@ -228,7 +231,7 @@ class MobileAppController extends Controller
                 'total' => $request->total,
                 'delivery_address' => $deliveryAddress,
                 'delivery_phone' => $request->phone_number,
-                'delivery_name' => $request->full_name,
+                'delivery_name' => $deliveryName,
                 'customer_latitude' => $request->customer_latitude ?? null,
                 'customer_longitude' => $request->customer_longitude ?? null,
                 'special_instructions' => $request->note,
