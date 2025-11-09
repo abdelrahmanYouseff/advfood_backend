@@ -172,8 +172,12 @@ class MobileAppController extends Controller
                 'cart_items' => 'required|array',
             ]);
 
-            // Resolve user ID
-            if (isset($validated['user_id'])) {
+            // Resolve user ID - mobile orders must always be tied to a real user
+            $authenticatedUser = $request->user();
+            if ($authenticatedUser) {
+                $userId = $authenticatedUser->id;
+                $deliveryName = $authenticatedUser->name ?? $request->full_name;
+            } elseif (isset($validated['user_id'])) {
                 $userId = (int) $validated['user_id'];
                 $user = \App\Models\User::find($userId);
                 if (!$user) {
@@ -184,16 +188,10 @@ class MobileAppController extends Controller
                 }
                 $deliveryName = $user->name ?? $request->full_name;
             } else {
-                $guestUser = \App\Models\User::firstOrCreate(
-                    ['email' => 'guest@advfood.com'],
-                    [
-                        'name' => 'Guest User',
-                        'password' => bcrypt('guest_password_' . uniqid()),
-                        'role' => 'user',
-                    ]
-                );
-                $userId = $guestUser->id;
-                $deliveryName = $request->full_name ?? $guestUser->name;
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User identification is required for mobile orders',
+                ], 422);
             }
 
             // Build delivery address
