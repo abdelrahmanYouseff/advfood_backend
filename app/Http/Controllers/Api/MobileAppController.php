@@ -187,6 +187,13 @@ class MobileAppController extends Controller
                 $userId = $guestUser->id;
             }
 
+            if (!\App\Models\User::where('id', $userId)->exists()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found',
+                ], 404);
+            }
+
             // Build delivery address
             $deliveryAddress = sprintf(
                 'مبنى %s، الطابق %s، شقة %s، %s',
