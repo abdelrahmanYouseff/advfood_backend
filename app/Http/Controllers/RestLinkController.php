@@ -248,6 +248,7 @@ class RestLinkController extends Controller
                 'restaurant_id' => $request->restaurant_id,
                 'shop_id' => $shopId,
                 'status' => 'pending',
+                'source' => 'link',
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
                 'tax' => $tax,

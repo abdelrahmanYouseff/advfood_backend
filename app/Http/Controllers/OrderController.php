@@ -143,6 +143,7 @@ class OrderController extends Controller
                 'restaurant_id' => $restaurant->id,
                 'shop_id' => $shopId, // Required for shipping
                 'status' => 'pending',
+                'source' => 'internal',
                 'shipping_status' => 'New Order',
                 'subtotal' => 50.00,
                 'delivery_fee' => 10.00,

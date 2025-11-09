@@ -58,6 +58,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('orders/create-test', [OrderController::class, 'createTestOrder'])->name('orders.create-test');
 
     Route::get('online-customers', [OnlineCustomerController::class, 'index'])->name('online-customers.index');
+    Route::get('online-customers/export', [OnlineCustomerController::class, 'export'])->name('online-customers.export');
 
     // Invoices
     Route::resource('invoices', InvoiceController::class);

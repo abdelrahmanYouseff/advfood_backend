@@ -35,6 +35,7 @@ class Order extends Model
         'customer_longitude',
         'special_instructions',
         'payment_method',
+        'source',
         'payment_status',
         'payment_order_reference',
         'sound',

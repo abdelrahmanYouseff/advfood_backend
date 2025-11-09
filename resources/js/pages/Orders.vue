@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2 } from 'lucide-vue-next';
+import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2 } from 'lucide-vue-next';
 
 interface Props {
     orders: Array<{
@@ -11,6 +11,7 @@ interface Props {
         status: string;
         shipping_status: string;
         total: number;
+        source?: string | null;
         items_count?: number;
         items_subtotal?: number;
         sound: boolean;
@@ -90,6 +91,57 @@ const getStatusColor = (status: string) => {
         'Cancelled': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
     };
     return colors[status as keyof typeof colors] || colors['New Order'];
+};
+
+const orderStatusLabels: Record<string, string> = {
+    pending: 'قيد الانتظار',
+    confirmed: 'تم التأكيد',
+    preparing: 'قيد التحضير',
+    ready: 'جاهز للاستلام',
+    delivering: 'جاري التوصيل',
+    delivered: 'تم التسليم',
+    cancelled: 'تم الإلغاء',
+};
+
+const getOrderStatusLabel = (status?: string | null) => {
+    if (!status) {
+        return 'غير محدد';
+    }
+    const normalizedStatus = status.toLowerCase();
+    return orderStatusLabels[normalizedStatus] ?? status;
+};
+
+const shippingStatusLabels: Record<string, string> = {
+    'new order': 'طلب جديد',
+    'confirmed': 'تم التأكيد',
+    'preparing': 'قيد التحضير',
+    'ready': 'جاهز',
+    'out for delivery': 'جاري التوصيل',
+    'delivered': 'تم التسليم',
+    'cancelled': 'ملغي',
+};
+
+const getShippingStatusLabel = (status?: string | null) => {
+    if (!status) {
+        return 'غير محدد';
+    }
+    const normalizedStatus = status.toLowerCase();
+    return shippingStatusLabels[normalizedStatus] ?? status;
+};
+
+const sourceLabels: Record<string, string> = {
+    link: 'Link',
+    application: 'Application',
+    internal: 'Internal',
+    web: 'Web',
+};
+
+const getSourceLabel = (source?: string | null) => {
+    if (!source) {
+        return '—';
+    }
+    const normalizedSource = source.toLowerCase();
+    return sourceLabels[normalizedSource] ?? source;
 };
 
 // Helper function to check if order is delivered
@@ -901,9 +953,8 @@ onMounted(() => {
             <!-- Orders List -->
             <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <div v-for="order in filteredOrders" :key="order.id" :class="[
-                    'group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200',
-                    isNewOrder(order) ? 'ring-2 ring-green-400 ring-opacity-50 animate-pulse hover:shadow-lg hover:scale-[1.02]' : '',
-                    isDelivered(order) ? 'bg-gray-50 border-gray-200 opacity-30 grayscale-[0.6] cursor-not-allowed pointer-events-none' : 'hover:shadow-lg hover:scale-[1.02]'
+                    'group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.02]',
+                    isNewOrder(order) ? 'ring-2 ring-green-400 ring-opacity-50 animate-pulse' : ''
                 ]">
                     <!-- Status Badge -->
                     <div class="absolute top-4 right-4 z-10">
@@ -925,26 +976,11 @@ onMounted(() => {
                     <!-- Order Header -->
                     <div class="p-6 pb-4">
                         <div class="flex items-start space-x-3 mb-4">
-                            <div :class="[
-                                'rounded-lg p-3',
-                                isDelivered(order)
-                                    ? 'bg-gray-300 dark:bg-gray-600'
-                                    : 'bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20'
-                            ]">
-                                <ShoppingCart :class="[
-                                    'h-6 w-6',
-                                    isDelivered(order)
-                                        ? 'text-gray-400 dark:text-gray-500'
-                                        : 'text-purple-600 dark:text-purple-400'
-                                ]" />
+                            <div class="rounded-lg p-3 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20">
+                                <ShoppingCart class="h-6 w-6 text-purple-600 dark:text-purple-400" />
                             </div>
                             <div class="flex-1">
-                                <h3 :class="[
-                                    'font-bold text-lg',
-                                    isDelivered(order)
-                                        ? 'text-gray-500 dark:text-gray-500'
-                                        : 'text-foreground'
-                                ]">{{ order.order_number }}</h3>
+                                <h3 class="font-bold text-lg text-foreground">{{ order.order_number }}</h3>
                                 <p class="text-sm text-muted-foreground">{{ formatDate(order.created_at) }}</p>
                             </div>
                         </div>
@@ -959,42 +995,66 @@ onMounted(() => {
 
                         <!-- Order Details -->
                         <div class="space-y-3">
+                            <!-- Shipping Status -->
+                            <div class="flex items-center space-x-2 text-sm">
+                                <Truck class="h-4 w-4 text-gray-500" />
+                                <span class="text-gray-500">حالة الشحن:</span>
+                                <span :class="[
+                                    'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                                    getStatusColor(order.shipping_status)
+                                ]">
+                                    {{ getShippingStatusLabel(order.shipping_status) }}
+                                </span>
+                            </div>
+
+                            <!-- Order Source -->
+                            <div class="flex items-center space-x-2 text-sm">
+                                <Link2 class="h-4 w-4 text-gray-500" />
+                                <span class="text-gray-500">مصدر الطلب:</span>
+                                <span class="font-medium text-gray-900">{{ getSourceLabel(order.source) }}</span>
+                            </div>
+
+                            <!-- Current Status -->
+                            <div class="flex items-center space-x-2 text-sm">
+                                <AlertCircle class="h-4 w-4 text-gray-500" />
+                                <span class="text-gray-500">حالة الطلب:</span>
+                                <span :class="[
+                                    'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                                    getStatusColor(order.status)
+                                ]">
+                                    {{ getOrderStatusLabel(order.status) }}
+                                </span>
+                            </div>
+
+                            <!-- Driver Info -->
+                            <div class="flex items-center space-x-2 text-sm">
+                                <UserCircle2 class="h-4 w-4 text-gray-500" />
+                                <span class="text-gray-500">مندوب التوصيل:</span>
+                                <span :class="[
+                                    'font-medium',
+                                    order.driver_name ? 'text-gray-900' : 'text-gray-400 italic'
+                                ]">
+                                    {{ order.driver_name || 'لم يتم التعيين بعد' }}
+                                </span>
+                            </div>
+
                             <!-- Customer Info -->
                             <div class="flex items-center space-x-2 text-sm">
                                 <User class="h-4 w-4 text-gray-500" />
-                                <span :class="[
-                                    'font-medium',
-                                    isDelivered(order)
-                                        ? 'text-gray-500'
-                                        : 'text-gray-900'
-                                ]">{{ order.user.name }}</span>
+                                <span class="font-medium text-gray-900">{{ order.user.name }}</span>
                             </div>
 
                             <!-- Restaurant Info -->
                             <div class="flex items-center space-x-2 text-sm">
                                 <Store class="h-4 w-4 text-gray-500" />
-                                <span :class="[
-                                    'font-medium',
-                                    isDelivered(order)
-                                        ? 'text-gray-500'
-                                        : 'text-gray-900'
-                                ]">{{ order.restaurant.name }}</span>
+                                <span class="font-medium text-gray-900">{{ order.restaurant.name }}</span>
                             </div>
 
                             <!-- Items Count -->
                             <div class="flex items-center space-x-2 text-sm">
                                 <ShoppingCart class="h-4 w-4 text-gray-500" />
-                                <span :class="[
-                                    isDelivered(order)
-                                        ? 'text-gray-500'
-                                        : 'text-gray-900'
-                                ]">{{ order.items_count || 0 }} items</span>
-                                <span v-if="order.items_subtotal" :class="[
-                                    'text-muted-foreground',
-                                    isDelivered(order)
-                                        ? 'text-gray-400'
-                                        : 'text-muted-foreground'
-                                ]">
+                                <span class="text-gray-900">{{ order.items_count || 0 }} items</span>
+                                <span v-if="order.items_subtotal" class="text-muted-foreground">
                                     ({{ formatCurrency(order.items_subtotal) }})
                                 </span>
                             </div>
@@ -1002,22 +1062,12 @@ onMounted(() => {
                     </div>
 
                     <!-- Order Footer -->
-                    <div :class="[
-                        'px-6 py-4 border-t',
-                        isDelivered(order)
-                            ? 'bg-gray-100 dark:bg-gray-700/50'
-                            : 'bg-gray-50 dark:bg-gray-800/50'
-                    ]">
+                    <div class="px-6 py-4 border-t bg-gray-50 dark:bg-gray-800/50">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-2">
-                                <span :class="[
-                                    'text-xl font-bold',
-                                    isDelivered(order)
-                                        ? 'text-gray-500'
-                                        : 'text-green-600'
-                                ]">{{ formatCurrency(order.total) }}</span>
+                                <span class="text-xl font-bold text-green-600">{{ formatCurrency(order.total) }}</span>
                             </div>
-                            <div v-if="!isDelivered(order)" class="flex space-x-2">
+                            <div class="flex space-x-2">
                                 <button
                                     v-if="order.shipping_status === 'New Order'"
                                     @click="acceptOrder(order.id)"
@@ -1037,14 +1087,6 @@ onMounted(() => {
                                 >
                                     تعديل
                                 </Link>
-                            </div>
-                            <div v-else class="flex space-x-2">
-                                <span class="rounded-lg px-4 py-2 text-xs font-medium bg-gray-300 text-gray-500 cursor-not-allowed">
-                                    عرض
-                                </span>
-                                <span class="rounded-lg border px-4 py-2 text-xs font-medium border-gray-300 bg-gray-200 text-gray-400 cursor-not-allowed">
-                                    تعديل
-                                </span>
                             </div>
                         </div>
                     </div>

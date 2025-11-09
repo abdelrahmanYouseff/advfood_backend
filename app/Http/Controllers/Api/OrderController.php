@@ -82,6 +82,7 @@ class OrderController extends Controller
             'payment_status' => 'sometimes|in:pending,paid,failed',
             'estimated_delivery_time' => 'sometimes|date',
             'shop_id' => 'sometimes|string|max:50',
+            'source' => 'sometimes|string|max:50',
 
             // Order items (optional for now, can be added separately)
             'items' => 'sometimes|array',
@@ -117,6 +118,9 @@ class OrderController extends Controller
                 $restaurant = \App\Models\Restaurant::find($orderData['restaurant_id'] ?? null);
                 $orderData['shop_id'] = $restaurant?->shop_id ?? '11183';
             }
+
+            // Set source default if not provided
+            $orderData['source'] = $orderData['source'] ?? 'application';
 
             // Generate order number
             $orderData['order_number'] = $this->generateOrderNumber();

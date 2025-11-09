@@ -86,6 +86,11 @@ watch(search, (value) => {
 const customers = computed(() => props.customers?.data ?? []);
 const links = computed(() => props.customers?.links ?? []);
 const totalCustomers = computed(() => props.customers?.meta?.total ?? customers.value.length);
+const exportUrl = computed(() =>
+    route('online-customers.export', {
+        search: search.value || undefined,
+    }),
+);
 
 const formatAddress = (customer: Customer) => {
     const parts = [
@@ -109,11 +114,32 @@ const formatStatus = (status?: string) => {
     return map[status] ?? status;
 };
 
+const formatInteractionDate = (value?: string) => {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+};
+
 const formatSource = (source?: string) => {
     if (!source) return '—';
     const map: Record<string, string> = {
         save_order: 'حفظ الطلب',
         initiate_payment: 'بدء الدفع',
+        link: 'Link',
+        application: 'Application',
+        internal: 'Internal',
+        web: 'Web',
     };
     return map[source] ?? source;
 };
@@ -130,8 +156,8 @@ const formatSource = (source?: string) => {
                     <p class="text-muted-foreground">عرض العملاء المسجلين من صفحة الطلبات عبر الرابط الخارجي</p>
                     <p class="mt-1 text-xs text-muted-foreground">إجمالي العملاء: {{ totalCustomers }}</p>
                 </div>
-                <div class="w-full md:w-72">
-                    <div class="relative">
+                <div class="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center md:gap-3">
+                    <div class="relative md:w-72">
                         <input
                             v-model="search"
                             type="search"
@@ -140,6 +166,12 @@ const formatSource = (source?: string) => {
                         />
                         <span v-if="isSearching" class="absolute inset-y-0 left-3 flex items-center text-xs text-muted-foreground">جاري البحث...</span>
                     </div>
+                    <a
+                        :href="exportUrl"
+                        class="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-700"
+                    >
+                        تنزيل Excel
+                    </a>
                 </div>
             </div>
 
@@ -151,14 +183,15 @@ const formatSource = (source?: string) => {
                             <th class="px-4 py-3">رقم الهاتف</th>
                             <th class="px-4 py-3">المطعم</th>
                             <th class="px-4 py-3">العنوان</th>
-                            <th class="px-4 py-3">آخر تحديث</th>
+                            <th class="px-4 py-3">آخر تفاعل</th>
+                            <th class="px-4 py-3">الحالة الحالية</th>
                             <th class="px-4 py-3">المصدر</th>
-                            <th class="px-4 py-3">رموز مرتبطة</th>
+                            <th class="px-4 py-3">معرّفات مرتبطة</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
                         <tr v-if="!customers.length">
-                            <td colspan="7" class="px-4 py-6 text-center text-sm text-muted-foreground">لا توجد بيانات عملاء حتى الآن.</td>
+                            <td colspan="8" class="px-4 py-6 text-center text-sm text-muted-foreground">لا توجد بيانات عملاء حتى الآن.</td>
                         </tr>
                         <tr v-for="customer in customers" :key="customer.id" class="hover:bg-gray-50">
                             <td class="px-4 py-3">
@@ -171,9 +204,15 @@ const formatSource = (source?: string) => {
                                 <div class="text-sm text-gray-900">{{ formatAddress(customer) }}</div>
                             </td>
                             <td class="px-4 py-3">
+                                <div class="text-sm text-gray-900">
+                                    {{ formatInteractionDate(customer.created_at) }}
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="text-sm text-gray-900">{{ formatStatus(customer.latest_status) }}</div>
+                            </td>
+                            <td class="px-4 py-3">
                                 <div class="text-sm text-gray-900">{{ formatSource(customer.source) }}</div>
-                                <div class="text-xs text-muted-foreground">{{ formatStatus(customer.latest_status) }}</div>
-                                <div v-if="customer.created_at" class="text-xs text-muted-foreground">{{ new Date(customer.created_at).toLocaleString('ar-SA') }}</div>
                             </td>
                             <td class="px-4 py-3">
                                 <div class="space-y-1 text-xs text-muted-foreground">

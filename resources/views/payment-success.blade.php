@@ -17,6 +17,73 @@
             backdrop-filter: blur(20px);
             animation: slideUp 0.5s ease-out;
         }
+        .status-track {
+            position: relative;
+        }
+        .status-track::before {
+            content: "";
+            position: absolute;
+            inset: 50% 0 auto 0;
+            transform: translateY(-50%);
+            height: 2px;
+            background: linear-gradient(90deg, rgba(16,185,129,0.15), rgba(16,185,129,0.5));
+            z-index: 0;
+        }
+        @media (max-width: 768px) {
+            .status-track::before {
+                inset: 0 auto 0 50%;
+                transform: translateX(-50%);
+                height: 100%;
+                width: 2px;
+                background: linear-gradient(180deg, rgba(16,185,129,0.15), rgba(16,185,129,0.5));
+            }
+        }
+        .status-step {
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        .status-step .status-badge {
+            width: 48px;
+            height: 48px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 auto 0.75rem;
+            background: rgba(229, 231, 235, 0.7);
+            color: rgba(55, 65, 81, 0.6);
+            border: 2px solid rgba(209, 213, 219, 0.7);
+        }
+        .status-step.completed .status-badge {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border-color: rgba(16, 185, 129, 0.35);
+            box-shadow: 0 12px 20px -10px rgba(16, 185, 129, 0.4);
+        }
+        .status-step.active .status-badge {
+            background: #10b981;
+            color: white;
+            border-color: #059669;
+            transform: scale(1.08);
+            box-shadow: 0 18px 25px -12px rgba(16, 185, 129, 0.55);
+        }
+        .status-step.cancelled .status-badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: #b91c1c;
+            border-color: rgba(239, 68, 68, 0.5);
+            box-shadow: 0 12px 20px -10px rgba(239, 68, 68, 0.45);
+        }
+        .status-step.active .status-label,
+        .status-step.completed .status-label {
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .status-step.upcoming {
+            opacity: 0.45;
+        }
         @keyframes slideUp {
             from {
                 opacity: 0;
@@ -89,7 +156,7 @@
 </head>
 <body class="font-sans">
     <div class="min-h-screen flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full">
+        <div class="max-w-2xl w-full">
             <!-- Success Card -->
             <div class="success-card rounded-2xl p-8 shadow-2xl">
                 <!-- Success Icon -->
@@ -111,16 +178,40 @@
                 <div class="bg-green-50 border-2 border-green-200 rounded-xl p-6 mb-6">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-gray-600 font-medium">رقم الطلب</span>
-                        <span class="text-2xl font-bold text-green-600">#{{ str_pad(request()->get('order_id'), 4, '0', STR_PAD_LEFT) }}</span>
+                        <span class="text-2xl font-bold text-green-600" id="order-number-display">#{{ str_pad(request()->get('order_id'), 4, '0', STR_PAD_LEFT) }}</span>
                     </div>
                     <div class="border-t border-green-200 pt-4">
-                        <div class="flex items-center text-green-700">
-                            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                            <span class="font-medium">حالة الطلب: قيد التحضير</span>
+                        <div class="flex items-center text-green-700 gap-2">
+                            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                            <span class="font-medium">
+                                حالة الطلب:
+                                <span id="order-status-display" class="text-green-700">جاري التحديث...</span>
+                            </span>
                         </div>
+                        <p id="order-updated-at" class="text-xs text-gray-500 mt-1 hidden">آخر تحديث: --</p>
                     </div>
                 </div>
                 @endif
+
+                <!-- Status Timeline -->
+                <div id="status-timeline-wrapper" class="mb-6 hidden">
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-inner">
+                        <div class="flex flex-col gap-4 mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 text-green-600">
+                                    <i class="fas fa-route"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-800">تتبع حالة الطلب</h3>
+                                    <p class="text-sm text-gray-500" id="status-helper-text">نقوم بتحديث الحالة تلقائياً كل 10 ثواني.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="status-track grid grid-cols-1 md:grid-cols-6 gap-6 md:gap-4 relative py-6 md:py-0 md:px-6 text-center" id="status-track">
+                            <!-- Status steps will be populated via JavaScript -->
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Information Box -->
                 <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
@@ -170,6 +261,169 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const orderId = params.get('order_id');
+            const hasPreview = params.get('preview');
+            const orderStatusDisplay = document.getElementById('order-status-display');
+            const orderUpdatedAt = document.getElementById('order-updated-at');
+            const statusTimelineWrapper = document.getElementById('status-timeline-wrapper');
+            const statusTrackContainer = document.getElementById('status-track');
+            const statusHelperText = document.getElementById('status-helper-text');
+
+            const statusSteps = [
+                { key: 'pending', label: 'في انتظار التأكيد', description: 'تم استلام طلبك ونقوم الآن بمراجعته.' },
+                { key: 'confirmed', label: 'تم التأكيد', description: 'تم تأكيد الطلب وسيبدأ تحضيره قريباً.' },
+                { key: 'preparing', label: 'قيد التحضير', description: 'يعمل فريقنا على تجهيز طلبك بعناية.' },
+                { key: 'ready', label: 'جاهز للاستلام', description: 'طلبك جاهز، ننتظر شركة التوصيل.' },
+                { key: 'delivering', label: 'جاري التوصيل', description: 'مندوب التوصيل في طريقه إليك.' },
+                { key: 'delivered', label: 'تم التسليم', description: 'أهلاً وسهلاً! نتمنى لك وجبة شهية.' },
+            ];
+
+            const statusTranslations = {
+                pending: 'قيد الانتظار',
+                confirmed: 'تم التأكيد',
+                preparing: 'قيد التحضير',
+                ready: 'جاهز للاستلام',
+                delivering: 'جاري التوصيل',
+                delivered: 'تم التسليم',
+                cancelled: 'تم الإلغاء'
+            };
+
+            const renderStatusSteps = () => {
+                statusTrackContainer.innerHTML = '';
+                statusSteps.forEach((step, index) => {
+                    const stepElement = document.createElement('div');
+                    stepElement.className = 'status-step upcoming text-center md:text-left';
+                    stepElement.dataset.statusKey = step.key;
+                    stepElement.innerHTML = `
+                        <div class="status-badge">${index + 1}</div>
+                        <div class="status-label text-base text-gray-600">${step.label}</div>
+                    `;
+                    statusTrackContainer.appendChild(stepElement);
+                });
+            };
+
+            const setStepStates = (currentStatus) => {
+                const allSteps = Array.from(statusTrackContainer.querySelectorAll('.status-step'));
+                const currentIndex = statusSteps.findIndex(step => step.key === currentStatus);
+
+                allSteps.forEach((stepElement, index) => {
+                    stepElement.classList.remove('completed', 'active', 'upcoming', 'cancelled');
+                    if (currentStatus === 'cancelled') {
+                        if (index === 0) {
+                            stepElement.classList.add('cancelled', 'active');
+                        } else {
+                            stepElement.classList.add('upcoming');
+                        }
+                    } else if (currentIndex === -1) {
+                        stepElement.classList.add('upcoming');
+                    } else if (index < currentIndex) {
+                        stepElement.classList.add('completed');
+                    } else if (index === currentIndex) {
+                        stepElement.classList.add('active');
+                    } else {
+                        stepElement.classList.add('upcoming');
+                    }
+                });
+            };
+
+            const formatTimestamp = (isoString) => {
+                try {
+                    const date = new Date(isoString);
+                    if (Number.isNaN(date.getTime())) {
+                        return null;
+                    }
+                    return date.toLocaleString('ar-EG', {
+                        hour12: true,
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        day: 'numeric',
+                        month: 'long'
+                    });
+                } catch {
+                    return null;
+                }
+            };
+
+            const updateStatusUI = (orderPayload) => {
+                if (!orderPayload) {
+                    orderStatusDisplay.textContent = 'تعذر تحميل بيانات الطلب.';
+                    orderStatusDisplay.classList.replace('text-green-700', 'text-red-600');
+                    statusHelperText.textContent = 'لم نتمكن من الوصول إلى البيانات. تأكد من صحة رقم الطلب أو حاول لاحقاً.';
+                    return;
+                }
+
+                const orderInfo = orderPayload.order_info ?? {};
+                const currentStatus = (orderInfo.status || '').toLowerCase();
+                const translatedStatus = statusTranslations[currentStatus] || statusTranslations.pending;
+                const updatedAt = orderInfo.updated_at ?? orderInfo.created_at ?? null;
+
+                orderStatusDisplay.textContent = translatedStatus;
+                orderStatusDisplay.classList.remove('text-red-600');
+                orderStatusDisplay.classList.add('text-green-700');
+
+                if (updatedAt) {
+                    const formattedTime = formatTimestamp(updatedAt);
+                    if (formattedTime) {
+                        orderUpdatedAt.textContent = `آخر تحديث: ${formattedTime}`;
+                        orderUpdatedAt.classList.remove('hidden');
+                    }
+                }
+
+                if (currentStatus === 'cancelled') {
+                    statusHelperText.textContent = 'تم إلغاء الطلب. لطلب المزيد من المساعدة يرجى التواصل مع خدمة العملاء.';
+                } else {
+                    statusHelperText.textContent = 'نقوم بتحديث الحالة تلقائياً كل 10 ثواني.';
+                }
+
+                    setStepStates(currentStatus || 'pending');
+            };
+
+            const handleFetchSuccess = (responseData) => {
+                if (!responseData?.success || !responseData?.data) {
+                    throw new Error('Invalid payload structure');
+                }
+                return responseData.data;
+            };
+
+            const fetchOrderStatus = async () => {
+                if (!orderId) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/orders/${orderId}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    const payload = handleFetchSuccess(data);
+                    updateStatusUI(payload);
+                } catch (error) {
+                    console.error('Failed to fetch order status:', error);
+                    orderStatusDisplay.textContent = 'لا يمكن تحديث الحالة حالياً.';
+                    orderStatusDisplay.classList.replace('text-green-700', 'text-red-600');
+                    statusHelperText.textContent = 'حدث خطأ أثناء تحديث الحالة. سنحاول مرة أخرى تلقائياً.';
+                }
+            };
+
+            if (orderId) {
+                statusTimelineWrapper.classList.remove('hidden');
+                renderStatusSteps();
+                fetchOrderStatus();
+                setInterval(fetchOrderStatus, 10000);
+            } else if (!hasPreview) {
+                orderStatusDisplay.textContent = 'لم يتم العثور على رقم الطلب.';
+                orderStatusDisplay.classList.replace('text-green-700', 'text-red-600');
+            } else {
+                orderStatusDisplay.textContent = 'وضع المعاينة - أدخل رقم طلب لمشاهدة التتبع.';
+                orderStatusDisplay.classList.replace('text-green-700', 'text-gray-500');
+            }
+        });
+    </script>
 </body>
 </html>
 

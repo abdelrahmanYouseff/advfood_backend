@@ -132,6 +132,10 @@ class TestNoonController extends Controller
 
     public function success(Request $request)
     {
+        if ($request->boolean('preview')) {
+            return view('payment-success');
+        }
+
         \Illuminate\Support\Facades\Log::info('💰 PAYMENT SUCCESS CALLBACK STARTED', [
             'request_all_params' => $request->all(),
             'request_url' => $request->fullUrl(),

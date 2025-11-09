@@ -41,6 +41,7 @@ class SimpleOrderController extends Controller
                 'user_id' => $data['user_id'] ?? Auth::id() ?? 17,
                 'restaurant_id' => $data['restaurant_id'] ?? 15, // Use existing restaurant
                 'status' => 'pending',
+                'source' => 'application',
                 'subtotal' => 0,
                 'delivery_fee' => 0,
                 'tax' => 0,
