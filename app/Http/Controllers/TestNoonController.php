@@ -212,8 +212,9 @@ class TestNoonController extends Controller
 
             // Only update if payment_status is still pending (avoid duplicate processing)
             if ($order->payment_status === 'pending') {
-                if (!$request->boolean('allow_direct_update', false)) {
-                    \Illuminate\Support\Facades\Log::info('⌛ Payment success redirect received - waiting for webhook confirmation', [
+                $shouldWaitForWebhook = $request->boolean('wait_for_webhook', false);
+                if ($shouldWaitForWebhook) {
+                    \Illuminate\Support\Facades\Log::info('⌛ Payment success redirect received - waiting for webhook confirmation (explicit request)', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                     ]);
@@ -379,14 +380,14 @@ class TestNoonController extends Controller
                 ]);
             }
 
-            return redirect()->route('rest-link', ['order_id' => $order->id, 'payment_status' => 'success']);
+            return response()->view('payment-success', ['orderId' => $order->id]);
         } else {
             \Illuminate\Support\Facades\Log::error('❌ NO ORDER FOUND - Cannot process payment success', [
                 'order_id_param' => $orderId,
                 'request_params' => $request->all(),
             ]);
 
-            return redirect()->route('rest-link', ['payment_status' => 'success']);
+            return response()->view('payment-success');
         }
     }
 

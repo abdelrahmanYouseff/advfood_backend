@@ -155,6 +155,9 @@
     </style>
 </head>
 <body class="font-sans">
+    @php
+        $resolvedOrderId = $orderId ?? request()->get('order_id');
+    @endphp
     <div class="min-h-screen flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
         <div class="max-w-2xl w-full">
             <!-- Success Card -->
@@ -174,11 +177,11 @@
                 </div>
 
                 <!-- Order Details -->
-                @if(request()->get('order_id'))
+                @if($resolvedOrderId)
                 <div class="bg-green-50 border-2 border-green-200 rounded-xl p-6 mb-6">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-gray-600 font-medium">رقم الطلب</span>
-                        <span class="text-2xl font-bold text-green-600" id="order-number-display">#{{ str_pad(request()->get('order_id'), 4, '0', STR_PAD_LEFT) }}</span>
+                        <span class="text-2xl font-bold text-green-600" id="order-number-display">#{{ str_pad($resolvedOrderId, 4, '0', STR_PAD_LEFT) }}</span>
                     </div>
                     <div class="border-t border-green-200 pt-4">
                         <div class="flex items-center text-green-700 gap-2">
@@ -230,7 +233,7 @@
 
                 <!-- Action Buttons -->
                 <div class="space-y-3">
-                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، أريد الاستفسار عن طلبي رقم #' . str_pad(request()->get('order_id', '0'), 4, '0', STR_PAD_LEFT)) }}"
+                    <a href="https://wa.me/966501234567?text={{ urlencode('مرحباً، أريد الاستفسار عن طلبي رقم #' . str_pad($resolvedOrderId ?? '0', 4, '0', STR_PAD_LEFT)) }}"
                        target="_blank"
                        class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2">
                         <i class="fab fa-whatsapp text-xl"></i>
@@ -263,9 +266,15 @@
     </div>
 
     <script>
+        window.__PAYMENT_ORDER_ID__ = {{ $resolvedOrderId ? json_encode($resolvedOrderId) : 'null' }};
+    </script>
+
+    <script>
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
-            const orderId = params.get('order_id');
+            const orderId = (typeof window.__PAYMENT_ORDER_ID__ !== 'undefined' && window.__PAYMENT_ORDER_ID__ !== null)
+                ? window.__PAYMENT_ORDER_ID__.toString()
+                : params.get('order_id');
             const hasPreview = params.get('preview');
             const orderStatusDisplay = document.getElementById('order-status-display');
             const orderUpdatedAt = document.getElementById('order-updated-at');
