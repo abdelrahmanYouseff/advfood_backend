@@ -160,7 +160,7 @@ class MobileAppController extends Controller
 
             $request->validate([
                 'restaurant_id' => 'required|integer',
-                'user_id' => 'nullable|integer|exists:users,id',
+                'user_id' => 'nullable|integer',
                 'full_name' => 'required|string|max:255',
                 'phone_number' => 'required|string|max:20',
                 'building_no' => 'required|string|max:50',
@@ -175,6 +175,12 @@ class MobileAppController extends Controller
             // Resolve user ID
             if ($request->filled('user_id')) {
                 $userId = $request->integer('user_id');
+                if (!\App\Models\User::where('id', $userId)->exists()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found',
+                    ], 404);
+                }
             } else {
                 $guestUser = \App\Models\User::firstOrCreate(
                     ['email' => 'guest@advfood.com'],
@@ -185,13 +191,6 @@ class MobileAppController extends Controller
                     ]
                 );
                 $userId = $guestUser->id;
-            }
-
-            if (!\App\Models\User::where('id', $userId)->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User not found',
-                ], 404);
             }
 
             // Build delivery address
