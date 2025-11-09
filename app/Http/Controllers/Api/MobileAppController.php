@@ -160,6 +160,7 @@ class MobileAppController extends Controller
 
             $request->validate([
                 'restaurant_id' => 'required|integer',
+                'user_id' => 'nullable|integer|exists:users,id',
                 'full_name' => 'required|string|max:255',
                 'phone_number' => 'required|string|max:20',
                 'building_no' => 'required|string|max:50',
@@ -171,15 +172,20 @@ class MobileAppController extends Controller
                 'cart_items' => 'required|array',
             ]);
 
-            // Get or create guest user
-            $guestUser = \App\Models\User::firstOrCreate(
-                ['email' => 'guest@advfood.com'],
-                [
-                    'name' => 'Guest User',
-                    'password' => bcrypt('guest_password_' . uniqid()),
-                    'role' => 'user',
-                ]
-            );
+            // Resolve user ID
+            if ($request->filled('user_id')) {
+                $userId = $request->integer('user_id');
+            } else {
+                $guestUser = \App\Models\User::firstOrCreate(
+                    ['email' => 'guest@advfood.com'],
+                    [
+                        'name' => 'Guest User',
+                        'password' => bcrypt('guest_password_' . uniqid()),
+                        'role' => 'user',
+                    ]
+                );
+                $userId = $guestUser->id;
+            }
 
             // Build delivery address
             $deliveryAddress = sprintf(
@@ -205,11 +211,10 @@ class MobileAppController extends Controller
             // Create order in orders table
             $order = \App\Models\Order::create([
                 'order_number' => $orderNumber,
-                'user_id' => $guestUser->id,
+                'user_id' => $userId,
                 'restaurant_id' => $request->restaurant_id,
                 'shop_id' => $shopId,
                 'status' => 'pending',
-                'source' => 'application',
                 'source' => 'application',
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
