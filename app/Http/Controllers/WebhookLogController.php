@@ -86,10 +86,35 @@ class WebhookLogController extends Controller
         $url = null;
         $ipAddress = null;
         
-        // Look for JSON structure in the log
+        // Look for JSON structure in the log - try multiple patterns
+        // Pattern 1: "all_data": {...}
         if (preg_match('/"all_data":\s*(\{.*?\})/s', $block, $matches)) {
             $jsonData = json_decode($matches[1], true);
             if ($jsonData) {
+                $data = $jsonData;
+            }
+        }
+        
+        // Pattern 2: "json_content": {...}
+        if (empty($data) && preg_match('/"json_content":\s*(\{.*?\})/s', $block, $matches)) {
+            $jsonData = json_decode($matches[1], true);
+            if ($jsonData) {
+                $data = $jsonData;
+            }
+        }
+        
+        // Pattern 3: "form_data": {...}
+        if (empty($data) && preg_match('/"form_data":\s*(\{.*?\})/s', $block, $matches)) {
+            $jsonData = json_decode($matches[1], true);
+            if ($jsonData) {
+                $data = $jsonData;
+            }
+        }
+        
+        // Pattern 4: Try to find any JSON object in the block
+        if (empty($data) && preg_match('/\{[^{}]*"phone"[^{}]*\}/', $block, $matches)) {
+            $jsonData = json_decode($matches[0], true);
+            if ($jsonData && json_last_error() === JSON_ERROR_NONE) {
                 $data = $jsonData;
             }
         }
