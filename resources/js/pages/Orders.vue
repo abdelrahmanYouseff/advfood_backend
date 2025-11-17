@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
-import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2 } from 'lucide-vue-next';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2, RefreshCcw } from 'lucide-vue-next';
 
 interface Props {
     orders: Array<{
@@ -38,6 +38,8 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const page = usePage();
 
 // Filter state
 const selectedStatus = ref<string>('all');
@@ -748,25 +750,36 @@ const acceptOrder = async (orderId: number) => {
     }
 };
 
-// Create test order function
-const createTestOrder = async () => {
-    try {
-        await router.post(route('orders.create-test'), {}, {
-            onSuccess: () => {
-                // Reload orders after creating test order
-                router.reload({ only: ['orders'] });
-            },
-            onError: (errors) => {
-                console.error('Error creating test order:', errors);
-                alert('حدث خطأ عند إنشاء الطلب التجريبي');
-            }
-        });
-    } catch (error) {
-        console.error('Error creating test order:', error);
-        alert('حدث خطأ عند إنشاء الطلب التجريبي');
+const syncLoading = ref(false);
+
+const syncZydaOrders = async () => {
+    if (syncLoading.value) {
+        return;
     }
+
+    syncLoading.value = true;
+
+    await router.post(route('orders.sync-zyda'), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            const successMessage = (page.props.flash as any)?.success as string | undefined;
+            if (successMessage) {
+                alert(successMessage);
+            } else {
+                alert('تمت مزامنة طلبات Zyda بنجاح');
+            }
+        },
+        onError: () => {
+            const errorMessage = (page.props.flash as any)?.error as string | undefined;
+            alert(errorMessage ?? 'حدث خطأ أثناء مزامنة طلبات Zyda');
+        },
+        onFinish: () => {
+            syncLoading.value = false;
+        },
+    });
 };
 
+// Create test order function
 // Load sound preference and set up notifications
 onMounted(() => {
     // Load sound preference from localStorage
@@ -879,22 +892,27 @@ onMounted(() => {
                         >
                             اختبار الإعلان الصوتي
                         </button>
-                        <button
-                            @click="createTestOrder"
-                            class="ml-2 px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                        >
-                            ➕ إنشاء طلب تجريبي
-                        </button>
                     </div>
 
-                    <!-- Create Order Button -->
-                    <Link
-                        :href="route('orders.create')"
-                        class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                    >
-                        <Plus class="h-4 w-4" />
-                        إنشاء طلب
-                    </Link>
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-3">
+                        <button
+                            type="button"
+                            @click="syncZydaOrders"
+                            :disabled="syncLoading"
+                            class="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <RefreshCcw :class="['h-4 w-4', syncLoading ? 'animate-spin' : '']" />
+                            مزامنة Zyda
+                        </button>
+                        <Link
+                            :href="route('orders.create')"
+                            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                        >
+                            <Plus class="h-4 w-4" />
+                            إنشاء طلب
+                        </Link>
+                    </div>
                 </div>
             </div>
 

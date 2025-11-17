@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\Invoice;
+use App\Models\ZydaOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -41,10 +42,21 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        $zyda_orders = ZydaOrder::orderByDesc('created_at')
+            ->paginate(25)
+            ->withQueryString();
+
+        $zyda_summary = [
+            'count' => ZydaOrder::count(),
+            'total_amount' => ZydaOrder::sum('total_amount'),
+        ];
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'recent_orders' => $recent_orders,
             'top_restaurants' => $top_restaurants,
+            'zyda_orders' => $zyda_orders,
+            'zyda_summary' => $zyda_summary,
         ]);
     }
 }

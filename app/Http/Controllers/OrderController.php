@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Invoice;
+use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -105,7 +106,43 @@ class OrderController extends Controller
      */
     public function create()
     {
-        //
+        $users = \App\Models\User::select('id', 'name', 'email')
+            ->orderBy('name')
+            ->get();
+
+        $restaurants = \App\Models\Restaurant::select('id', 'name', 'shop_id')
+            ->orderBy('name')
+            ->get();
+
+        $statusOptions = [
+            'pending' => 'قيد الانتظار',
+            'confirmed' => 'تم التأكيد',
+            'preparing' => 'قيد التحضير',
+            'ready' => 'جاهز للاستلام',
+            'delivering' => 'جاري التوصيل',
+            'delivered' => 'تم التسليم',
+            'cancelled' => 'ملغي',
+        ];
+
+        $paymentStatusOptions = [
+            'pending' => 'قيد الانتظار',
+            'paid' => 'مدفوع',
+            'failed' => 'فشل الدفع',
+        ];
+
+        $paymentMethodOptions = [
+            'cash' => 'نقدي',
+            'card' => 'بطاقة',
+            'online' => 'دفع إلكتروني',
+        ];
+
+        return Inertia::render('Orders/Create', [
+            'users' => $users,
+            'restaurants' => $restaurants,
+            'statusOptions' => $statusOptions,
+            'paymentStatusOptions' => $paymentStatusOptions,
+            'paymentMethodOptions' => $paymentMethodOptions,
+        ]);
     }
 
     /**
@@ -113,7 +150,93 @@ class OrderController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'restaurant_id' => 'required|exists:restaurants,id',
+            'delivery_name' => 'required|string|max:255',
+            'delivery_phone' => 'required|string|max:20',
+            'delivery_address' => 'required|string|max:500',
+            'delivery_fee' => 'nullable|numeric|min:0',
+            'tax' => 'nullable|numeric|min:0',
+            'special_instructions' => 'nullable|string|max:1000',
+            'sound' => 'nullable|boolean',
+            'items' => 'required|array|min:1',
+            'items.*.menu_item_id' => 'required|exists:menu_items,id',
+            'items.*.item_name' => 'required|string|max:255',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+        ]);
+
+        $restaurant = \App\Models\Restaurant::findOrFail($validated['restaurant_id']);
+        $shopId = $restaurant->shop_id ?? '11183';
+
+        $itemsCollection = collect($validated['items'])->map(function ($item) {
+            $quantity = (int) $item['quantity'];
+            $price = (float) $item['price'];
+
+            return [
+                'menu_item_id' => (int) $item['menu_item_id'],
+                'item_name' => $item['item_name'],
+                'quantity' => $quantity,
+                'price' => $price,
+                'subtotal' => round($price * $quantity, 2),
+            ];
+        });
+
+        $deliveryFee = isset($validated['delivery_fee']) ? (float) $validated['delivery_fee'] : 0;
+        $tax = isset($validated['tax']) ? (float) $validated['tax'] : 0;
+        $subtotal = $itemsCollection->sum('subtotal');
+        $total = round($subtotal + $deliveryFee + $tax, 2);
+
+        $status = 'pending';
+        $paymentStatus = 'paid';
+        $paymentMethod = 'online';
+        $statusMap = [
+            'pending' => 'New Order',
+            'confirmed' => 'Confirmed',
+            'preparing' => 'Preparing',
+            'ready' => 'Ready',
+            'delivering' => 'Out for Delivery',
+            'delivered' => 'Delivered',
+            'cancelled' => 'Cancelled',
+        ];
+
+        $order = Order::create([
+            'order_number' => $this->generateOrderNumber(),
+            'user_id' => $validated['user_id'],
+            'restaurant_id' => $validated['restaurant_id'],
+            'shop_id' => $shopId,
+            'status' => $status,
+            'shipping_status' => $statusMap[$status] ?? 'New Order',
+            'subtotal' => $subtotal,
+            'delivery_fee' => $deliveryFee,
+            'tax' => $tax,
+            'total' => $total,
+            'delivery_address' => $validated['delivery_address'],
+            'delivery_phone' => $validated['delivery_phone'],
+            'delivery_name' => $validated['delivery_name'],
+            'special_instructions' => $validated['special_instructions'] ?? null,
+            'payment_method' => $paymentMethod,
+            'payment_status' => $paymentStatus,
+            'source' => 'internal',
+            'sound' => (bool) ($validated['sound'] ?? false),
+        ]);
+
+        $order->orderItems()->createMany(
+            $itemsCollection->map(function ($item) {
+                return [
+                    'menu_item_id' => $item['menu_item_id'],
+                    'item_name' => $item['item_name'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'subtotal' => $item['subtotal'],
+                ];
+            })->toArray()
+        );
+
+        return redirect()
+            ->route('orders.index')
+            ->with('success', 'تم إنشاء الطلب بنجاح (رقم الطلب: ' . $order->order_number . ')');
     }
 
     /**
@@ -368,5 +491,12 @@ class OrderController extends Controller
             Log::error('Failed to create invoice for order ' . $order->id . ': ' . $e->getMessage());
             return null;
         }
+    }
+
+    protected function generateOrderNumber(): string
+    {
+        $date = now()->format('Ymd');
+        $count = Order::whereDate('created_at', today())->count() + 1;
+        return 'ORD-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 }

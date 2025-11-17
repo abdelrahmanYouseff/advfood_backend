@@ -104,22 +104,22 @@ class OnlineCustomerController extends Controller
 
     protected function transformCustomer(OnlineCustomer $customer): array
     {
-        return [
-            'id' => $customer->id,
-            'full_name' => $customer->full_name,
-            'phone_number' => $customer->phone_number,
-            'street' => $customer->street,
-            'building_no' => $customer->building_no,
-            'floor' => $customer->floor,
-            'apartment_number' => $customer->apartment_number,
-            'note' => $customer->note,
-            'source' => $customer->source,
-            'latest_status' => $customer->latest_status,
-            'restaurant' => $customer->restaurant?->name,
-            'created_at' => $customer->created_at?->toDateTimeString(),
-            'order_id' => $customer->order_id,
-            'link_order_id' => $customer->link_order_id,
-        ];
+                return [
+                    'id' => $customer->id,
+                    'full_name' => $customer->full_name,
+                    'phone_number' => $customer->phone_number,
+                    'street' => $customer->street,
+                    'building_no' => $customer->building_no,
+                    'floor' => $customer->floor,
+                    'apartment_number' => $customer->apartment_number,
+                    'note' => $customer->note,
+                    'source' => $customer->source,
+                    'latest_status' => $customer->latest_status,
+                    'restaurant' => $customer->restaurant?->name,
+                    'created_at' => $customer->created_at?->toDateTimeString(),
+                    'order_id' => $customer->order_id,
+                    'link_order_id' => $customer->link_order_id,
+                ];
     }
 }
 

@@ -19,7 +19,8 @@ import {
     Megaphone,
     Link as LinkIcon,
     Truck,
-    UserCircle2
+    UserCircle2,
+    Package
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed } from 'vue';
@@ -75,6 +76,11 @@ const mainNavItems = computed(() => {
                 badge: pendingOrdersCount.value > 0 ? pendingOrdersCount.value : undefined,
             },
             {
+                title: 'Zyda Orders',
+                href: '/dashboard?tab=zyda',
+                icon: Package,
+            },
+            {
                 title: 'طلبات الروابط',
                 href: '/link-orders',
                 icon: LinkIcon,
@@ -121,6 +127,11 @@ const mainNavItems = computed(() => {
                 href: '/orders',
                 icon: ShoppingCart,
                 badge: pendingOrdersCount.value > 0 ? pendingOrdersCount.value : undefined,
+            },
+            {
+                title: 'Zyda Orders',
+                href: '/dashboard?tab=zyda',
+                icon: Package,
             },
             {
                 title: 'الفواتير',
@@ -173,6 +184,11 @@ const mainNavItems = computed(() => {
             href: '/orders',
             icon: ShoppingCart,
             badge: pendingOrdersCount.value > 0 ? pendingOrdersCount.value : undefined,
+        },
+        {
+            title: 'Zyda Orders',
+            href: '/dashboard?tab=zyda',
+            icon: Package,
         },
         {
             title: 'الفواتير',

@@ -11,10 +11,12 @@ use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\SimpleOrderController;
+use App\Http\Controllers\Api\ZydaOrderController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\GenericWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,6 +34,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::post('/webhook', [PaymentWebhookController::class, 'handleNoon']);
+
+// Generic webhook for receiving any type of data
+Route::post('/webhook/generic', [GenericWebhookController::class, 'handle']);
 
 // Public routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);
@@ -136,6 +141,7 @@ Route::get('/points/customer/{pointCustomerId}', [MobileAppController::class, 'g
 // Mobile App Payment API routes
 Route::post('/mobile/payment/checkout-url', [MobileAppController::class, 'getPaymentCheckoutUrl']);
 Route::get('/mobile/orders', [MobileAppController::class, 'getUserOrders']);
+Route::post('/zyda/orders', [ZydaOrderController::class, 'store']);
 
 // Direct points API by customer ID
 Route::get('/points/{pointCustomerId}', function($pointCustomerId) {
