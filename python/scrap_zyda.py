@@ -26,7 +26,8 @@ ORDERS_URL = (
     "?branch=all&date=all&driverId=&isManualOrder=false"
     "&searchStatus=&searchValue=&sortBy=created_at"
 )
-API_ENDPOINT = "http://127.0.0.1:8000/api/zyda/orders"
+# API endpoint - use environment variable or default to production URL
+API_ENDPOINT = os.getenv("ZYDA_API_ENDPOINT", "https://advfoodapp.clarastars.com/api/zyda/orders")
 LOOP_INTERVAL_SECONDS = 60
 PROCESSED_PHONES_FILE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -422,10 +423,9 @@ def sync_orders(orders: List[Dict[str, object]]) -> Dict[str, int]:
             stats["skipped"] += 1
             continue
 
-        if phone in processed_phones:
-            stats["skipped"] += 1
-            continue
-
+        # Check if phone was processed before, but still send to allow updates
+        was_processed = phone in processed_phones
+        
         payload = {
             "name": order.get("name"),
             "phone": phone,
@@ -445,8 +445,14 @@ def sync_orders(orders: List[Dict[str, object]]) -> Dict[str, int]:
             else:
                 stats["updated"] += 1
 
-            processed_phones.add(phone)
-            changed = True
+            # Only mark as processed if it was a new order (created)
+            # This allows updates for existing orders on subsequent runs
+            if not was_processed:
+                processed_phones.add(phone)
+                changed = True
+            elif operation == "updated":
+                # If order was updated, also save the processed phones to track changes
+                changed = True
         except Exception as exc:
             stats["failed"] += 1
             print(f"[ERROR] Failed to sync order {phone}: {exc}")
