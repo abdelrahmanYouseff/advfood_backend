@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryTripController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\WebhookLogController;
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OnlineCustomerController;
@@ -83,6 +84,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
     Route::post('logs/clear', [LogController::class, 'clear'])->name('logs.clear');
     Route::get('logs/download', [LogController::class, 'download'])->name('logs.download');
+    
+    // Webhooks - عرض الـ webhooks المستلمة
+    Route::get('webhooks', [WebhookLogController::class, 'index'])->name('webhooks.index');
 });
 
 

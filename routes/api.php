@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\GenericWebhookController;
+use App\Http\Controllers\WebhookLogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,9 @@ Route::post('/webhook', [PaymentWebhookController::class, 'handleNoon']);
 
 // Generic webhook for receiving any type of data
 Route::post('/webhook/generic', [GenericWebhookController::class, 'handle']);
+
+// API endpoint to get webhooks as JSON
+Route::get('/webhooks/logs', [WebhookLogController::class, 'api']);
 
 // Public routes
 Route::get('/restaurants', [RestaurantController::class, 'index']);
