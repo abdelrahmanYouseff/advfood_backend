@@ -142,6 +142,34 @@ class ZydaOrderController extends Controller
     }
 
     /**
+     * Delete a Zyda order
+     */
+    public function destroy($id)
+    {
+        $zydaOrder = ZydaOrder::find($id);
+
+        if (!$zydaOrder) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Zyda order not found',
+            ], 404);
+        }
+
+        // Delete the zyda order
+        $zydaOrder->delete();
+
+        Log::info('✅ Zyda order deleted', [
+            'zyda_order_id' => $id,
+            'phone' => $zydaOrder->phone,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Zyda order deleted successfully',
+        ]);
+    }
+
+    /**
      * Create Order from ZydaOrder
      */
     protected function createOrderFromZydaOrder(ZydaOrder $zydaOrder): Order

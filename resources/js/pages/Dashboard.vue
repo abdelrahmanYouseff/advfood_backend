@@ -11,7 +11,8 @@ import {
     TrendingUp,
     Package,
     Calendar,
-    Save
+    Save,
+    Trash2
 } from 'lucide-vue-next';
 
 interface Props {
@@ -256,6 +257,7 @@ const zydaOrdersTotalLabel = computed(() => formatZydaTotal(props.zyda_summary?.
 // State for editing locations
 const editingLocations = ref<Record<number, string>>({});
 const savingOrderId = ref<number | null>(null);
+const deletingOrderId = ref<number | null>(null);
 
 // Initialize editing locations with current values
 const initializeEditingLocations = () => {
@@ -321,6 +323,53 @@ const updateLocation = async (orderId: number) => {
         alert(error.message || 'حدث خطأ أثناء حفظ الموقع. حاول مرة أخرى.');
     } finally {
         savingOrderId.value = null;
+    }
+};
+
+// Delete Zyda order function
+const deleteZydaOrder = async (orderId: number) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الطلب؟')) {
+        return;
+    }
+
+    deletingOrderId.value = orderId;
+
+    try {
+        // Get CSRF token from meta tag or cookie
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+            || getCookie('XSRF-TOKEN')
+            || '';
+        
+        const response = await fetch(`/api/zyda/orders/${orderId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken || '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to delete order');
+        }
+
+        // Reload to get updated data from server
+        router.reload({
+            only: ['zyda_orders', 'zyda_summary'],
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('✅ Order deleted successfully!');
+            },
+        });
+    } catch (error: any) {
+        console.error('❌ Failed to delete order:', error);
+        alert(error.message || 'حدث خطأ أثناء حذف الطلب. حاول مرة أخرى.');
+    } finally {
+        deletingOrderId.value = null;
     }
 };
 
@@ -587,11 +636,12 @@ const getCookie = (name: string): string | null => {
                                     <th class="px-4 py-3">الإجمالي</th>
                                     <th class="px-4 py-3">الأصناف</th>
                                     <th class="px-4 py-3">تاريخ الإنشاء</th>
+                                    <th class="px-4 py-3">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
                                 <tr v-if="zydaOrders.length === 0">
-                                    <td colspan="7" class="px-6 py-8 text-center text-sm text-muted-foreground">
+                                    <td colspan="8" class="px-6 py-8 text-center text-sm text-muted-foreground">
                                         لا توجد طلبات Zyda مسجلة حتى الآن.
                                     </td>
                                 </tr>
@@ -621,6 +671,18 @@ const getCookie = (name: string): string | null => {
                                     <td class="px-4 py-3 text-gray-900 font-semibold">{{ formatZydaTotal(order.total_amount) }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ formatZydaItems(order.items) }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ order.created_at ?? '—' }}</td>
+                                    <td class="px-4 py-3">
+                                        <button
+                                            @click="deleteZydaOrder(order.id)"
+                                            :disabled="deletingOrderId === order.id"
+                                            class="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                            title="حذف الطلب"
+                                        >
+                                            <Trash2 class="h-3.5 w-3.5" />
+                                            <span v-if="deletingOrderId !== order.id">حذف</span>
+                                            <span v-else>...</span>
+                                        </button>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>

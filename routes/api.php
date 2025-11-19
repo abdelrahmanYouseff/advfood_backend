@@ -147,6 +147,7 @@ Route::post('/mobile/payment/checkout-url', [MobileAppController::class, 'getPay
 Route::get('/mobile/orders', [MobileAppController::class, 'getUserOrders']);
 Route::post('/zyda/orders', [ZydaOrderController::class, 'store']);
 Route::patch('/zyda/orders/{id}/location', [ZydaOrderController::class, 'updateLocation']);
+Route::delete('/zyda/orders/{id}', [ZydaOrderController::class, 'destroy']);
 
 // Direct points API by customer ID
 Route::get('/points/{pointCustomerId}', function($pointCustomerId) {
