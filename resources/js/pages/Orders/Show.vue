@@ -38,6 +38,8 @@ interface Order {
     driver_phone?: string;
     driver_latitude?: number;
     driver_longitude?: number;
+    customer_latitude?: number;
+    customer_longitude?: number;
     subtotal: string;
     delivery_fee: string;
     tax: string;
@@ -106,6 +108,13 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Debug: Log order data to check location
+console.log('Order data:', {
+    customer_latitude: props.order.customer_latitude,
+    customer_longitude: props.order.customer_longitude,
+    shippingOrder: props.shippingOrder
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -640,6 +649,61 @@ const updateOrderStatus = (status: string) => {
                                     <div>
                                         <p class="text-sm text-gray-500">العنوان</p>
                                         <p class="text-sm text-gray-900 leading-relaxed">{{ order.delivery_address }}</p>
+                                    </div>
+                                </div>
+                                <!-- Customer Location -->
+                                <div v-if="order.customer_latitude && order.customer_longitude" class="flex items-start space-x-3">
+                                    <div class="p-2 bg-green-100 rounded-lg">
+                                        <Navigation class="w-5 h-5 text-green-600" />
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-gray-500 mb-1">الموقع (Location)</p>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <p class="font-mono text-sm text-gray-900 bg-gray-50 px-3 py-1.5 rounded border">
+                                                {{ order.customer_latitude }}, {{ order.customer_longitude }}
+                                            </p>
+                                            <a
+                                                :href="`https://www.google.com/maps?q=${order.customer_latitude},${order.customer_longitude}`"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition"
+                                            >
+                                                <MapPin class="w-3.5 h-3.5" />
+                                                فتح في Google Maps
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Shipping Order Location (fallback) -->
+                                <div v-else-if="shippingOrder?.latitude && shippingOrder?.longitude" class="flex items-start space-x-3">
+                                    <div class="p-2 bg-green-100 rounded-lg">
+                                        <Navigation class="w-5 h-5 text-green-600" />
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-gray-500 mb-1">الموقع (Location)</p>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <p class="font-mono text-sm text-gray-900 bg-gray-50 px-3 py-1.5 rounded border">
+                                                {{ shippingOrder.latitude }}, {{ shippingOrder.longitude }}
+                                            </p>
+                                            <a
+                                                :href="`https://www.google.com/maps?q=${shippingOrder.latitude},${shippingOrder.longitude}`"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition"
+                                            >
+                                                <MapPin class="w-3.5 h-3.5" />
+                                                فتح في Google Maps
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Debug info (remove after testing) -->
+                                <div v-else class="flex items-start space-x-3 text-xs text-gray-400 italic">
+                                    <div class="p-2 bg-gray-100 rounded-lg">
+                                        <Navigation class="w-5 h-5 text-gray-400" />
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-400">الموقع غير متوفر (customer_lat: {{ order.customer_latitude }}, customer_lng: {{ order.customer_longitude }})</p>
                                     </div>
                                 </div>
                                 <div v-if="order.special_instructions" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">

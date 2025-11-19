@@ -259,6 +259,15 @@ class OrderController extends Controller
             // Get shop_id from restaurant
             $shopId = $restaurant->shop_id ?? (string) $restaurant->id;
 
+            // Generate random location coordinates within Riyadh area
+            // Riyadh center: 24.7136, 46.6753
+            // Add small random offset for variety (±0.05 degrees ≈ ±5.5 km)
+            $baseLat = 24.7136;
+            $baseLng = 46.6753;
+            $randomOffset = (rand(-50, 50) / 1000); // ±0.05 degrees
+            $customerLatitude = $baseLat + $randomOffset;
+            $customerLongitude = $baseLng + $randomOffset;
+
             // Create test order
             $order = Order::create([
                 'order_number' => $orderNumber,
@@ -275,6 +284,8 @@ class OrderController extends Controller
                 'delivery_address' => 'مبنى 123، الطابق 2، شقة 5، شارع الملك فهد، الرياض',
                 'delivery_phone' => '0501234567',
                 'delivery_name' => 'عميل تجريبي',
+                'customer_latitude' => $customerLatitude,
+                'customer_longitude' => $customerLongitude,
                 'payment_method' => 'online',
                 'payment_status' => 'paid', // Must be paid to show in orders list and trigger shipping
                 'sound' => true,
@@ -411,7 +422,58 @@ class OrderController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $order = Order::findOrFail($id);
+        
+        // Delete related order items
+        $order->orderItems()->delete();
+        
+        // Delete the order
+        $order->delete();
+        
+        Log::info('Order deleted', [
+            'order_id' => $id,
+            'order_number' => $order->order_number,
+        ]);
+        
+        return redirect()->route('orders.index')->with('success', 'تم حذف الطلب بنجاح!');
+    }
+
+    /**
+     * Delete all test orders
+     */
+    public function deleteTestOrders()
+    {
+        try {
+            // Find all test orders (order_number starts with 'TEST-' and source is 'internal')
+            $testOrders = Order::where('order_number', 'like', 'TEST-%')
+                ->where('source', 'internal')
+                ->get();
+            
+            $count = $testOrders->count();
+            
+            if ($count === 0) {
+                return redirect()->route('orders.index')->with('info', 'لا توجد طلبات تجريبية للحذف.');
+            }
+            
+            // Delete order items for each test order
+            foreach ($testOrders as $order) {
+                $order->orderItems()->delete();
+            }
+            
+            // Delete all test orders
+            $deleted = Order::where('order_number', 'like', 'TEST-%')
+                ->where('source', 'internal')
+                ->delete();
+            
+            Log::info('Test orders deleted', [
+                'count' => $deleted,
+            ]);
+            
+            return redirect()->route('orders.index')->with('success', "تم حذف {$count} طلب تجريبي بنجاح!");
+        } catch (\Exception $e) {
+            Log::error('Error deleting test orders: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'حدث خطأ أثناء حذف الطلبات التجريبية: ' . $e->getMessage());
+        }
     }
 
     /**

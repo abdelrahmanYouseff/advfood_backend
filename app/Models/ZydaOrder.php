@@ -10,13 +10,21 @@ class ZydaOrder extends Model
     use HasFactory;
 
     protected $fillable = [
+        'order_id',
         'name',
         'phone',
         'address',
         'location',
+        'latitude',
+        'longitude',
         'total_amount',
         'items',
     ];
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
 
     protected $casts = [
         'items' => 'array',

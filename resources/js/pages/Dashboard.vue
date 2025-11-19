@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import {
     Store,
     ShoppingCart,
@@ -10,7 +10,8 @@ import {
     Clock,
     TrendingUp,
     Package,
-    Calendar
+    Calendar,
+    Save
 } from 'lucide-vue-next';
 
 interface Props {
@@ -193,8 +194,6 @@ const checkForNewOrders = () => {
 };
 
 // Check for new orders when component mounts
-import { onMounted, onUnmounted, ref } from 'vue';
-import { router } from '@inertiajs/vue3';
 
 const lastOrderCount = ref(props.recent_orders.length);
 const soundEnabled = ref(true); // Sound is enabled by default
@@ -253,6 +252,87 @@ const formatZydaItems = (items: ZydaOrder['items']) => {
 
 const zydaOrdersCountLabel = computed(() => `${props.zyda_summary?.count ?? 0} طلب`);
 const zydaOrdersTotalLabel = computed(() => formatZydaTotal(props.zyda_summary?.total_amount ?? 0));
+
+// State for editing locations
+const editingLocations = ref<Record<number, string>>({});
+const savingOrderId = ref<number | null>(null);
+
+// Initialize editing locations with current values
+const initializeEditingLocations = () => {
+    const locations: Record<number, string> = {};
+    zydaOrders.value.forEach((order: ZydaOrder) => {
+        locations[order.id] = order.location || '';
+    });
+    editingLocations.value = locations;
+};
+
+// Watch for changes in zydaOrders and initialize editing locations
+watch(zydaOrders, () => {
+    initializeEditingLocations();
+}, { immediate: true });
+
+// Update location function
+const updateLocation = async (orderId: number) => {
+    const location = editingLocations.value[orderId] || null;
+    savingOrderId.value = orderId;
+
+    try {
+        // Get CSRF token from meta tag or cookie
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+            || getCookie('XSRF-TOKEN')
+            || '';
+        
+        const response = await fetch(`/api/zyda/orders/${orderId}/location`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken || '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                location: location || null,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update location');
+        }
+
+        // Update the order in props after successful save
+        const order = zydaOrders.value.find((o: ZydaOrder) => o.id === orderId);
+        if (order) {
+            order.location = location;
+        }
+
+        // Reload to get updated data from server
+        router.reload({
+            only: ['zyda_orders'],
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('✅ Location updated successfully!');
+            },
+        });
+    } catch (error: any) {
+        console.error('❌ Failed to update location:', error);
+        alert(error.message || 'حدث خطأ أثناء حفظ الموقع. حاول مرة أخرى.');
+    } finally {
+        savingOrderId.value = null;
+    }
+};
+
+// Helper function to get cookie value
+const getCookie = (name: string): string | null => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop()?.split(';').shift() || null;
+    }
+    return null;
+};
 </script>
 
 <template>
@@ -519,7 +599,25 @@ const zydaOrdersTotalLabel = computed(() => formatZydaTotal(props.zyda_summary?.
                                     <td class="px-4 py-3 font-medium text-gray-900">{{ order.name ?? '—' }}</td>
                                     <td class="px-4 py-3 text-gray-700">{{ order.phone }}</td>
                                     <td class="px-4 py-3 text-gray-700 max-w-xs">{{ order.address ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-gray-700">{{ order.location ?? '—' }}</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <input
+                                                v-model="editingLocations[order.id]"
+                                                type="text"
+                                                :placeholder="order.location || 'أدخل الموقع'"
+                                                class="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            />
+                                            <button
+                                                @click="updateLocation(order.id)"
+                                                :disabled="savingOrderId === order.id"
+                                                class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                <Save class="h-3.5 w-3.5" />
+                                                <span v-if="savingOrderId !== order.id">حفظ</span>
+                                                <span v-else>...</span>
+                                            </button>
+                                        </div>
+                                    </td>
                                     <td class="px-4 py-3 text-gray-900 font-semibold">{{ formatZydaTotal(order.total_amount) }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ formatZydaItems(order.items) }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ order.created_at ?? '—' }}</td>
