@@ -42,13 +42,15 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        $zyda_orders = ZydaOrder::orderByDesc('created_at')
+        // Show only Zyda orders that haven't been linked to an Order yet (order_id is null)
+        $zyda_orders = ZydaOrder::whereNull('order_id')
+            ->orderByDesc('created_at')
             ->paginate(25)
             ->withQueryString();
 
         $zyda_summary = [
-            'count' => ZydaOrder::count(),
-            'total_amount' => ZydaOrder::sum('total_amount'),
+            'count' => ZydaOrder::whereNull('order_id')->count(),
+            'total_amount' => ZydaOrder::whereNull('order_id')->sum('total_amount'),
         ];
 
         return Inertia::render('Dashboard', [
