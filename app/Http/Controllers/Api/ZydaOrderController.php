@@ -420,7 +420,8 @@ class ZydaOrderController extends Controller
 
         // Check if it's a URL (regular or short link)
         if (filter_var($trimmedLocation, FILTER_VALIDATE_URL)) {
-            // Try to extract coordinates from URL (including following redirects for short links)
+            // ALWAYS try to extract coordinates from URL
+            // This will follow redirects for ANY URL (short links or regular) to get Google Maps coordinates
             $coordinates = $this->extractCoordinatesFromUrl($trimmedLocation);
             if ($coordinates) {
                 return $coordinates;
@@ -466,7 +467,8 @@ class ZydaOrderController extends Controller
         // Check if it's a short link service (common short link domains)
         $shortLinkDomains = [
             'is.gd', 'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly',
-            'short.link', 'tiny.cc', 'rebrand.ly', 'cutt.ly', 'buff.ly'
+            'short.link', 'tiny.cc', 'rebrand.ly', 'cutt.ly', 'buff.ly',
+            'zyda.co' // Zyda short links that redirect to Google Maps
         ];
         
         $parsedUrl = parse_url($url);
@@ -474,6 +476,9 @@ class ZydaOrderController extends Controller
         
         // Check if host is a known short link service
         $isShortLink = false;
+        $isGoogleMaps = (strpos($host, 'google.com') !== false && strpos($host, 'maps') !== false) || 
+                       (strpos($host, 'maps') !== false);
+        
         foreach ($shortLinkDomains as $domain) {
             if (strpos($host, $domain) !== false) {
                 $isShortLink = true;
@@ -481,34 +486,45 @@ class ZydaOrderController extends Controller
             }
         }
         
-        // If it's a short link or doesn't look like Google Maps, follow redirects
-        if ($isShortLink || (strpos($host, 'google.com') === false && strpos($host, 'maps') === false)) {
+        // ALWAYS follow redirects if:
+        // 1. It's a short link (known or unknown)
+        // 2. It's NOT already a Google Maps URL
+        // 3. We want to extract coordinates from ANY URL that redirects to Google Maps
+        if ($isShortLink || !$isGoogleMaps) {
             try {
-                Log::info('🔗 Following short link redirect', [
+                Log::info('🔗 Following URL redirects to extract coordinates', [
                     'original_url' => $url,
                     'host' => $host,
+                    'is_short_link' => $isShortLink,
+                    'is_google_maps' => $isGoogleMaps,
                 ]);
                 
                 // Use cURL to get final URL after following redirects (more reliable)
                 $finalUrl = $this->getFinalUrlFromRedirects($url);
                 
                 if ($finalUrl && $finalUrl !== $url) {
-                    Log::info('✅ Short link resolved', [
+                    Log::info('✅ URL redirect resolved', [
                         'original_url' => $url,
                         'final_url' => $finalUrl,
                     ]);
                 } else {
-                    Log::warning('⚠️ Could not resolve short link', [
+                    Log::warning('⚠️ Could not resolve URL redirect', [
                         'original_url' => $url,
                     ]);
+                    // Continue with original URL
+                    $finalUrl = $url;
                 }
             } catch (\Exception $e) {
-                Log::error('❌ Error following short link redirect', [
+                Log::error('❌ Error following URL redirect', [
                     'original_url' => $url,
                     'error' => $e->getMessage(),
                 ]);
                 // Continue with original URL if redirect fails
+                $finalUrl = $url;
             }
+        } else {
+            // Already a Google Maps URL, use as is
+            $finalUrl = $url;
         }
         
         // Parse final URL
@@ -564,31 +580,60 @@ class ZydaOrderController extends Controller
 
     /**
      * Get final URL after following redirects using cURL
+     * Supports short links like zyda.co, is.gd, bit.ly, etc.
      */
     protected function getFinalUrlFromRedirects(string $url): string
     {
         try {
+            Log::info('🔗 Following redirects to get final URL', [
+                'original_url' => $url,
+            ]);
+            
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-            curl_setopt($ch, CURLOPT_NOBODY, true); // HEAD request only
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_NOBODY, true); // HEAD request only (faster)
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15); // Increased timeout for slow redirects
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_HEADER, true);
-            curl_exec($ch);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'); // Some sites require user agent
+            
+            $response = curl_exec($ch);
+            
+            if (curl_errno($ch)) {
+                $error = curl_error($ch);
+                curl_close($ch);
+                Log::warning('⚠️ cURL error following redirects', [
+                    'url' => $url,
+                    'error' => $error,
+                ]);
+                return $url;
+            }
             
             $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             
-            if ($finalUrl && $httpCode < 400) {
+            if ($finalUrl && $httpCode < 400 && $finalUrl !== $url) {
+                Log::info('✅ Successfully followed redirects', [
+                    'original_url' => $url,
+                    'final_url' => $finalUrl,
+                    'http_code' => $httpCode,
+                ]);
                 return $finalUrl;
+            } elseif ($finalUrl && $finalUrl !== $url) {
+                Log::warning('⚠️ Redirect followed but HTTP code indicates error', [
+                    'original_url' => $url,
+                    'final_url' => $finalUrl,
+                    'http_code' => $httpCode,
+                ]);
             }
         } catch (\Exception $e) {
-            Log::warning('Failed to get final URL from redirects', [
+            Log::error('❌ Exception following redirects', [
                 'url' => $url,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
         

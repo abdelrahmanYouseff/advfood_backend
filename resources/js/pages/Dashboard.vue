@@ -353,29 +353,19 @@ const updateLocation = async (orderId: number) => {
         // Check if order was created/updated (has order_id)
         const orderCreated = data.order_id || (data.data && data.data.order_id);
         
+        // Always redirect to orders page after successful location save
         if (orderCreated) {
             // If order was created/updated, show success message and redirect to orders page
             alert('✅ تم حفظ الموقع وإنشاء الطلب بنجاح! سيتم التوجيه إلى صفحة الطلبات...');
-            
-            // Redirect to orders page after a short delay
-            setTimeout(() => {
-                window.location.href = '/orders';
-            }, 1000);
         } else {
-            // If no order was created, just reload the dashboard
-            // And switch to "received" tab if order was linked
-            router.reload({
-                only: ['zyda_orders', 'zyda_summary'],
-                preserveScroll: true,
-                onSuccess: () => {
-                    console.log('✅ Location updated successfully!');
-                    // If order was linked (has order_id), switch to "received" filter
-                    if (data.data && data.data.order_id) {
-                        changeZydaFilter('received');
-                    }
-                },
-            });
+            // If location was saved but no order created yet, show success message
+            alert('✅ تم حفظ الموقع بنجاح! سيتم التوجيه إلى صفحة الطلبات...');
         }
+        
+        // Redirect to orders page after a short delay
+        setTimeout(() => {
+            router.visit('/orders');
+        }, 500);
     } catch (error: any) {
         console.error('❌ Failed to update location:', error);
         alert(error.message || 'حدث خطأ أثناء حفظ الموقع. حاول مرة أخرى.');
