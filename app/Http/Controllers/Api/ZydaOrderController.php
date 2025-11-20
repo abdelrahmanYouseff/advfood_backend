@@ -560,35 +560,52 @@ class ZydaOrderController extends Controller
             'final_url' => $url,
         ];
         
-        // First, get the final URL after following redirects
+        Log::info('🔗 Starting URL processing to extract original link and coordinates', [
+            'original_url' => $url,
+        ]);
+        
+        // First, get the final URL after following redirects using curl
+        // This will resolve ANY short link to its original Google Maps link
         $finalUrl = $this->extractCoordinatesFromUrlInternal($url);
         
-        if ($finalUrl && $finalUrl !== $url) {
+        // Always use the final URL (original link) even if it's the same as input
+        // This ensures we save the resolved URL in the database
+        if ($finalUrl) {
             $result['final_url'] = $finalUrl;
+            Log::info('✅ Original link retrieved', [
+                'original_url' => $url,
+                'final_url' => $finalUrl,
+                'url_changed' => $finalUrl !== $url,
+            ]);
         } else {
+            // Fallback to original URL if extraction failed
             $result['final_url'] = $url;
+            Log::warning('⚠️ Could not retrieve original link, using input URL', [
+                'original_url' => $url,
+            ]);
         }
         
-        // Now extract coordinates from final URL
+        // Now extract coordinates from final URL (original Google Maps link)
         $coordinates = $this->extractCoordinatesFromFinalUrl($result['final_url']);
         $result['coordinates'] = $coordinates;
         
         // Log the extraction result
         if ($coordinates) {
-            Log::info('✅ Coordinates extracted from URL', [
+            Log::info('✅ Coordinates extracted from original link', [
                 'original_url' => $url,
                 'final_url' => $result['final_url'],
                 'latitude' => $coordinates['latitude'],
                 'longitude' => $coordinates['longitude'],
             ]);
         } else {
-            Log::warning('⚠️ Could not extract coordinates from final URL', [
+            Log::warning('⚠️ Could not extract coordinates from original link', [
                 'original_url' => $url,
                 'final_url' => $result['final_url'],
             ]);
         }
         
-        // Always return result even if coordinates are null, so we can save the final URL
+        // Always return result even if coordinates are null, so we can save the original link
+        // The original link (final_url) will be saved in the location column
         return $result;
     }
     
@@ -605,6 +622,10 @@ class ZydaOrderController extends Controller
     /**
      * Internal method to get final URL after following redirects
      * Returns the final Google Maps URL after following all redirects
+     * 
+     * ALWAYS follows redirects for ANY URL to get the original Google Maps link
+     * This ensures that short links (like zyda.co, bit.ly, etc.) are resolved
+     * to their final destination before extracting coordinates
      */
     protected function extractCoordinatesFromUrlInternal(string $url): string
     {
@@ -616,96 +637,134 @@ class ZydaOrderController extends Controller
         // https://www.google.com/maps/dir/.../@24.7136,46.6753
         // Short links: https://is.gd/ZpIRU1, https://bit.ly/xxx, https://zyda.co/o2CONfN, etc.
         
-        $finalUrl = $url;
-        
-        // Check if it's a short link service (common short link domains)
-        $shortLinkDomains = [
-            'is.gd', 'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly',
-            'short.link', 'tiny.cc', 'rebrand.ly', 'cutt.ly', 'buff.ly',
-            'zyda.co' // Zyda short links that redirect to Google Maps
-        ];
-        
         $parsedUrl = parse_url($url);
         $host = $parsedUrl['host'] ?? '';
         
-        // Check if host is a known short link service
-        $isShortLink = false;
+        // Check if it's already a Google Maps URL
         $isGoogleMaps = (strpos($host, 'google.com') !== false && strpos($host, 'maps') !== false) || 
-                       (strpos($host, 'maps') !== false);
+                       (strpos($host, 'maps.google.com') !== false) ||
+                       (strpos($url, 'google.com/maps') !== false);
         
-        foreach ($shortLinkDomains as $domain) {
-            if (strpos($host, $domain) !== false) {
-                $isShortLink = true;
-                break;
-            }
-        }
-        
-        // ALWAYS follow redirects if:
-        // 1. It's a short link (known or unknown)
-        // 2. It's NOT already a Google Maps URL
-        // 3. We want to extract coordinates from ANY URL that redirects to Google Maps
-        if ($isShortLink || !$isGoogleMaps) {
-            try {
-                Log::info('🔗 Following URL redirects to get final Google Maps URL', [
+        // ALWAYS follow redirects to get the original link from any short link
+        // Even if it looks like a Google Maps URL, we still follow redirects
+        // to ensure we get the final, canonical URL
+        try {
+            Log::info('🔗 Following URL redirects to get original Google Maps link', [
+                'original_url' => $url,
+                'host' => $host,
+                'is_google_maps' => $isGoogleMaps,
+            ]);
+            
+            // Use cURL to get final URL after following redirects
+            // This will resolve ANY short link to its final destination
+            $finalUrl = $this->getFinalUrlFromRedirects($url);
+            
+            if ($finalUrl && $finalUrl !== $url) {
+                Log::info('✅ URL redirect resolved successfully', [
                     'original_url' => $url,
-                    'host' => $host,
-                    'is_short_link' => $isShortLink,
-                    'is_google_maps' => $isGoogleMaps,
+                    'final_url' => $finalUrl,
                 ]);
-                
-                // Use cURL to get final URL after following redirects (more reliable)
-                $finalUrl = $this->getFinalUrlFromRedirects($url);
-                
-                if ($finalUrl && $finalUrl !== $url) {
-                    Log::info('✅ URL redirect resolved to Google Maps', [
+                return $finalUrl;
+            } else {
+                // If no redirect found or same URL, check if it's already a valid Google Maps URL
+                if ($isGoogleMaps) {
+                    Log::info('✅ URL is already a Google Maps URL', [
+                        'url' => $url,
+                    ]);
+                    return $url;
+                } else {
+                    Log::warning('⚠️ Could not resolve URL redirect and URL is not Google Maps', [
                         'original_url' => $url,
                         'final_url' => $finalUrl,
                     ]);
-                } else {
-                    Log::warning('⚠️ Could not resolve URL redirect', [
-                        'original_url' => $url,
-                    ]);
-                    // Continue with original URL
-                    $finalUrl = $url;
+                    // Return original URL even if redirect failed
+                    return $url;
                 }
-            } catch (\Exception $e) {
-                Log::error('❌ Error following URL redirect', [
-                    'original_url' => $url,
-                    'error' => $e->getMessage(),
-                ]);
-                // Continue with original URL if redirect fails
-                $finalUrl = $url;
             }
-        } else {
-            // Already a Google Maps URL, use as is
-            $finalUrl = $url;
+        } catch (\Exception $e) {
+            Log::error('❌ Error following URL redirect', [
+                'original_url' => $url,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Continue with original URL if redirect fails
+            return $url;
         }
-        
-        return $finalUrl;
     }
     
     /**
      * Extract coordinates from final Google Maps URL
+     * Supports various Google Maps URL formats:
+     * - https://www.google.com/maps?q=24.7136,46.6753
+     * - https://www.google.com/maps/@24.7136,46.6753,15z
+     * - https://www.google.com/maps/place/.../@24.7136,46.6753,15z
+     * - https://maps.google.com/?q=24.7136,46.6753
+     * - https://www.google.com/maps/dir/.../@24.7136,46.6753
+     * - https://maps.app.goo.gl/xxxxx (new Google Maps short links)
      */
     protected function extractCoordinatesFromFinalUrl(string $url): ?array
     {
         // Parse final URL
         $parsedUrl = parse_url($url);
         
-        // Extract from query parameters (q=lat,lng)
+        // Extract from query parameters (q=lat,lng or ll=lat,lng)
         if (isset($parsedUrl['query'])) {
             parse_str($parsedUrl['query'], $queryParams);
+            
+            // Try 'q' parameter first
             if (isset($queryParams['q'])) {
                 $qValue = $queryParams['q'];
                 if (preg_match('/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)/', $qValue, $matches)) {
                     $lat = (float) $matches[1];
                     $lng = (float) $matches[2];
                     if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                        Log::info('✅ Coordinates extracted from query parameter q', [
+                            'url' => $url,
+                            'latitude' => $lat,
+                            'longitude' => $lng,
+                        ]);
                         return [
                             'latitude' => $lat,
                             'longitude' => $lng,
                         ];
                     }
+                }
+            }
+            
+            // Try 'll' parameter (lat,lng)
+            if (isset($queryParams['ll'])) {
+                $llValue = $queryParams['ll'];
+                if (preg_match('/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)/', $llValue, $matches)) {
+                    $lat = (float) $matches[1];
+                    $lng = (float) $matches[2];
+                    if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                        Log::info('✅ Coordinates extracted from query parameter ll', [
+                            'url' => $url,
+                            'latitude' => $lat,
+                            'longitude' => $lng,
+                        ]);
+                        return [
+                            'latitude' => $lat,
+                            'longitude' => $lng,
+                        ];
+                    }
+                }
+            }
+            
+            // Try separate 'lat' and 'lng' parameters
+            if (isset($queryParams['lat']) && isset($queryParams['lng'])) {
+                $lat = (float) $queryParams['lat'];
+                $lng = (float) $queryParams['lng'];
+                if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    Log::info('✅ Coordinates extracted from separate lat/lng parameters', [
+                        'url' => $url,
+                        'latitude' => $lat,
+                        'longitude' => $lng,
+                    ]);
+                    return [
+                        'latitude' => $lat,
+                        'longitude' => $lng,
+                    ];
                 }
             }
         }
@@ -717,6 +776,11 @@ class ZydaOrderController extends Controller
                 $lat = (float) $matches[1];
                 $lng = (float) $matches[2];
                 if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    Log::info('✅ Coordinates extracted from path @ format', [
+                        'url' => $url,
+                        'latitude' => $lat,
+                        'longitude' => $lng,
+                    ]);
                     return [
                         'latitude' => $lat,
                         'longitude' => $lng,
@@ -725,11 +789,17 @@ class ZydaOrderController extends Controller
             }
         }
 
-        // Try to find coordinates anywhere in the final URL
-        if (preg_match('/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)/', $url, $matches)) {
+        // Try to find coordinates anywhere in the final URL (last resort)
+        if (preg_match('/([-+]?\d{1,2}\.?\d*),([-+]?\d{1,3}\.?\d*)/', $url, $matches)) {
             $lat = (float) $matches[1];
             $lng = (float) $matches[2];
+            // Validate coordinates range (latitude: -90 to 90, longitude: -180 to 180)
             if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                Log::info('✅ Coordinates extracted from URL pattern match', [
+                    'url' => $url,
+                    'latitude' => $lat,
+                    'longitude' => $lng,
+                ]);
                 return [
                     'latitude' => $lat,
                     'longitude' => $lng,
@@ -737,6 +807,11 @@ class ZydaOrderController extends Controller
             }
         }
 
+        Log::warning('⚠️ Could not extract coordinates from URL', [
+            'url' => $url,
+            'parsed_url' => $parsedUrl,
+        ]);
+        
         return null;
     }
 
