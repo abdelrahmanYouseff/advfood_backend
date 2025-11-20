@@ -104,9 +104,16 @@ class Order extends Model
             }
 
             // Send order to shipping company automatically after order is created
-            // Only send if order has shop_id and payment is paid or we want to send all orders
-            if (!empty($order->shop_id) && $order->payment_status === 'paid') {
+            // Send ALL orders that have shop_id (regardless of payment status)
+            if (!empty($order->shop_id)) {
                 try {
+                    \Illuminate\Support\Facades\Log::info('📦 Sending order to shipping company automatically after creation', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'shop_id' => $order->shop_id,
+                        'payment_status' => $order->payment_status,
+                    ]);
+
                     $shippingService = new \App\Services\ShippingService();
                     $shippingResult = $shippingService->createOrder($order);
 
@@ -149,7 +156,7 @@ class Order extends Model
                     ]);
                 }
             } else {
-                \Illuminate\Support\Facades\Log::info('📋 Order created but not sent to shipping (will be sent when payment is confirmed)', [
+                \Illuminate\Support\Facades\Log::warning('⚠️ Order created but not sent to shipping (missing shop_id)', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'shop_id' => $order->shop_id ?? 'MISSING',
