@@ -137,133 +137,82 @@ class ZydaOrderController extends Controller
             ], 404);
         }
 
-        // Parse location to extract latitude and longitude AND get final Google Maps URL
-        Log::info('📥 Processing location update', [
+        // Use curl to resolve short link to original URL
+        // Save the original URL (not the short link) in database
+        Log::info('📥 Processing location update - resolving short link using curl', [
             'zyda_order_id' => $id,
             'location' => $validated['location'],
         ]);
         
-        $locationData = $this->parseLocationAndExtractUrl($validated['location']);
-        
         // Initialize coordinates variable
         $coordinates = null;
+        $originalUrl = $validated['location'];
 
-        // IMPORTANT: Only save Google Maps URL, NOT short links
-        // If the final URL is not a Google Maps link, reject and don't save anything
-        if ($locationData && isset($locationData['final_url'])) {
-            $finalUrl = $locationData['final_url'];
-            
-            Log::info('🔍 Validating final URL', [
-                'zyda_order_id' => $id,
-                'original_location' => $validated['location'],
-                'final_url' => $finalUrl,
-                'has_coordinates' => !empty($locationData['coordinates']),
+        // Check if it's a URL (short link or regular)
+        if (!empty($validated['location']) && filter_var($validated['location'], FILTER_VALIDATE_URL)) {
+            // Use curl to resolve short link to original URL
+            Log::info('🔗 Resolving short link to original URL using curl', [
+                'short_link' => $validated['location'],
             ]);
             
-            // Check if final URL is a Google Maps link
-            $isGoogleMaps = $this->isGoogleMapsUrl($finalUrl);
+            $resolvedUrl = $this->getFinalUrlFromRedirects($validated['location']);
             
-            // Also check if we have coordinates - if yes, it's likely a valid location link
-            $hasCoordinates = !empty($locationData['coordinates']);
-            
-            // Accept if:
-            // 1. It's a confirmed Google Maps URL, OR
-            // 2. We have coordinates (which means we successfully extracted from the URL)
-            if (!$isGoogleMaps && !$hasCoordinates) {
-                Log::error('❌ Final URL is not a Google Maps link and no coordinates found, rejecting save', [
-                    'zyda_order_id' => $id,
-                    'original_location' => $validated['location'],
-                    'final_url' => $finalUrl,
-                    'is_google_maps' => $isGoogleMaps,
-                    'has_coordinates' => $hasCoordinates,
+            if ($resolvedUrl && $resolvedUrl !== $validated['location']) {
+                // Successfully resolved short link
+                $originalUrl = $resolvedUrl;
+                Log::info('✅ Short link resolved to original URL', [
+                    'short_link' => $validated['location'],
+                    'original_url' => $originalUrl,
                 ]);
-                
-                // Provide more helpful error message
-                $errorMessage = 'الرابط المدخل لا يؤدي إلى رابط Google Maps صالح.';
-                if ($finalUrl && $finalUrl !== $validated['location']) {
-                    $errorMessage .= ' تم فك الرابط، لكن النتيجة ليست رابط Google Maps.';
-                } else {
-                    $errorMessage .= ' لم يتم فك الرابط بنجاح.';
-                }
-                $errorMessage .= ' يرجى التأكد من صحة الرابط.';
-                
-                return response()->json([
-                    'success' => false,
-                    'message' => $errorMessage,
-                    'original_url' => $validated['location'],
-                    'final_url' => $finalUrl,
-                    'debug_info' => [
-                        'is_google_maps' => $isGoogleMaps,
-                        'has_coordinates' => $hasCoordinates,
-                    ],
-                ], 400);
+            } else {
+                // No redirect or same URL - use original
+                Log::info('ℹ️ No redirect found or URL is already original', [
+                    'url' => $validated['location'],
+                    'resolved_url' => $resolvedUrl,
+                ]);
+                $originalUrl = $validated['location'];
             }
             
-            // Log acceptance reason
-            if ($isGoogleMaps) {
-                Log::info('✅ Accepted: Valid Google Maps URL', [
-                    'zyda_order_id' => $id,
-                    'final_url' => $finalUrl,
-                ]);
-            } elseif ($hasCoordinates) {
-                Log::info('✅ Accepted: URL contains valid coordinates', [
-                    'zyda_order_id' => $id,
-                    'final_url' => $finalUrl,
-                    'coordinates' => $locationData['coordinates'],
-                ]);
-            }
-            
-            // Only save if it's a valid Google Maps URL
-            $zydaOrder->location = $finalUrl;
-            
-            // Save coordinates if extracted
-            if (isset($locationData['coordinates']) && $locationData['coordinates']) {
+            // Try to extract coordinates from original URL
+            $locationData = $this->parseLocationAndExtractUrl($originalUrl);
+            if ($locationData && isset($locationData['coordinates']) && $locationData['coordinates']) {
                 $coordinates = $locationData['coordinates'];
-                $zydaOrder->latitude = $coordinates['latitude'];
-                $zydaOrder->longitude = $coordinates['longitude'];
-                
-                Log::info('✅ Google Maps URL and coordinates saved', [
-                    'zyda_order_id' => $id,
-                    'final_url' => $finalUrl,
+                Log::info('✅ Coordinates extracted from original URL', [
+                    'original_url' => $originalUrl,
                     'latitude' => $coordinates['latitude'],
                     'longitude' => $coordinates['longitude'],
                 ]);
-            } else {
-                Log::warning('⚠️ Could not extract coordinates from Google Maps URL', [
-                    'zyda_order_id' => $id,
-                    'final_url' => $finalUrl,
-                ]);
             }
         } else {
-            // If parsing failed or no final URL, reject
-            Log::error('❌ Could not extract Google Maps URL from location, rejecting save', [
-                'zyda_order_id' => $id,
-                'location' => $validated['location'],
-                'location_data' => $locationData,
-                'has_location_data' => !empty($locationData),
-                'has_final_url' => isset($locationData['final_url']),
-            ]);
-            
-            $errorMessage = 'فشل في استخراج رابط Google Maps من الرابط المدخل.';
-            
-            // Provide more context
-            if (empty($validated['location'])) {
-                $errorMessage = 'الرجاء إدخال رابط موقع صالح.';
-            } elseif (!filter_var($validated['location'], FILTER_VALIDATE_URL)) {
-                $errorMessage = 'الرابط المدخل غير صحيح. يرجى إدخال رابط صالح (مثل short link أو رابط Google Maps).';
-            } else {
-                $errorMessage .= ' يرجى التأكد من أن الرابط يؤدي إلى رابط Google Maps صالح.';
+            // Not a URL - try to parse as coordinates or other format
+            $locationData = $this->parseLocationAndExtractUrl($validated['location']);
+            if ($locationData && isset($locationData['final_url'])) {
+                $originalUrl = $locationData['final_url'];
             }
+            if ($locationData && isset($locationData['coordinates']) && $locationData['coordinates']) {
+                $coordinates = $locationData['coordinates'];
+            }
+        }
+        
+        // Save original URL (resolved from short link) in database
+        $zydaOrder->location = $originalUrl;
+        
+        // Save coordinates if extracted
+        if ($coordinates) {
+            $zydaOrder->latitude = $coordinates['latitude'];
+            $zydaOrder->longitude = $coordinates['longitude'];
             
-            return response()->json([
-                'success' => false,
-                'message' => $errorMessage,
-                'original_url' => $validated['location'],
-                'debug_info' => [
-                    'location_data_exists' => !empty($locationData),
-                    'final_url_exists' => isset($locationData['final_url']),
-                ],
-            ], 400);
+            Log::info('✅ Original URL and coordinates saved', [
+                'zyda_order_id' => $id,
+                'original_url' => $originalUrl,
+                'latitude' => $coordinates['latitude'],
+                'longitude' => $coordinates['longitude'],
+            ]);
+        } else {
+            Log::info('✅ Original URL saved (no coordinates extracted)', [
+                'zyda_order_id' => $id,
+                'original_url' => $originalUrl,
+            ]);
         }
         
         // Note: status column was removed from zyda_orders table
@@ -754,43 +703,23 @@ class ZydaOrderController extends Controller
         ]);
         
         // First, get the final URL after following redirects using curl
-        // This will return null if the final URL is not a Google Maps link
+        // This will resolve ANY short link to its original URL
         $finalUrl = $this->extractCoordinatesFromUrlInternal($url);
         
-        // Use the final URL if:
-        // 1. It's a valid Google Maps link, OR
-        // 2. It contains coordinates (which means curl successfully resolved it to a location)
+        // Always use the final URL (resolved from short link or original)
         if ($finalUrl) {
-            $isGoogleMaps = $this->isGoogleMapsUrl($finalUrl);
-            
-            // Check if URL has coordinates pattern (means it's a location link)
-            $hasCoordinatesPattern = preg_match('/([-+]?\d{1,2}\.?\d*),([-+]?\d{1,3}\.?\d*)/', $finalUrl);
-            
-            if ($isGoogleMaps || $hasCoordinatesPattern) {
-                $result['final_url'] = $finalUrl;
-                Log::info('✅ Original link retrieved using curl', [
-                    'original_url' => $url,
-                    'final_url' => $finalUrl,
-                    'url_changed' => $finalUrl !== $url,
-                    'is_google_maps' => $isGoogleMaps,
-                    'has_coordinates_pattern' => $hasCoordinatesPattern,
-                ]);
-            } else {
-                // If extraction failed or not recognized, return null to reject saving short link
-                Log::error('❌ Could not retrieve valid location link from URL using curl', [
-                    'original_url' => $url,
-                    'final_url' => $finalUrl,
-                    'is_google_maps' => $isGoogleMaps,
-                    'has_coordinates_pattern' => $hasCoordinatesPattern,
-                ]);
-                return null; // Return null to reject saving short link
-            }
+            $result['final_url'] = $finalUrl;
+            Log::info('✅ Original link retrieved using curl', [
+                'original_url' => $url,
+                'final_url' => $finalUrl,
+                'url_changed' => $finalUrl !== $url,
+            ]);
         } else {
-            // If extraction completely failed (curl returned null)
-            Log::error('❌ Curl failed to resolve URL', [
+            // Fallback to original URL if curl failed
+            $result['final_url'] = $url;
+            Log::warning('⚠️ Curl failed to resolve URL, using original', [
                 'original_url' => $url,
             ]);
-            return null; // Return null to reject saving short link
         }
         
         // Now extract coordinates from final URL (original Google Maps link)
@@ -828,13 +757,12 @@ class ZydaOrderController extends Controller
     }
     
     /**
-     * Internal method to get final URL after following redirects
-     * Returns the final Google Maps URL after following all redirects
-     * Returns null if the final URL is not a Google Maps link
+     * Internal method to get final URL after following redirects using curl
+     * Returns the final URL after following all redirects (any type, not just Google Maps)
      * 
-     * ALWAYS follows redirects for ANY URL to get the original Google Maps link
+     * ALWAYS follows redirects for ANY URL to get the original link
      * This ensures that short links (like zyda.co, bit.ly, etc.) are resolved
-     * to their final destination before extracting coordinates
+     * to their final destination
      */
     protected function extractCoordinatesFromUrlInternal(string $url): ?string
     {
@@ -846,20 +774,11 @@ class ZydaOrderController extends Controller
         // https://www.google.com/maps/dir/.../@24.7136,46.6753
         // Short links: https://is.gd/ZpIRU1, https://bit.ly/xxx, https://zyda.co/o2CONfN, etc.
         
-        $parsedUrl = parse_url($url);
-        $host = $parsedUrl['host'] ?? '';
-        
-        // Check if it's already a Google Maps URL
-        $isGoogleMaps = $this->isGoogleMapsUrl($url);
-        
         // ALWAYS follow redirects to get the original link from any short link
-        // Even if it looks like a Google Maps URL, we still follow redirects
-        // to ensure we get the final, canonical URL
+        // This will resolve ANY short link to its final destination
         try {
-            Log::info('🔗 Following URL redirects using curl to get original Google Maps link', [
+            Log::info('🔗 Following URL redirects using curl to get original link', [
                 'original_url' => $url,
-                'host' => $host,
-                'is_google_maps' => $isGoogleMaps,
             ]);
             
             // Use cURL to get final URL after following redirects
@@ -867,61 +786,19 @@ class ZydaOrderController extends Controller
             $finalUrl = $this->getFinalUrlFromRedirects($url);
             
             if ($finalUrl && $finalUrl !== $url) {
-                // Check if final URL is a Google Maps link
-                $finalIsGoogleMaps = $this->isGoogleMapsUrl($finalUrl);
-                
-                // Also check if the final URL contains coordinates (lat,lng pattern)
-                // This means curl successfully resolved the short link to a location URL
-                $hasCoordinates = preg_match('/([-+]?\d{1,2}\.?\d*),([-+]?\d{1,3}\.?\d*)/', $finalUrl);
-                
-                if ($finalIsGoogleMaps) {
-                    Log::info('✅ URL redirect resolved to Google Maps link', [
-                        'original_url' => $url,
-                        'final_url' => $finalUrl,
-                    ]);
-                    return $finalUrl;
-                } elseif ($hasCoordinates) {
-                    // If URL has coordinates but not identified as Google Maps,
-                    // it might still be a valid location link (curl resolved it)
-                    // Accept it and let the validation in updateLocation decide
-                    Log::info('⚠️ URL redirect resolved to location with coordinates (not confirmed Google Maps)', [
-                        'original_url' => $url,
-                        'final_url' => $finalUrl,
-                        'has_coordinates' => true,
-                    ]);
-                    return $finalUrl; // Accept it - we'll validate later
-                } else {
-                    Log::error('❌ URL redirect did not lead to Google Maps link or location with coordinates', [
-                        'original_url' => $url,
-                        'final_url' => $finalUrl,
-                    ]);
-                    return null; // Return null if not Google Maps and no coordinates
-                }
+                // Successfully resolved redirect
+                Log::info('✅ URL redirect resolved to original link', [
+                    'original_url' => $url,
+                    'final_url' => $finalUrl,
+                ]);
+                return $finalUrl;
             } else {
-                // If no redirect found or same URL, check if it's already a valid Google Maps URL
-                if ($isGoogleMaps) {
-                    Log::info('✅ URL is already a Google Maps URL', [
-                        'url' => $url,
-                    ]);
-                    return $url;
-                } else {
-                    // Check if URL has coordinates even if not identified as Google Maps
-                    $hasCoordinates = preg_match('/([-+]?\d{1,2}\.?\d*),([-+]?\d{1,3}\.?\d*)/', $url);
-                    if ($hasCoordinates) {
-                        Log::info('⚠️ URL contains coordinates but not identified as Google Maps, accepting anyway', [
-                            'url' => $url,
-                            'has_coordinates' => true,
-                        ]);
-                        return $url; // Accept it - it has coordinates
-                    }
-                    
-                    Log::error('❌ Could not resolve URL redirect and URL is not Google Maps or has no coordinates', [
-                        'original_url' => $url,
-                        'final_url' => $finalUrl,
-                    ]);
-                    // Return null if not Google Maps and no coordinates
-                    return null;
-                }
+                // No redirect found or same URL - return original URL
+                Log::info('ℹ️ No redirect found or URL is already original', [
+                    'url' => $url,
+                    'final_url' => $finalUrl,
+                ]);
+                return $url; // Return original URL
             }
         } catch (\Exception $e) {
             Log::error('❌ Error following URL redirect', [
@@ -929,8 +806,8 @@ class ZydaOrderController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            // Return null if redirect fails
-            return null;
+            // Return original URL if redirect fails
+            return $url;
         }
     }
     
