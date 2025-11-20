@@ -138,9 +138,11 @@ class ZydaOrderController extends Controller
         }
 
         // Parse location to extract latitude and longitude AND get final Google Maps URL
-        $locationData = $this->parseLocationAndExtractUrl($validated['location']);
-
-        // Parse location to extract latitude and longitude AND get final Google Maps URL
+        Log::info('📥 Processing location update', [
+            'zyda_order_id' => $id,
+            'location' => $validated['location'],
+        ]);
+        
         $locationData = $this->parseLocationAndExtractUrl($validated['location']);
         
         // Initialize coordinates variable
@@ -486,16 +488,28 @@ class ZydaOrderController extends Controller
         if (filter_var($trimmedLocation, FILTER_VALIDATE_URL)) {
             // ALWAYS try to extract coordinates from URL
             // This will follow redirects for ANY URL (short links or regular) to get Google Maps coordinates
+            Log::info('🔗 Processing URL to extract coordinates', [
+                'url' => $trimmedLocation,
+            ]);
+            
             $urlData = $this->extractCoordinatesAndUrl($trimmedLocation);
-            if ($urlData) {
-                $result['coordinates'] = $urlData['coordinates'];
+            if ($urlData && is_array($urlData)) {
+                $result['coordinates'] = $urlData['coordinates'] ?? null;
                 $result['final_url'] = $urlData['final_url'] ?? $trimmedLocation;
+                
+                Log::info('✅ URL data extracted', [
+                    'original_url' => $trimmedLocation,
+                    'final_url' => $result['final_url'],
+                    'has_coordinates' => !empty($result['coordinates']),
+                ]);
+                
                 // Return result even if coordinates are null, so we can save the final URL
                 return $result;
             } else {
                 // If extraction failed completely, return result with original URL
-                Log::warning('⚠️ extractCoordinatesAndUrl returned null', [
+                Log::warning('⚠️ extractCoordinatesAndUrl returned null or invalid', [
                     'url' => $trimmedLocation,
+                    'url_data' => $urlData,
                 ]);
                 return $result;
             }
