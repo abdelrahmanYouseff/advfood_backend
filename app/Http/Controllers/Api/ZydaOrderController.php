@@ -729,30 +729,135 @@ class ZydaOrderController extends Controller
     /**
      * Get final URL after following redirects using cURL
      * Supports short links like zyda.co, is.gd, bit.ly, etc.
+     * This method opens the URL and follows ALL redirects until it reaches the final destination
      */
     protected function getFinalUrlFromRedirects(string $url): string
     {
         try {
-            Log::info('🔗 Following redirects to get final URL', [
+            Log::info('🔗 Opening URL and following all redirects', [
                 'original_url' => $url,
             ]);
             
+            // Initialize cURL
             $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
-            curl_setopt($ch, CURLOPT_NOBODY, true); // HEAD request only (faster)
-            curl_setopt($ch, CURLOPT_TIMEOUT, 15); // Increased timeout for slow redirects
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_HEADER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'); // Some sites require user agent
+            
+            // Set cURL options for following redirects
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,      // Return response as string
+                CURLOPT_FOLLOWLOCATION => true,      // Follow redirects
+                CURLOPT_MAXREDIRS => 20,             // Maximum number of redirects (increased for complex redirect chains)
+                CURLOPT_TIMEOUT => 30,               // Timeout in seconds (increased for slow redirects)
+                CURLOPT_CONNECTTIMEOUT => 10,        // Connection timeout
+                CURLOPT_SSL_VERIFYPEER => false,     // Disable SSL verification (for some redirects)
+                CURLOPT_SSL_VERIFYHOST => false,     // Disable host verification
+                CURLOPT_HEADER => true,              // Include headers in output
+                CURLOPT_NOBODY => true,              // HEAD request only (faster, doesn't download body)
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', // Browser user agent
+                CURLOPT_AUTOREFERER => true,         // Automatically set Referer header
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, // Use HTTP/1.1
+            ]);
+            
+            // Execute request
+            $response = curl_exec($ch);
+            
+            // Check for cURL errors
+            if (curl_errno($ch)) {
+                $error = curl_error($ch);
+                $errorCode = curl_errno($ch);
+                curl_close($ch);
+                
+                Log::warning('⚠️ cURL error following redirects', [
+                    'url' => $url,
+                    'error_code' => $errorCode,
+                    'error' => $error,
+                ]);
+                
+                // If HEAD request failed, try GET request as fallback
+                return $this->getFinalUrlFromRedirectsGet($url);
+            }
+            
+            // Get final URL after all redirects
+            $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $redirectCount = curl_getinfo($ch, CURLINFO_REDIRECT_COUNT);
+            curl_close($ch);
+            
+            Log::info('📊 Redirect following results', [
+                'original_url' => $url,
+                'final_url' => $finalUrl,
+                'http_code' => $httpCode,
+                'redirect_count' => $redirectCount,
+                'is_google_maps' => strpos($finalUrl, 'google.com/maps') !== false || strpos($finalUrl, 'maps.google.com') !== false,
+            ]);
+            
+            // Validate final URL
+            if ($finalUrl && $finalUrl !== $url) {
+                if ($httpCode < 400) {
+                    Log::info('✅ Successfully followed redirects to final URL', [
+                        'original_url' => $url,
+                        'final_url' => $finalUrl,
+                        'http_code' => $httpCode,
+                        'redirect_count' => $redirectCount,
+                    ]);
+                    return $finalUrl;
+                } else {
+                    Log::warning('⚠️ Redirect followed but HTTP code indicates error', [
+                        'original_url' => $url,
+                        'final_url' => $finalUrl,
+                        'http_code' => $httpCode,
+                    ]);
+                    // Still return final URL even if HTTP code is not 2xx
+                    return $finalUrl;
+                }
+            } else {
+                Log::warning('⚠️ No redirects found or final URL same as original', [
+                    'original_url' => $url,
+                    'final_url' => $finalUrl,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('❌ Exception following redirects', [
+                'url' => $url,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+        
+        return $url;
+    }
+    
+    /**
+     * Fallback method: Get final URL using GET request instead of HEAD
+     * Some servers don't handle HEAD requests properly
+     */
+    protected function getFinalUrlFromRedirectsGet(string $url): string
+    {
+        try {
+            Log::info('🔄 Trying GET request as fallback', [
+                'url' => $url,
+            ]);
+            
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 20,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_HEADER => true,
+                CURLOPT_NOBODY => false,             // GET request (download body)
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                CURLOPT_AUTOREFERER => true,
+            ]);
             
             $response = curl_exec($ch);
             
             if (curl_errno($ch)) {
                 $error = curl_error($ch);
                 curl_close($ch);
-                Log::warning('⚠️ cURL error following redirects', [
+                Log::error('❌ GET request also failed', [
                     'url' => $url,
                     'error' => $error,
                 ]);
@@ -763,25 +868,18 @@ class ZydaOrderController extends Controller
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             
-            if ($finalUrl && $httpCode < 400 && $finalUrl !== $url) {
-                Log::info('✅ Successfully followed redirects', [
+            if ($finalUrl && $finalUrl !== $url) {
+                Log::info('✅ GET request successfully followed redirects', [
                     'original_url' => $url,
                     'final_url' => $finalUrl,
                     'http_code' => $httpCode,
                 ]);
                 return $finalUrl;
-            } elseif ($finalUrl && $finalUrl !== $url) {
-                Log::warning('⚠️ Redirect followed but HTTP code indicates error', [
-                    'original_url' => $url,
-                    'final_url' => $finalUrl,
-                    'http_code' => $httpCode,
-                ]);
             }
         } catch (\Exception $e) {
-            Log::error('❌ Exception following redirects', [
+            Log::error('❌ Exception in GET fallback', [
                 'url' => $url,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
         }
         
