@@ -372,6 +372,14 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
     scraped_orders: List[Dict[str, object]] = []
     total_cards = len(cards)
 
+    # Track stats for summary
+    order_stats = {
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "failed": 0,
+    }
+
     for idx in range(total_cards):
         try:
             # For first order, we're already on the orders page
@@ -459,8 +467,6 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
                 "zyda_order_key": zyda_order_key,  # Unique order identifier from Zyda (e.g., "#GD7G-GAWP")
             }
 
-            scraped_orders.append(order_payload)
-
             # Count unique items (by name) for items_count
             unique_items = set()
             for item in structured_items:
@@ -479,6 +485,20 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
                 "total": parsed_total,
             })
 
+            # Send order to API immediately after extraction
+            print(f"[STEP] Sending order #{idx + 1} to database immediately...", flush=True)
+            operation = _send_order_to_api(order_payload, idx + 1, total_cards)
+
+            # Track stats
+            if operation in order_stats:
+                order_stats[operation] += 1
+
+            # Save processed phones periodically (every order to ensure no data loss)
+            save_processed_phones()
+
+            # Keep track for summary (optional, but useful)
+            scraped_orders.append(order_payload)
+
             # No need to reload here - we'll reload at the start of next iteration if needed
 
         except Exception as exc:
@@ -490,6 +510,13 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
             except:
                 pass
             continue
+
+    # Print summary of processed orders
+    print(f"\n[INFO] Processing Summary:", flush=True)
+    print(f"  - Created: {order_stats['created']}", flush=True)
+    print(f"  - Updated: {order_stats['updated']}", flush=True)
+    print(f"  - Skipped: {order_stats['skipped']}", flush=True)
+    print(f"  - Failed: {order_stats['failed']}", flush=True)
 
     return scraped_orders
 
@@ -896,6 +923,86 @@ def _parse_total_amount(value: Optional[str]) -> float:
         return amount
     except ValueError:
         return 0.0
+
+
+def _send_order_to_api(order: Dict[str, object], order_num: int, total_orders: int) -> str:
+    """
+    Send a single order to the API immediately after extraction.
+    Returns: operation type ("created", "updated", "skipped", "failed")
+    """
+    global processed_phones
+
+    phone = order.get("phone")
+    if not phone:
+        print(f"[WARN] Skipping order #{order_num} - No phone number", flush=True)
+        return "skipped"
+
+    zyda_order_key = order.get("zyda_order_key")
+    if not zyda_order_key:
+        print(f"[WARN] Skipping order #{order_num} - No zyda_order_key: Phone={phone}", flush=True)
+        return "skipped"
+
+    was_processed = phone in processed_phones
+
+    payload = {
+        "name": order.get("name") or None,
+        "phone": phone,
+        "address": order.get("address") or None,
+        "items": order.get("items", []) or [],
+        "total_amount": order.get("total_amount", 0) or 0,
+        "zyda_order_key": zyda_order_key,
+    }
+
+    print(f"[STEP] Sending order #{order_num}/{total_orders} to API: Key={zyda_order_key}, Phone={phone}", flush=True)
+
+    try:
+        response = requests.post(API_ENDPOINT, json=payload, timeout=30)
+        print(f"[INFO] Response Status: {response.status_code}", flush=True)
+
+        response.raise_for_status()
+        data = response.json()
+        operation = (data.get("operation") or data.get("message", "created")).lower()
+
+        if operation == "created" or "created" in operation or "نجاح" in str(data.get("message", "")):
+            print(f"[SUCCESS] Order #{order_num} created: {zyda_order_key}", flush=True)
+            if not was_processed:
+                processed_phones.add(phone)
+            return "created"
+        elif operation == "skipped" or "exists" in operation or "موجود" in str(data.get("message", "")):
+            print(f"[INFO] Order #{order_num} already exists (skipped): {zyda_order_key}", flush=True)
+            return "skipped"
+        elif operation == "updated" or "updated" in operation:
+            print(f"[INFO] Order #{order_num} updated: {zyda_order_key}", flush=True)
+            return "updated"
+        else:
+            print(f"[INFO] Order #{order_num} processed (assumed created): {zyda_order_key}", flush=True)
+            if not was_processed:
+                processed_phones.add(phone)
+            return "created"
+    except requests.exceptions.Timeout:
+        error_msg = f"Timeout while syncing order {phone} (Key: {zyda_order_key})"
+        print(f"[ERROR] {error_msg}", flush=True)
+        return "failed"
+    except requests.exceptions.ConnectionError as exc:
+        error_msg = f"Connection error while syncing order {phone} (Key: {zyda_order_key}): {exc}"
+        print(f"[ERROR] {error_msg}", flush=True)
+        return "failed"
+    except requests.exceptions.RequestException as exc:
+        error_msg = f"Failed to sync order {phone} (Key: {zyda_order_key}): {exc}"
+        if hasattr(exc, 'response') and exc.response is not None:
+            try:
+                error_text = exc.response.text[:500]
+                error_msg += f" (HTTP {exc.response.status_code}: {error_text})"
+                print(f"[ERROR] Response text: {error_text}", flush=True)
+            except:
+                pass
+        print(f"[ERROR] {error_msg}", flush=True)
+        return "failed"
+    except Exception as exc:
+        import traceback
+        print(f"[ERROR] Unexpected error syncing order {phone} (Key: {zyda_order_key}): {exc}", flush=True)
+        print(f"[ERROR] Traceback: {traceback.format_exc()}", flush=True)
+        return "failed"
 
 
 def sync_orders(orders: List[Dict[str, object]]) -> Dict[str, int]:

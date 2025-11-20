@@ -30,26 +30,27 @@ class ZydaScriptRunner
 
     protected function runScript(string $scriptPath): string
     {
-        // Use 'python' command directly as requested by user
-        // Run: cd python && python scrap_zyda.py
+        // Try python3 first (server default), fallback to python (local)
+        // Run: cd python && python3 scrap_zyda.py
         $scriptName = basename($scriptPath);
         $pythonDir = dirname($scriptPath);
         
         Log::info('🔍 Running script', [
             'script' => $scriptName,
             'directory' => $pythonDir,
-            'command' => "cd {$pythonDir} && python {$scriptName}",
+            'command' => "cd {$pythonDir} && python3 {$scriptName}",
         ]);
         
         try {
-            return $this->executeProcess('python', $scriptName, $pythonDir);
+            // Try python3 first (for server)
+            return $this->executeProcess('python3', $scriptName, $pythonDir);
         } catch (ProcessFailedException $e) {
-            // Fallback to python3 if python command not found
+            // Fallback to python if python3 command not found (for local)
             if ($this->isCommandNotFound($e)) {
-                Log::warning('python command not found, fallback to python3', [
+                Log::warning('python3 command not found, fallback to python', [
                     'script' => $scriptName,
                 ]);
-                return $this->executeProcess('python3', $scriptName, $pythonDir);
+                return $this->executeProcess('python', $scriptName, $pythonDir);
             }
             throw $e;
         }
@@ -73,7 +74,7 @@ class ZydaScriptRunner
             throw new \RuntimeException($error);
         }
 
-        // Run: cd python && python scrap_zyda.py
+        // Run: cd python && python3 scrap_zyda.py
         // Set environment variables to ensure proper execution
         $env = [
             'PATH' => getenv('PATH'),
