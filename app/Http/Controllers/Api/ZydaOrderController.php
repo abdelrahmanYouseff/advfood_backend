@@ -140,6 +140,12 @@ class ZydaOrderController extends Controller
         // Parse location to extract latitude and longitude AND get final Google Maps URL
         $locationData = $this->parseLocationAndExtractUrl($validated['location']);
 
+        // Parse location to extract latitude and longitude AND get final Google Maps URL
+        $locationData = $this->parseLocationAndExtractUrl($validated['location']);
+        
+        // Initialize coordinates variable
+        $coordinates = null;
+
         // Update location with final Google Maps URL (not the short link)
         // And update latitude, longitude from extracted coordinates
         if ($locationData) {
@@ -148,30 +154,44 @@ class ZydaOrderController extends Controller
             
             // Save coordinates if extracted
             if (isset($locationData['coordinates']) && $locationData['coordinates']) {
-                $zydaOrder->latitude = $locationData['coordinates']['latitude'];
-                $zydaOrder->longitude = $locationData['coordinates']['longitude'];
+                $coordinates = $locationData['coordinates'];
+                $zydaOrder->latitude = $coordinates['latitude'];
+                $zydaOrder->longitude = $coordinates['longitude'];
                 
                 Log::info('✅ Location and coordinates saved', [
                     'zyda_order_id' => $id,
                     'final_url' => $locationData['final_url'],
-                    'latitude' => $locationData['coordinates']['latitude'],
-                    'longitude' => $locationData['coordinates']['longitude'],
+                    'latitude' => $coordinates['latitude'],
+                    'longitude' => $coordinates['longitude'],
                 ]);
             } else {
                 Log::warning('⚠️ Could not extract coordinates from location', [
                     'zyda_order_id' => $id,
                     'location' => $validated['location'],
+                    'location_data' => $locationData,
                 ]);
             }
         } else {
             // If parsing failed, save original location as is
             $zydaOrder->location = $validated['location'];
+            
+            Log::warning('⚠️ Location parsing returned null', [
+                'zyda_order_id' => $id,
+                'location' => $validated['location'],
+            ]);
         }
         
         // Note: status column was removed from zyda_orders table
         // Order status is now determined by order_id presence (null = pending, not null = received)
         
         $zydaOrder->save();
+        
+        Log::info('💾 Zyda order saved', [
+            'zyda_order_id' => $id,
+            'location' => $zydaOrder->location,
+            'latitude' => $zydaOrder->latitude,
+            'longitude' => $zydaOrder->longitude,
+        ]);
 
         // Check if order already exists for this zyda_order
         if ($zydaOrder->order_id) {
@@ -182,6 +202,12 @@ class ZydaOrderController extends Controller
                     $existingOrder->customer_latitude = $coordinates['latitude'];
                     $existingOrder->customer_longitude = $coordinates['longitude'];
                     $existingOrder->save();
+                    
+                    Log::info('✅ Existing order location updated', [
+                        'order_id' => $existingOrder->id,
+                        'latitude' => $coordinates['latitude'],
+                        'longitude' => $coordinates['longitude'],
+                    ]);
                 }
 
                 return response()->json([
@@ -464,6 +490,13 @@ class ZydaOrderController extends Controller
             if ($urlData) {
                 $result['coordinates'] = $urlData['coordinates'];
                 $result['final_url'] = $urlData['final_url'] ?? $trimmedLocation;
+                // Return result even if coordinates are null, so we can save the final URL
+                return $result;
+            } else {
+                // If extraction failed completely, return result with original URL
+                Log::warning('⚠️ extractCoordinatesAndUrl returned null', [
+                    'url' => $trimmedLocation,
+                ]);
                 return $result;
             }
         }
@@ -526,7 +559,23 @@ class ZydaOrderController extends Controller
         $coordinates = $this->extractCoordinatesFromFinalUrl($result['final_url']);
         $result['coordinates'] = $coordinates;
         
-        return $result['coordinates'] ? $result : null;
+        // Log the extraction result
+        if ($coordinates) {
+            Log::info('✅ Coordinates extracted from URL', [
+                'original_url' => $url,
+                'final_url' => $result['final_url'],
+                'latitude' => $coordinates['latitude'],
+                'longitude' => $coordinates['longitude'],
+            ]);
+        } else {
+            Log::warning('⚠️ Could not extract coordinates from final URL', [
+                'original_url' => $url,
+                'final_url' => $result['final_url'],
+            ]);
+        }
+        
+        // Always return result even if coordinates are null, so we can save the final URL
+        return $result;
     }
     
     /**
