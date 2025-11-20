@@ -42,15 +42,38 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        // Show only Zyda orders that haven't been linked to an Order yet (order_id is null)
-        $zyda_orders = ZydaOrder::whereNull('order_id')
+        // Get filter from request (pending or received)
+        $filter = request()->get('zyda_filter', 'pending');
+        
+        // Show Zyda orders based on status filter
+        $zydaQuery = ZydaOrder::query();
+        
+        if ($filter === 'received') {
+            $zydaQuery->where('status', 'received');
+        } else {
+            // Default: show pending orders (status = pending or null)
+            $zydaQuery->where(function($q) {
+                $q->where('status', 'pending')
+                  ->orWhereNull('status');
+            });
+        }
+        
+        $zyda_orders = $zydaQuery
             ->orderByDesc('created_at')
             ->paginate(25)
             ->withQueryString();
 
+        // Summary for both pending and received
         $zyda_summary = [
-            'count' => ZydaOrder::whereNull('order_id')->count(),
-            'total_amount' => ZydaOrder::whereNull('order_id')->sum('total_amount'),
+            'pending_count' => ZydaOrder::where(function($q) {
+                $q->where('status', 'pending')->orWhereNull('status');
+            })->count(),
+            'received_count' => ZydaOrder::where('status', 'received')->count(),
+            'pending_total' => ZydaOrder::where(function($q) {
+                $q->where('status', 'pending')->orWhereNull('status');
+            })->sum('total_amount'),
+            'received_total' => ZydaOrder::where('status', 'received')->sum('total_amount'),
+            'current_filter' => $filter,
         ];
 
         return Inertia::render('Dashboard', [

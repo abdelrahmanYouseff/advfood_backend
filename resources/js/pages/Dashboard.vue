@@ -53,8 +53,11 @@ interface Props {
         }>;
     };
     zyda_summary: {
-        count: number;
-        total_amount: number;
+        pending_count: number;
+        received_count: number;
+        pending_total: number;
+        received_total: number;
+        current_filter: string;
     };
 }
 
@@ -64,6 +67,7 @@ interface ZydaOrder {
     phone: string;
     address: string | null;
     location: string | null;
+    status: string | null;
     total_amount: string;
     items: Array<Record<string, unknown>> | null;
     created_at: string | null;
@@ -77,12 +81,33 @@ const resolveTabFromUrl = (url: string) => (url.includes('tab=zyda') ? 'zyda' : 
 
 const activeTab = ref<'overview' | 'zyda'>(resolveTabFromUrl(page.url));
 
+// Zyda filter state (pending or received)
+const zydaFilter = ref<string>(props.zyda_summary?.current_filter || 'pending');
+
 watch(
     () => page.url,
     (newUrl) => {
         activeTab.value = resolveTabFromUrl(newUrl);
+        // Update filter from URL
+        try {
+            const url = new URL(newUrl, window.location.origin);
+            const filter = url.searchParams.get('zyda_filter') || 'pending';
+            zydaFilter.value = filter;
+        } catch (e) {
+            // If URL parsing fails, keep current filter
+        }
     }
 );
+
+// Function to change filter
+const changeZydaFilter = (filter: 'pending' | 'received') => {
+    zydaFilter.value = filter;
+    router.visit(`/dashboard?tab=zyda&zyda_filter=${filter}`, {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['zyda_orders', 'zyda_summary'],
+    });
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -242,17 +267,60 @@ const formatZydaTotal = (amount: number | string) => {
 
 const formatZydaItems = (items: ZydaOrder['items']) => {
     if (!items || items.length === 0) return '—';
-    return items
+    
+    // Extract quantities only (1, 2, 3, etc.)
+    const quantities = items
         .map((item: Record<string, any>) => {
-            const name = item?.name ?? item?.item_name ?? 'Item';
             const quantity = item?.quantity ?? item?.qty ?? 1;
-            return `${name} × ${quantity}`;
+            return Number(quantity);
         })
-        .join('، ');
+        .filter(qty => qty > 0);
+    
+    if (quantities.length === 0) return '—';
+    
+    return quantities.join('، ');
 };
 
-const zydaOrdersCountLabel = computed(() => `${props.zyda_summary?.count ?? 0} طلب`);
-const zydaOrdersTotalLabel = computed(() => formatZydaTotal(props.zyda_summary?.total_amount ?? 0));
+const formatZydaDate = (dateString: string | null) => {
+    if (!dateString) return '—';
+    
+    try {
+        const date = new Date(dateString);
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            return dateString;
+        }
+        
+        // Manual formatting to ensure Gregorian calendar (ميلادي)
+        const year = date.getFullYear(); // Always Gregorian year
+        const month = String(date.getMonth() + 1).padStart(2, '0'); // getMonth() returns 0-11 (Gregorian)
+        const day = String(date.getDate()).padStart(2, '0'); // getDate() returns Gregorian day
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        
+        // Format: YYYY/MM/DD HH:MM:SS (تاريخ ميلادي مع الوقت الدقيق)
+        return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return dateString;
+    }
+};
+
+const zydaOrdersCountLabel = computed(() => {
+    if (zydaFilter.value === 'received') {
+        return `${props.zyda_summary?.received_count ?? 0} طلب مستلم`;
+    }
+    return `${props.zyda_summary?.pending_count ?? 0} طلب قيد الانتظار`;
+});
+
+const zydaOrdersTotalLabel = computed(() => {
+    if (zydaFilter.value === 'received') {
+        return formatZydaTotal(props.zyda_summary?.received_total ?? 0);
+    }
+    return formatZydaTotal(props.zyda_summary?.pending_total ?? 0);
+});
 
 // State for editing locations
 const editingLocations = ref<Record<number, string>>({});
@@ -624,6 +692,32 @@ const getCookie = (name: string): string | null => {
                             </Link>
                         </div>
                     </div>
+                    
+                    <!-- Filter Tabs -->
+                    <div class="mt-4 flex items-center gap-2 border-b border-gray-200">
+                        <button
+                            @click="changeZydaFilter('pending')"
+                            :class="[
+                                'px-4 py-2 text-sm font-medium transition rounded-t-lg border-b-2',
+                                zydaFilter === 'pending'
+                                    ? 'border-blue-600 text-blue-600 bg-blue-50'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
+                        >
+                            قيد الانتظار ({{ props.zyda_summary?.pending_count ?? 0 }})
+                        </button>
+                        <button
+                            @click="changeZydaFilter('received')"
+                            :class="[
+                                'px-4 py-2 text-sm font-medium transition rounded-t-lg border-b-2',
+                                zydaFilter === 'received'
+                                    ? 'border-green-600 text-green-600 bg-green-50'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
+                        >
+                            مستلمة ({{ props.zyda_summary?.received_count ?? 0 }})
+                        </button>
+                    </div>
 
                     <div class="mt-6 overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-right text-sm">
@@ -635,13 +729,14 @@ const getCookie = (name: string): string | null => {
                                     <th class="px-4 py-3">الموقع</th>
                                     <th class="px-4 py-3">الإجمالي</th>
                                     <th class="px-4 py-3">الأصناف</th>
+                                    <th class="px-4 py-3">الحالة</th>
                                     <th class="px-4 py-3">تاريخ الإنشاء</th>
                                     <th class="px-4 py-3">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
                                 <tr v-if="zydaOrders.length === 0">
-                                    <td colspan="8" class="px-6 py-8 text-center text-sm text-muted-foreground">
+                                    <td colspan="9" class="px-6 py-8 text-center text-sm text-muted-foreground">
                                         لا توجد طلبات Zyda مسجلة حتى الآن.
                                     </td>
                                 </tr>
@@ -670,7 +765,19 @@ const getCookie = (name: string): string | null => {
                                     </td>
                                     <td class="px-4 py-3 text-gray-900 font-semibold">{{ formatZydaTotal(order.total_amount) }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ formatZydaItems(order.items) }}</td>
-                                    <td class="px-4 py-3 text-gray-600">{{ order.created_at ?? '—' }}</td>
+                                    <td class="px-4 py-3">
+                                        <span
+                                            :class="[
+                                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                                                order.status === 'received'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-yellow-100 text-yellow-800'
+                                            ]"
+                                        >
+                                            {{ order.status === 'received' ? 'مستلم' : 'قيد الانتظار' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-600">{{ formatZydaDate(order.created_at) }}</td>
                                     <td class="px-4 py-3">
                                         <button
                                             @click="deleteZydaOrder(order.id)"

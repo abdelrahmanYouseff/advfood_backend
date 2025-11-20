@@ -11,6 +11,7 @@ class ZydaOrder extends Model
 
     protected $fillable = [
         'order_id',
+        'status',
         'name',
         'phone',
         'address',

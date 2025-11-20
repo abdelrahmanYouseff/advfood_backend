@@ -84,6 +84,12 @@ class ZydaOrderController extends Controller
             $zydaOrder->latitude = $coordinates['latitude'];
             $zydaOrder->longitude = $coordinates['longitude'];
         }
+        
+        // If location is provided, mark order as received
+        if (!empty($validated['location'])) {
+            $zydaOrder->status = 'received';
+        }
+        
         $zydaOrder->save();
 
         // Check if order already exists for this zyda_order

@@ -490,29 +490,64 @@ const stopOrderAnnouncement = (orderId: number) => {
     }
 };
 
+// Track which new orders we've already notified about
+const notifiedNewOrders = ref<Set<number>>(new Set());
+
 // Check for orders that need sound announcements
 const checkForOrdersWithSound = () => {
+    // Get all new orders (created within last 5 minutes)
+    const newOrders = filteredOrders.value.filter((order: any) => isNewOrder(order));
+    
     // Get unaccepted orders (New Order status)
     const unacceptedOrders = filteredOrders.value.filter((order: any) => isUnacceptedOrder(order));
 
-    console.log('Checking for unaccepted orders:', unacceptedOrders.length);
+    // Combine both: new orders OR unaccepted orders
+    const ordersNeedingSound = Array.from(
+        new Map([
+            ...newOrders.map(order => [order.id, order]),
+            ...unacceptedOrders.map(order => [order.id, order])
+        ]).values()
+    );
 
-    if (unacceptedOrders.length === 0) {
-        // Stop all announcements if no unaccepted orders
+    console.log('Checking for orders needing sound:', {
+        newOrders: newOrders.length,
+        unacceptedOrders: unacceptedOrders.length,
+        total: ordersNeedingSound.length
+    });
+
+    // Play sound for newly detected orders (not notified yet)
+    newOrders.forEach((order: any) => {
+        if (!notifiedNewOrders.value.has(order.id)) {
+            console.log(`🔔 New order detected: ${order.id} - Playing notification sound`);
+            playNotificationSound();
+            notifiedNewOrders.value.add(order.id);
+        }
+    });
+
+    if (ordersNeedingSound.length === 0) {
+        // Stop all announcements if no orders need sound
         announcementIntervals.forEach((intervalId, orderId) => {
             stopOrderAnnouncement(orderId);
         });
         stopContinuousSound();
+        // Clean up old notified orders (older than 5 minutes)
+        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+        filteredOrders.value.forEach((order: any) => {
+            const orderTime = new Date(order.created_at).getTime();
+            if (orderTime < fiveMinutesAgo) {
+                notifiedNewOrders.value.delete(order.id);
+            }
+        });
         return;
     }
 
     // Sort orders by creation date (newest first)
-    const sortedUnacceptedOrders = [...unacceptedOrders].sort((a, b) => {
+    const sortedOrders = [...ordersNeedingSound].sort((a, b) => {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
-    // Only announce the newest unaccepted order
-    const newestOrder = sortedUnacceptedOrders[0];
+    // Only announce the newest order
+    const newestOrder = sortedOrders[0];
 
     // Stop announcements for all other orders (older ones)
     announcementIntervals.forEach((intervalId, orderId) => {
@@ -803,19 +838,47 @@ onMounted(() => {
     document.addEventListener('click', enableSpeechOnInteraction, { once: true });
     document.addEventListener('touchstart', enableSpeechOnInteraction, { once: true });
 
+    // Check for new orders on initial load
+    checkForOrdersWithSound();
+    
+    // Mark existing new orders as notified to avoid duplicate sounds
+    filteredOrders.value.forEach((order: any) => {
+        if (isNewOrder(order)) {
+            notifiedNewOrders.value.add(order.id);
+        }
+    });
+
     // Start monitoring for orders with sound
     const stopMonitoring = monitorOrdersWithSound();
 
     // Set up polling for new orders every 10 seconds (faster monitoring)
     const interval = setInterval(() => {
         console.log('Reloading orders...');
+        const previousOrderIds = new Set(filteredOrders.value.map((o: any) => o.id));
         router.reload({
             only: ['orders'],
+            preserveScroll: true,
             onSuccess: (page: any) => {
                 console.log('Orders reloaded, checking for sound...');
+                const currentOrderIds = new Set(page.props.orders.map((o: any) => o.id));
+                
+                // Check for new orders (orders that weren't in previous list)
+                const newlyAddedOrders = page.props.orders.filter((order: any) => !previousOrderIds.has(order.id));
+                if (newlyAddedOrders.length > 0) {
+                    console.log(`🆕 Found ${newlyAddedOrders.length} new order(s)`);
+                    newlyAddedOrders.forEach((order: any) => {
+                        // Mark as new and play sound immediately
+                        if (isNewOrder(order)) {
+                            console.log(`🔔 Playing sound for new order: ${order.id}`);
+                            playNotificationSound();
+                            notifiedNewOrders.value.add(order.id);
+                        }
+                    });
+                }
+                
                 // Check for orders with sound enabled
                 checkForOrdersWithSound();
-                    lastOrderCount.value = page.props.orders.length;
+                lastOrderCount.value = page.props.orders.length;
             }
         });
     }, 10000); // 10 seconds for faster detection
