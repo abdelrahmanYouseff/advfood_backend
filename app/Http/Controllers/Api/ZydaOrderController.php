@@ -818,13 +818,40 @@ class ZydaOrderController extends Controller
      * - https://www.google.com/maps/@24.7136,46.6753,15z
      * - https://www.google.com/maps/place/.../@24.7136,46.6753,15z
      * - https://maps.google.com/?q=24.7136,46.6753
-     * - https://www.google.com/maps/dir/.../@24.7136,46.6753
+     * - https://www.google.com/maps/dir/24.7562097,46.6746282/24.7542315,46.6743851/... (direction link - extracts destination coordinates)
      * - https://maps.app.goo.gl/xxxxx (new Google Maps short links)
+     * 
+     * For dir (direction) links, extracts DESTINATION coordinates (second pair)
      */
     protected function extractCoordinatesFromFinalUrl(string $url): ?array
     {
         // Parse final URL
         $parsedUrl = parse_url($url);
+        $path = $parsedUrl['path'] ?? '';
+        
+        // PRIORITY 1: Check for dir (direction) links
+        // Format: /dir/lat1,lng1/lat2,lng2/...
+        // We want the DESTINATION coordinates (lat2,lng2 - the second pair)
+        if (preg_match('/\/dir\/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)\/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)/', $path, $matches)) {
+            // matches[1] and matches[2] are origin (start point)
+            // matches[3] and matches[4] are destination (end point) - we want these
+            $lat = (float) $matches[3];
+            $lng = (float) $matches[4];
+            
+            if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                Log::info('✅ Destination coordinates extracted from dir (direction) link', [
+                    'url' => $url,
+                    'origin_lat' => (float) $matches[1],
+                    'origin_lng' => (float) $matches[2],
+                    'destination_lat' => $lat,
+                    'destination_lng' => $lng,
+                ]);
+                return [
+                    'latitude' => $lat,
+                    'longitude' => $lng,
+                ];
+            }
+        }
         
         // Extract from query parameters (q=lat,lng or ll=lat,lng)
         if (isset($parsedUrl['query'])) {
