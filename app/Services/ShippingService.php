@@ -82,19 +82,31 @@ class ShippingService
                 'confirmation' => 'Using order_number (NOT id) for shipping company',
             ]);
 
-            // Get shop_id - ALWAYS get it from restaurant to ensure it's correct and up-to-date
-            // Even if order has shop_id, we verify it from restaurant to ensure accuracy
+            // Get shop_id - PRIORITY: Use shop_id from order first (especially for Zyda orders with fixed shop_id = 11185)
+            // Only fallback to restaurant.shop_id if order doesn't have shop_id
             $shopIdString = null;
             $shopIdSource = 'unknown';
 
-            if (isset($orderObj->restaurant_id)) {
+            // PRIORITY 1: Use shop_id from order (this is correct for Zyda orders with fixed shop_id = 11185)
+            if (!empty($orderObj->shop_id)) {
+                $shopIdString = (string) $orderObj->shop_id;
+                $shopIdSource = 'order.shop_id';
+                Log::info('✅ Using shop_id from order (PRIORITY)', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_shop_id' => $shopIdString,
+                    'source' => $orderObj->source ?? 'unknown',
+                    'note' => 'Using order.shop_id (especially important for Zyda orders with fixed shop_id = 11185)',
+                ]);
+            }
+            // PRIORITY 2: Fallback to restaurant.shop_id only if order doesn't have shop_id
+            elseif (isset($orderObj->restaurant_id)) {
                 try {
                     $restaurant = \App\Models\Restaurant::find($orderObj->restaurant_id);
                     if ($restaurant) {
                         if (!empty($restaurant->shop_id)) {
                             $shopIdString = (string) $restaurant->shop_id;
-                            $shopIdSource = 'restaurant.shop_id';
-                            Log::info('✅ Got shop_id from restaurant', [
+                            $shopIdSource = 'restaurant.shop_id (fallback)';
+                            Log::info('✅ Using shop_id from restaurant (fallback)', [
                                 'restaurant_id' => $orderObj->restaurant_id,
                                 'restaurant_name' => $restaurant->name ?? 'N/A',
                                 'shop_id' => $shopIdString,
@@ -118,17 +130,6 @@ class ShippingService
                         'error' => $e->getMessage(),
                     ]);
                 }
-            }
-
-            // If restaurant doesn't have shop_id, try order's shop_id
-            if (empty($shopIdString) && !empty($orderObj->shop_id)) {
-                $shopIdString = (string) $orderObj->shop_id;
-                $shopIdSource = 'order.shop_id';
-                Log::warning('⚠️ Using shop_id from order (restaurant shop_id not available)', [
-                    'shop_id' => $shopIdString,
-                    'order_id' => $orderObj->id ?? null,
-                    'restaurant_id' => $orderObj->restaurant_id ?? null,
-                ]);
             }
 
             // Final fallback to default shop_id (should not happen if data is correct)
