@@ -147,10 +147,8 @@ class ZydaOrderController extends Controller
             $zydaOrder->longitude = $coordinates['longitude'];
         }
         
-        // If location is provided, mark order as received
-        if (!empty($validated['location'])) {
-            $zydaOrder->status = 'received';
-        }
+        // Note: status column was removed from zyda_orders table
+        // Order status is now determined by order_id presence (null = pending, not null = received)
         
         $zydaOrder->save();
 
