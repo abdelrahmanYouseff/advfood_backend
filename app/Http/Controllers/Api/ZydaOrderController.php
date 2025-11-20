@@ -318,15 +318,25 @@ class ZydaOrderController extends Controller
 
     /**
      * Create Order from ZydaOrder
+     * IMPORTANT: Uses same configuration as successful orders to ensure shipping company accepts it
      */
     protected function createOrderFromZydaOrder(ZydaOrder $zydaOrder): Order
     {
-        // Get first user and restaurant (similar to createTestOrder)
-        $user = User::first();
-        $restaurant = Restaurant::first();
+        // IMPORTANT: Use same values as successful orders (order_id: 133)
+        // This ensures Zyda orders are accepted by shipping company
+        $userId = 36; // Same user_id as successful order
+        $restaurantId = 821017372; // Same restaurant_id as successful order
+        
+        // Verify user exists
+        $user = User::find($userId);
+        if (!$user) {
+            throw new \Exception("User with ID {$userId} not found. This user is required for Zyda orders.");
+        }
 
-        if (!$user || !$restaurant) {
-            throw new \Exception('يجب وجود مستخدم ومطعم واحد على الأقل في قاعدة البيانات');
+        // Verify restaurant exists
+        $restaurant = Restaurant::find($restaurantId);
+        if (!$restaurant) {
+            throw new \Exception("Restaurant with ID {$restaurantId} not found. This restaurant is required for Zyda orders.");
         }
 
         // Parse location to get coordinates
@@ -337,12 +347,11 @@ class ZydaOrderController extends Controller
         // This is required by the shipping company for Zyda orders
         $shopId = '11185';
 
-        Log::info('🔍 Zyda Order Creation - Using fixed shop_id for Zyda orders', [
-            'restaurant_id' => $restaurant->id,
-            'restaurant_name' => $restaurant->name ?? 'N/A',
-            'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
-            'shop_id_to_use' => $shopId,
-            'note' => 'All Zyda orders use fixed shop_id = 11185',
+        Log::info('🔍 Zyda Order Creation - Using same configuration as successful orders', [
+            'user_id' => $userId,
+            'restaurant_id' => $restaurantId,
+            'shop_id' => $shopId,
+            'note' => 'Using fixed values to match successful order configuration',
         ]);
 
         // Generate order number
@@ -352,22 +361,27 @@ class ZydaOrderController extends Controller
         // Each order should have its own data only, as it comes from Zyda
         $totalAmount = (float) $zydaOrder->total_amount;
 
-        Log::info('📦 Creating Order from ZydaOrder', [
+        Log::info('📦 Creating Order from ZydaOrder with same config as successful orders', [
             'zyda_order_id' => $zydaOrder->id,
             'order_number' => $orderNumber,
-            'restaurant_id' => $restaurant->id,
+            'user_id' => $userId,
+            'restaurant_id' => $restaurantId,
             'shop_id' => $shopId,
             'total_amount' => $totalAmount,
             'has_coordinates' => !empty($coordinates),
+            'status' => 'confirmed', // Same as successful order
+            'payment_method' => 'online', // Same as successful order
         ]);
 
-        // Create the order with exact amount from Zyda
+        // Create the order with same configuration as successful order (id: 133)
+        // This ensures it will be accepted by shipping company
         $order = Order::create([
             'order_number' => $orderNumber,
-            'user_id' => $user->id,
-            'restaurant_id' => $restaurant->id,
-            'shop_id' => $shopId,
-            'status' => 'pending',
+            'user_id' => $userId, // Fixed: 36 (same as successful order)
+            'restaurant_id' => $restaurantId, // Fixed: 821017372 (same as successful order)
+            'shop_id' => $shopId, // Fixed: 11185 (required for Zyda orders)
+            'status' => 'confirmed', // Fixed: confirmed (same as successful order, not pending)
+            'shipping_status' => 'New Order', // Set shipping status
             'source' => 'zyda',
             'subtotal' => $totalAmount, // Use total from Zyda as subtotal
             'delivery_fee' => 0, // No additional delivery fee
@@ -378,8 +392,8 @@ class ZydaOrderController extends Controller
             'delivery_name' => $zydaOrder->name ?? 'عميل',
             'customer_latitude' => $coordinates['latitude'] ?? null,
             'customer_longitude' => $coordinates['longitude'] ?? null,
-            'payment_method' => 'cash',
-            'payment_status' => 'paid', // Set as paid to show in orders list
+            'payment_method' => 'online', // Fixed: online (same as successful order, not cash)
+            'payment_status' => 'paid', // Already paid
             'sound' => true,
         ]);
 
@@ -401,7 +415,8 @@ class ZydaOrderController extends Controller
             $items = is_string($zydaOrder->items) ? json_decode($zydaOrder->items, true) : $zydaOrder->items;
             
             if (is_array($items) && count($items) > 0) {
-                $menuItem = MenuItem::where('restaurant_id', $restaurant->id)->first();
+                // Use restaurant_id from order (821017372) to find menu items
+                $menuItem = MenuItem::where('restaurant_id', $restaurantId)->first();
                 
                 // Calculate total quantity for price distribution if needed
                 $totalQuantity = 0;
