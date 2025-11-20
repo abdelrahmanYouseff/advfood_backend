@@ -274,39 +274,61 @@ class ShippingService
             // This is the same order_number that appears in the system and is tracked everywhere
             
             // Build coordinate object - only include if both lat and lng are available
+            // IMPORTANT: Some shipping APIs require coordinates, so we need to ensure they're valid
             $coordinate = null;
-            if (!is_null($latitude) && !is_null($longitude)) {
+            if (!is_null($latitude) && !is_null($longitude) && 
+                $latitude >= -90 && $latitude <= 90 && 
+                $longitude >= -180 && $longitude <= 180) {
                 $coordinate = [
-                    'latitude' => $latitude,
-                    'longitude' => $longitude,
+                    'latitude' => (float) $latitude,
+                    'longitude' => (float) $longitude,
                 ];
+            }
+
+            // Build delivery_details - ensure all required fields are present
+            $deliveryDetails = [
+                'name' => $orderObj->delivery_name ?? '',
+                'phone' => $uniquePhone ?? '',
+                'email' => $uniqueEmail,
+            ];
+
+            // Only add coordinate if it's valid
+            if (!is_null($coordinate)) {
+                $deliveryDetails['coordinate'] = $coordinate;
+            }
+
+            // Add address if available
+            if (!empty($orderObj->delivery_address)) {
+                $deliveryDetails['address'] = $orderObj->delivery_address;
+            }
+
+            // Build order details
+            $orderDetails = [
+                'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
+                'total' => (float) ($orderObj->total ?? 0),
+            ];
+
+            // Add notes if available
+            if (!empty($orderObj->special_instructions)) {
+                $orderDetails['notes'] = $orderObj->special_instructions;
             }
 
             $payload = [
                 'id' => $orderIdString, // This is the order_number (e.g., ORD-20251104-D80175) - NOT the database id
                 'shop_id' => $shopIdForApi,
-                'delivery_details' => array_filter([
-                    'name' => $orderObj->delivery_name ?? null,
-                    'phone' => $uniquePhone,
-                    'email' => $uniqueEmail,
-                    'coordinate' => $coordinate, // Only include if coordinates are available
-                    'address' => $orderObj->delivery_address ?? null,
-                ], function($value) {
-                    return !is_null($value) && $value !== '';
-                }),
-                'order' => array_filter([
-                    'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
-                    'total' => (float) ($orderObj->total ?? 0),
-                    'notes' => $orderObj->special_instructions ?? null,
-                ], function($value) {
-                    return !is_null($value) && $value !== '';
-                }),
+                'delivery_details' => $deliveryDetails,
+                'order' => $orderDetails,
             ];
 
-            // Remove coordinate from delivery_details if it's null
-            if (is_null($coordinate)) {
-                unset($payload['delivery_details']['coordinate']);
-            }
+            // Log payload before sending to help debug
+            Log::info('📋 Final payload being sent to shipping company', [
+                'payload' => $payload,
+                'has_coordinate' => !is_null($coordinate),
+                'coordinate' => $coordinate,
+                'delivery_name' => $deliveryDetails['name'],
+                'delivery_phone' => $deliveryDetails['phone'],
+                'delivery_address' => $deliveryDetails['address'] ?? 'NOT SET',
+            ]);
 
             Log::info('📋 Shipping payload prepared with order_number (NOT id)', [
                 'order_id' => $orderObj->id ?? null,
@@ -464,7 +486,28 @@ class ShippingService
                     'http_status' => $statusCode,
                     'reason' => 'HTTP request failed or returned error status',
                     'url' => $url,
+                    'response_body' => $responseBody,
+                    'response_json' => $responseJson,
+                    'payload_sent' => $payload,
                 ]);
+
+                // Log the specific validation errors from shipping company for 422 errors
+                if ($statusCode === 422 && isset($responseJson['errors'])) {
+                    Log::error('🔴 VALIDATION ERRORS FROM SHIPPING COMPANY:', [
+                        'errors' => $responseJson['errors'],
+                        'message' => $responseJson['message'] ?? 'Validation failed',
+                        'payload_sent' => $payload,
+                        'check_fields' => [
+                            'shop_id' => $shopIdForApi,
+                            'delivery_name' => $payload['delivery_details']['name'] ?? 'MISSING',
+                            'delivery_phone' => $payload['delivery_details']['phone'] ?? 'MISSING',
+                            'delivery_address' => $payload['delivery_details']['address'] ?? 'MISSING',
+                            'has_coordinate' => isset($payload['delivery_details']['coordinate']),
+                            'coordinate' => $payload['delivery_details']['coordinate'] ?? 'MISSING',
+                            'total' => $payload['order']['total'] ?? 'MISSING',
+                        ],
+                    ]);
+                }
 
                 return null;
             }

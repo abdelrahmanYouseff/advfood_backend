@@ -333,28 +333,16 @@ class ZydaOrderController extends Controller
         $locationData = $this->parseLocationAndExtractUrl($zydaOrder->location);
         $coordinates = $locationData['coordinates'] ?? null;
         
-        // Get shop_id from restaurant
-        // IMPORTANT: If restaurant doesn't have shop_id, use a default or restaurant id
-        // Make sure shop_id is never empty so order can be sent to shipping
-        $shopId = !empty($restaurant->shop_id) ? $restaurant->shop_id : (string) $restaurant->id;
-        
-        // Ensure shop_id is not empty string
-        if (empty($shopId) || trim($shopId) === '') {
-            $shopId = (string) $restaurant->id; // Fallback to restaurant ID
-            Log::warning('⚠️ Restaurant shop_id is empty, using restaurant ID as fallback', [
-                'restaurant_id' => $restaurant->id,
-                'fallback_shop_id' => $shopId,
-            ]);
-        }
+        // IMPORTANT: All Zyda orders must use shop_id = 11185 (fixed constant)
+        // This is required by the shipping company for Zyda orders
+        $shopId = '11185';
 
-        Log::info('🔍 Zyda Order Creation - Checking shop_id', [
+        Log::info('🔍 Zyda Order Creation - Using fixed shop_id for Zyda orders', [
             'restaurant_id' => $restaurant->id,
             'restaurant_name' => $restaurant->name ?? 'N/A',
             'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
             'shop_id_to_use' => $shopId,
-            'shop_id_type' => gettype($shopId),
-            'shop_id_empty' => empty($shopId),
-            'shop_id_trimmed_empty' => trim($shopId) === '',
+            'note' => 'All Zyda orders use fixed shop_id = 11185',
         ]);
 
         // Generate order number
