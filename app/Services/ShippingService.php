@@ -290,7 +290,7 @@ class ShippingService
             $deliveryDetails = [
                 'name' => $orderObj->delivery_name ?? '',
                 'phone' => $uniquePhone ?? '',
-                'email' => $uniqueEmail,
+                    'email' => $uniqueEmail,
             ];
 
             // Only add coordinate if it's valid
@@ -305,8 +305,8 @@ class ShippingService
 
             // Build order details
             $orderDetails = [
-                'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
-                'total' => (float) ($orderObj->total ?? 0),
+                    'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
+                    'total' => (float) ($orderObj->total ?? 0),
             ];
 
             // Add notes if available
@@ -576,39 +576,49 @@ class ShippingService
                 $dspOrderId = 'ORD-' . $today . '-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
             }
 
-            $row = [
-                'order_id' => $orderObj->id,
-                'shop_id' => $orderObj->shop_id ?? null,
-                'dsp_order_id' => $dspOrderId,
-                'shipping_status' => $shippingStatus,
-                'recipient_name' => $orderObj->delivery_name ?? '',
-                'recipient_phone' => $orderObj->delivery_phone ?? '',
-                'recipient_address' => $orderObj->delivery_address ?? '',
-                'latitude' => $latitude,
-                'longitude' => $longitude,
-                'driver_name' => null,
-                'driver_phone' => null,
-                'driver_latitude' => null,
-                'driver_longitude' => null,
-                'total' => (float) ($orderObj->total ?? 0),
-                'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
-                'notes' => $orderObj->special_instructions ?? null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
+            // Only insert into shipping_orders table if order_id exists (Order is already in database)
+            // For temporary orders (not yet saved), shipping_orders will be inserted when Order is saved
+            if (!empty($orderObj->id)) {
+                $row = [
+                    'order_id' => $orderObj->id,
+                    'shop_id' => $orderObj->shop_id ?? null,
+                    'dsp_order_id' => $dspOrderId,
+                    'shipping_status' => $shippingStatus,
+                    'recipient_name' => $orderObj->delivery_name ?? '',
+                    'recipient_phone' => $orderObj->delivery_phone ?? '',
+                    'recipient_address' => $orderObj->delivery_address ?? '',
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                    'driver_name' => null,
+                    'driver_phone' => null,
+                    'driver_latitude' => null,
+                    'driver_longitude' => null,
+                    'total' => (float) ($orderObj->total ?? 0),
+                    'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
+                    'notes' => $orderObj->special_instructions ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
 
-            // Try to insert into shipping_orders table
-            try {
-                DB::table('shipping_orders')->insert($row);
-                Log::info('✅ Shipping order saved to shipping_orders table', [
-                    'order_id' => $orderObj->id ?? null,
+                // Try to insert into shipping_orders table
+                try {
+                    DB::table('shipping_orders')->insert($row);
+                    Log::info('✅ Shipping order saved to shipping_orders table', [
+                        'order_id' => $orderObj->id ?? null,
+                        'dsp_order_id' => $dspOrderId,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('⚠️ Failed to insert into shipping_orders table (may already exist)', [
+                        'order_id' => $orderObj->id ?? null,
+                        'dsp_order_id' => $dspOrderId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } else {
+                Log::info('ℹ️ Skipping shipping_orders insert - Order not yet in database (temporary order)', [
+                    'order_number' => $orderIdString,
                     'dsp_order_id' => $dspOrderId,
-                ]);
-            } catch (\Exception $e) {
-                Log::warning('⚠️ Failed to insert into shipping_orders table (may already exist)', [
-                    'order_id' => $orderObj->id ?? null,
-                    'dsp_order_id' => $dspOrderId,
-                    'error' => $e->getMessage(),
+                    'note' => 'shipping_orders will be inserted when Order is saved to database',
                 ]);
             }
 

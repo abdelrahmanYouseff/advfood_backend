@@ -493,62 +493,165 @@ class ZydaOrderController extends Controller
             'step' => 'Calling Order::create() - static::created will fire',
         ]);
 
-        // IMPORTANT: Create Order same way as successful orders (RestLinkController pattern)
-        // Step 1: Create order with payment_status = 'pending' (like normal orders)
-        // Step 2: Then update to 'paid' to trigger static::updated event
-        // This ensures same flow as successful orders
-        Log::info('📝 Step 1: Creating Order with payment_status=pending (like normal orders)', [
+        // CRITICAL: Contact shipping company FIRST to get dsp_order_id BEFORE creating Order
+        // Only create Order if shipping company accepts it and returns dsp_order_id
+        Log::info('📞 STEP 1: Contacting shipping company FIRST to get dsp_order_id (before creating Order)', [
             'zyda_order_id' => $zydaOrder->id,
-            'shop_id' => $shopId,
-            'step' => 'Calling Order::create() with payment_status=pending',
-        ]);
-
-        $order = Order::create([
             'order_number' => $orderNumber,
-            'user_id' => $userId, // Fixed: 36
-            'restaurant_id' => $restaurantId, // Fixed: 821017372
-            'shop_id' => $shopId, // Fixed: 11185 (required for Zyda orders)
-            'status' => 'pending', // Start as pending (like normal orders)
-            'shipping_status' => 'New Order',
-            'source' => 'zyda',
-            'subtotal' => $totalAmount,
-            'delivery_fee' => 0,
-            'tax' => 0,
-            'total' => $totalAmount,
-            // Basic customer data only
-            'delivery_name' => $deliveryName,
-            'delivery_phone' => $deliveryPhone,
-            'delivery_address' => $deliveryAddress,
-            'customer_latitude' => $customerLatitude,
-            'customer_longitude' => $customerLongitude,
-            'payment_method' => 'online', // Must be online
-            'payment_status' => 'pending', // Start as pending (like normal orders)
-            'sound' => true,
+            'shop_id' => $shopId,
+            'step' => 'Create temporary Order object to send to shipping company',
         ]);
 
-        Log::info('✅ Step 1: Order created with payment_status=pending', [
-            'order_id' => $order->id,
-            'order_number' => $order->order_number,
-            'payment_status' => $order->payment_status,
-            'step' => 'Now updating to payment_status=paid to trigger static::updated',
-        ]);
+        // Create temporary Order object (not saved to database yet) to send to shipping company
+        // ShippingService needs an Order object with all the data
+        $tempOrder = new Order();
+        $tempOrder->order_number = $orderNumber;
+        $tempOrder->user_id = $userId;
+        $tempOrder->restaurant_id = $restaurantId;
+        $tempOrder->shop_id = $shopId;
+        $tempOrder->status = 'confirmed';
+        $tempOrder->shipping_status = 'New Order';
+        $tempOrder->source = 'zyda';
+        $tempOrder->subtotal = $totalAmount;
+        $tempOrder->delivery_fee = 0;
+        $tempOrder->tax = 0;
+        $tempOrder->total = $totalAmount;
+        $tempOrder->delivery_name = $deliveryName;
+        $tempOrder->delivery_phone = $deliveryPhone;
+        $tempOrder->delivery_address = $deliveryAddress;
+        $tempOrder->customer_latitude = $customerLatitude;
+        $tempOrder->customer_longitude = $customerLongitude;
+        $tempOrder->payment_method = 'online';
+        $tempOrder->payment_status = 'paid';
+        $tempOrder->sound = true;
 
-        // Step 2: Update payment_status to 'paid' to trigger static::updated event
-        // This is the SAME pattern as successful orders (RestLinkController)
-        // The static::updated event will send order to shipping company
-        Log::info('📝 Step 2: Updating payment_status to paid (same as normal orders)', [
-            'order_id' => $order->id,
-            'order_number' => $order->order_number,
-            'step' => 'This will trigger static::updated event to send to shipping',
-        ]);
+        // Contact shipping company to get dsp_order_id
+        try {
+            $shippingService = new \App\Services\ShippingService();
+            $shippingResult = $shippingService->createOrder($tempOrder);
 
-        $order->payment_status = 'paid';
-        $order->status = 'confirmed'; // Update status to confirmed
-        $order->save();
+            if (!$shippingResult || empty($shippingResult['dsp_order_id'])) {
+                // FAILURE: Shipping company did not return dsp_order_id
+                Log::error('❌ Shipping company did not return dsp_order_id - Order will NOT be created', [
+                    'zyda_order_id' => $zydaOrder->id,
+                    'order_number' => $orderNumber,
+                    'shop_id' => $shopId,
+                    'shipping_result' => $shippingResult,
+                    'reason' => 'Shipping company rejected order or returned null',
+                    'action' => 'Order will NOT be inserted into orders table',
+                ]);
 
-        // IMPORTANT: Refresh order to get dsp_order_id if static::updated event saved it
-        // static::updated event runs synchronously, so if shipping was successful, dsp_order_id should be here
-        $order->refresh();
+                throw new \Exception('فشل إرسال الطلب إلى شركة الشحن. لم يتم الحصول على dsp_order_id. يرجى التحقق من البيانات وإعادة المحاولة.');
+            }
+
+            // SUCCESS: Shipping company returned dsp_order_id
+            $dspOrderId = $shippingResult['dsp_order_id'];
+            $shippingStatus = $shippingResult['shipping_status'] ?? 'New Order';
+
+            Log::info('✅ STEP 1 SUCCESS: Shipping company returned dsp_order_id', [
+                'zyda_order_id' => $zydaOrder->id,
+                'order_number' => $orderNumber,
+                'dsp_order_id' => $dspOrderId,
+                'shipping_status' => $shippingStatus,
+                'step' => 'Now creating Order in database with dsp_order_id',
+            ]);
+
+            // STEP 2: Now create Order in database WITH dsp_order_id (guaranteed to exist)
+            Log::info('📝 STEP 2: Creating Order in database with dsp_order_id (shipping company already accepted)', [
+                'zyda_order_id' => $zydaOrder->id,
+                'order_number' => $orderNumber,
+                'dsp_order_id' => $dspOrderId,
+                'step' => 'Calling Order::create() with dsp_order_id pre-filled',
+            ]);
+
+            // Create Order with dsp_order_id already set (shipping company already accepted it)
+            $order = Order::create([
+                'order_number' => $orderNumber,
+                'user_id' => $userId, // Fixed: 36
+                'restaurant_id' => $restaurantId, // Fixed: 821017372
+                'shop_id' => $shopId, // Fixed: 11185 (required for Zyda orders)
+                'status' => 'confirmed',
+                'shipping_status' => $shippingStatus, // Use status from shipping company
+                'source' => 'zyda',
+                'subtotal' => $totalAmount,
+                'delivery_fee' => 0,
+                'tax' => 0,
+                'total' => $totalAmount,
+                // Basic customer data only
+                'delivery_name' => $deliveryName,
+                'delivery_phone' => $deliveryPhone,
+                'delivery_address' => $deliveryAddress,
+                'customer_latitude' => $customerLatitude,
+                'customer_longitude' => $customerLongitude,
+                'payment_method' => 'online',
+                'payment_status' => 'paid', // Already paid
+                'sound' => true,
+                // IMPORTANT: Set dsp_order_id immediately (shipping company already accepted)
+                'dsp_order_id' => $dspOrderId,
+            ]);
+
+            Log::info('✅✅ STEP 2 SUCCESS: Order created in database with dsp_order_id', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'dsp_order_id' => $order->dsp_order_id,
+                'shipping_status' => $order->shipping_status,
+                'note' => 'Order successfully created with dsp_order_id - shipping company already accepted it',
+            ]);
+
+            // STEP 3: Insert shipping_orders record now that Order has id
+            try {
+                // Map payment method to payment type (same as ShippingService)
+                $paymentType = 1; // Default to online (1)
+                if ($order->payment_method === 'cash') {
+                    $paymentType = 2; // Cash
+                } elseif ($order->payment_method === 'online' || $order->payment_method === 'card') {
+                    $paymentType = 1; // Online/Card
+                }
+
+                DB::table('shipping_orders')->insert([
+                    'order_id' => $order->id,
+                    'shop_id' => $order->shop_id,
+                    'dsp_order_id' => $dspOrderId,
+                    'shipping_status' => $shippingStatus,
+                    'recipient_name' => $order->delivery_name ?? '',
+                    'recipient_phone' => $order->delivery_phone ?? '',
+                    'recipient_address' => $order->delivery_address ?? '',
+                    'latitude' => $order->customer_latitude,
+                    'longitude' => $order->customer_longitude,
+                    'driver_name' => null,
+                    'driver_phone' => null,
+                    'driver_latitude' => null,
+                    'driver_longitude' => null,
+                    'total' => (float) $order->total,
+                    'payment_type' => $paymentType,
+                    'notes' => $order->special_instructions ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                Log::info('✅✅ STEP 3: shipping_orders record inserted', [
+                    'order_id' => $order->id,
+                    'dsp_order_id' => $dspOrderId,
+                    'shipping_status' => $shippingStatus,
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('⚠️ Failed to insert shipping_orders record (may already exist)', [
+                    'order_id' => $order->id,
+                    'dsp_order_id' => $dspOrderId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('❌ CRITICAL: Failed to get dsp_order_id from shipping company - Order will NOT be created', [
+                'zyda_order_id' => $zydaOrder->id,
+                'order_number' => $orderNumber,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'action' => 'Order creation aborted - will NOT be inserted into orders table',
+            ]);
+            throw $e; // Re-throw to prevent Order creation
+        }
 
         Log::info('✅ Order created from ZydaOrder - Following same pattern as successful orders', [
             'order_id' => $order->id,
