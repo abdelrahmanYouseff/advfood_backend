@@ -124,18 +124,41 @@ class ZydaOrderController extends Controller
 
     public function updateLocation(Request $request, $id)
     {
+        // CRITICAL: Log entry point to verify function is called
+        Log::info('🚨 UPDATE LOCATION FUNCTION CALLED', [
+            'zyda_order_id' => $id,
+            'request_location' => $request->input('location'),
+            'request_all' => $request->all(),
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+        ]);
+
         $validated = $request->validate([
             'location' => 'nullable|string|max:500',
+        ]);
+
+        Log::info('✅ Validation passed', [
+            'zyda_order_id' => $id,
+            'validated_location' => $validated['location'] ?? 'NULL',
         ]);
 
         $zydaOrder = ZydaOrder::find($id);
 
         if (!$zydaOrder) {
+            Log::error('❌ Zyda order not found', [
+                'zyda_order_id' => $id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Zyda order not found',
             ], 404);
         }
+
+        Log::info('✅ Zyda order found', [
+            'zyda_order_id' => $zydaOrder->id,
+            'existing_order_id' => $zydaOrder->order_id ?? 'NULL',
+            'existing_location' => $zydaOrder->location ?? 'NULL',
+        ]);
 
         // Use curl to resolve short link to original URL
         // Save the original URL (not the short link) in database
@@ -256,9 +279,42 @@ class ZydaOrderController extends Controller
         }
 
         // Create new Order from ZydaOrder if location is provided
+        Log::info('🔍 Checking if location provided to create Order', [
+            'zyda_order_id' => $zydaOrder->id,
+            'validated_location' => $validated['location'] ?? 'NULL',
+            'validated_location_empty' => empty($validated['location'] ?? null),
+            'zyda_order_location' => $zydaOrder->location ?? 'NULL',
+            'has_coordinates' => !empty($zydaOrder->latitude) && !empty($zydaOrder->longitude),
+        ]);
+
         if (!empty($validated['location'])) {
+            Log::info('✅ Location provided - Will create Order from ZydaOrder', [
+                'zyda_order_id' => $zydaOrder->id,
+                'location' => $validated['location'],
+            ]);
+
             try {
+                Log::info('🚀 Starting Order creation from ZydaOrder', [
+                    'zyda_order_id' => $zydaOrder->id,
+                    'location' => $zydaOrder->location,
+                    'has_coordinates' => !empty($zydaOrder->latitude) && !empty($zydaOrder->longitude),
+                    'step' => 'Calling createOrderFromZydaOrder()',
+                ]);
+
+                // Create Order - boot method will automatically send to shipping company
                 $createdOrder = $this->createOrderFromZydaOrder($zydaOrder);
+
+                // Refresh order to get latest data including dsp_order_id if it was set by boot method
+                $createdOrder->refresh();
+
+                Log::info('✅ Order created from ZydaOrder - Checking if sent to shipping', [
+                    'order_id' => $createdOrder->id,
+                    'order_number' => $createdOrder->order_number,
+                    'dsp_order_id' => $createdOrder->dsp_order_id ?? 'NULL',
+                    'shop_id' => $createdOrder->shop_id,
+                    'shipping_status' => $createdOrder->shipping_status,
+                    'note' => 'Order Model boot method should have sent to shipping company automatically',
+                ]);
 
                 return response()->json([
                     'success' => true,
@@ -266,11 +322,16 @@ class ZydaOrderController extends Controller
                     'data' => $zydaOrder,
                     'order_id' => $createdOrder->id,
                     'order_number' => $createdOrder->order_number,
+                    'dsp_order_id' => $createdOrder->dsp_order_id,
+                    'shipping_status' => $createdOrder->shipping_status,
                 ]);
             } catch (\Exception $e) {
-                Log::error('Failed to create order from ZydaOrder', [
+                Log::error('❌ Exception while creating order from ZydaOrder', [
                     'zyda_order_id' => $zydaOrder->id,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
                 ]);
 
                 return response()->json([
@@ -279,7 +340,18 @@ class ZydaOrderController extends Controller
                     'data' => $zydaOrder,
                 ], 200);
             }
+        } else {
+            Log::warning('⚠️ Location not provided - Order will NOT be created', [
+                'zyda_order_id' => $zydaOrder->id,
+                'validated_location' => $validated['location'] ?? 'NULL',
+                'note' => 'Order creation skipped because location is empty',
+            ]);
         }
+
+        Log::info('✅ updateLocation function completed', [
+            'zyda_order_id' => $zydaOrder->id,
+            'order_id' => $zydaOrder->order_id ?? 'NULL',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -409,8 +481,21 @@ class ZydaOrderController extends Controller
             ]);
         }
 
+        // IMPORTANT: Create Order - boot method (static::created) will fire immediately after insert
+        // This triggers automatic contact with shipping company
+        Log::info('📝 About to insert Order into database - boot method will fire automatically', [
+            'zyda_order_id' => $zydaOrder->id,
+            'shop_id' => $shopId,
+            'has_coordinates' => !empty($customerLatitude) && !empty($customerLongitude),
+            'delivery_name' => $deliveryName,
+            'delivery_phone' => $deliveryPhone,
+            'delivery_address' => $deliveryAddress,
+            'step' => 'Calling Order::create() - static::created will fire',
+        ]);
+
         // Create the order with basic data only (as requested)
-        // The Order Model boot method will automatically send it to shipping company
+        // The Order Model boot method (static::created) will automatically fire after insert
+        // This will trigger automatic contact with shipping company to get dsp_order_id
         $order = Order::create([
             'order_number' => $orderNumber,
             'user_id' => $userId, // Fixed: 36
@@ -434,12 +519,18 @@ class ZydaOrderController extends Controller
             'sound' => true,
         ]);
 
-        Log::info('✅ Order created from ZydaOrder and inserted into orders table', [
+        // IMPORTANT: Refresh order to get dsp_order_id if boot method already saved it
+        // Boot method runs synchronously, so if shipping was successful, dsp_order_id should be here
+        $order->refresh();
+
+        Log::info('✅ Order created from ZydaOrder - boot method should have fired', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
             'shop_id' => $order->shop_id,
             'payment_status' => $order->payment_status,
             'source' => $order->source,
+            'dsp_order_id' => $order->dsp_order_id ?? 'NULL (check logs for boot method execution)',
+            'shipping_status' => $order->shipping_status,
             'has_coordinates' => !empty($order->customer_latitude) && !empty($order->customer_longitude),
             'customer_latitude' => $order->customer_latitude,
             'customer_longitude' => $order->customer_longitude,
@@ -447,8 +538,8 @@ class ZydaOrderController extends Controller
             'delivery_phone' => $order->delivery_phone,
             'delivery_address' => $order->delivery_address,
             'total' => $order->total,
-            'note' => 'Order Model boot method (static::created) will NOW automatically contact shipping company to get dsp_order_id',
-            'next_step' => 'Order Model boot method will call ShippingService::createOrder()',
+            'note' => 'Order Model boot method (static::created) should have automatically contacted shipping company',
+            'next_step' => 'Check logs for: 🔄 Order inserted into orders table - Starting automatic shipping company contact',
         ]);
 
         // Link zyda_order to the created order
