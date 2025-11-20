@@ -103,9 +103,10 @@ class Order extends Model
                 $order->createInvoice();
             }
 
-            // Send order to shipping company automatically after order is created
-            // Send ALL orders that have shop_id (regardless of payment status)
-            \Illuminate\Support\Facades\Log::info('🔍 Checking if order should be sent to shipping company', [
+            // IMPORTANT: Immediately contact shipping company after order is created
+            // This happens automatically when order is inserted into orders table
+            // Goal: Get dsp_order_id from shipping company and update it in database
+            \Illuminate\Support\Facades\Log::info('🔄 Order inserted into orders table - Starting automatic shipping company contact', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'shop_id' => $order->shop_id ?? 'NULL',
@@ -114,79 +115,86 @@ class Order extends Model
                 'shop_id_not_empty' => !empty($order->shop_id),
                 'payment_status' => $order->payment_status,
                 'source' => $order->source ?? 'NULL',
+                'step' => 'Order Model boot method - static::created hook',
             ]);
 
+            // Send ALL orders that have shop_id to shipping company
+            // This is critical: We need to get dsp_order_id immediately
             if (!empty($order->shop_id)) {
                 try {
-                    \Illuminate\Support\Facades\Log::info('📦 Sending order to shipping company automatically after creation', [
+                    \Illuminate\Support\Facades\Log::info('📞 Contacting shipping company to get dsp_order_id', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'shop_id' => $order->shop_id,
                         'payment_status' => $order->payment_status,
                         'source' => $order->source ?? 'NULL',
+                        'customer_name' => $order->delivery_name ?? 'NULL',
+                        'customer_phone' => $order->delivery_phone ?? 'NULL',
+                        'customer_address' => $order->delivery_address ?? 'NULL',
+                        'has_coordinates' => !empty($order->customer_latitude) && !empty($order->customer_longitude),
+                        'total' => $order->total ?? 0,
+                        'step' => 'Calling ShippingService::createOrder()',
                     ]);
 
+                    // Contact shipping company API to create order and get dsp_order_id
                     $shippingService = new \App\Services\ShippingService();
                     $shippingResult = $shippingService->createOrder($order);
 
-                    if ($shippingResult) {
-                        \Illuminate\Support\Facades\Log::info('✅ Order automatically sent to shipping company after creation', [
+                    if ($shippingResult && isset($shippingResult['dsp_order_id'])) {
+                        // SUCCESS: Shipping company returned dsp_order_id
+                        \Illuminate\Support\Facades\Log::info('✅ Shipping company responded with dsp_order_id', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
-                            'dsp_order_id' => $shippingResult['dsp_order_id'] ?? null,
+                            'dsp_order_id_received' => $shippingResult['dsp_order_id'],
                             'shipping_status' => $shippingResult['shipping_status'] ?? null,
                             'shop_id' => $order->shop_id,
-                            'customer_name' => $order->delivery_name,
-                            'customer_phone' => $order->delivery_phone,
-                            'customer_address' => $order->delivery_address,
-                            'total' => $order->total,
-                            'payment_method' => $order->payment_method,
-                            'payment_status' => $order->payment_status,
+                            'step' => 'Updating order in database with dsp_order_id',
                         ]);
 
-                        // Update order with shipping information
-                        if (isset($shippingResult['dsp_order_id'])) {
-                            $order->dsp_order_id = $shippingResult['dsp_order_id'];
-                            $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
-                            $order->save();
+                        // CRITICAL: Update order in database with dsp_order_id from shipping company
+                        $order->dsp_order_id = $shippingResult['dsp_order_id'];
+                        $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
+                        $order->save();
 
-                            \Illuminate\Support\Facades\Log::info('✅ Order updated with dsp_order_id from shipping company', [
-                                'order_id' => $order->id,
-                                'order_number' => $order->order_number,
-                                'dsp_order_id' => $order->dsp_order_id,
-                                'shipping_status' => $order->shipping_status,
-                            ]);
-                        } else {
-                            \Illuminate\Support\Facades\Log::warning('⚠️ Shipping result received but no dsp_order_id found', [
-                                'order_id' => $order->id,
-                                'order_number' => $order->order_number,
-                                'shipping_result_keys' => array_keys($shippingResult ?? []),
-                                'shipping_result' => $shippingResult,
-                            ]);
-                        }
+                        \Illuminate\Support\Facades\Log::info('✅✅ Order updated in database with dsp_order_id - Order can now be tracked by shipping company', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'dsp_order_id_saved' => $order->dsp_order_id,
+                            'shipping_status' => $order->shipping_status,
+                            'database_updated' => true,
+                            'step' => 'COMPLETED - Order sent to shipping company successfully',
+                        ]);
                     } else {
-                        \Illuminate\Support\Facades\Log::warning('⚠️ Failed to automatically send order to shipping company after creation', [
+                        // FAILURE: Shipping company did not return dsp_order_id
+                        \Illuminate\Support\Facades\Log::error('❌ Shipping company did not return dsp_order_id', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'shop_id' => $order->shop_id,
-                            'reason' => 'Shipping service returned null'
+                            'shipping_result' => $shippingResult,
+                            'shipping_result_keys' => array_keys($shippingResult ?? []),
+                            'reason' => 'Shipping service returned null or no dsp_order_id - Check logs for API error details',
+                            'step' => 'FAILED - Order NOT sent to shipping company',
                         ]);
                     }
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('❌ Error automatically sending order to shipping company after creation', [
+                    \Illuminate\Support\Facades\Log::error('❌ Exception while contacting shipping company', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'shop_id' => $order->shop_id,
                         'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'trace' => $e->getTraceAsString(),
+                        'step' => 'EXCEPTION - Order NOT sent to shipping company',
                     ]);
                 }
             } else {
-                \Illuminate\Support\Facades\Log::warning('⚠️ Order created but not sent to shipping (missing shop_id)', [
+                \Illuminate\Support\Facades\Log::warning('⚠️ Order created but NOT sent to shipping company (missing shop_id)', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'shop_id' => $order->shop_id ?? 'MISSING',
                     'payment_status' => $order->payment_status,
+                    'source' => $order->source ?? 'NULL',
+                    'note' => 'Order requires shop_id to be sent to shipping company',
+                    'step' => 'SKIPPED - Missing shop_id',
                 ]);
             }
         });

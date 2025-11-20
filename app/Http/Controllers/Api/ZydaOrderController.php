@@ -434,14 +434,21 @@ class ZydaOrderController extends Controller
             'sound' => true,
         ]);
 
-        Log::info('✅ Order created from ZydaOrder - Will be sent to shipping automatically', [
+        Log::info('✅ Order created from ZydaOrder and inserted into orders table', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
             'shop_id' => $order->shop_id,
             'payment_status' => $order->payment_status,
             'source' => $order->source,
             'has_coordinates' => !empty($order->customer_latitude) && !empty($order->customer_longitude),
-            'note' => 'Order Model boot method will automatically send to shipping company',
+            'customer_latitude' => $order->customer_latitude,
+            'customer_longitude' => $order->customer_longitude,
+            'delivery_name' => $order->delivery_name,
+            'delivery_phone' => $order->delivery_phone,
+            'delivery_address' => $order->delivery_address,
+            'total' => $order->total,
+            'note' => 'Order Model boot method (static::created) will NOW automatically contact shipping company to get dsp_order_id',
+            'next_step' => 'Order Model boot method will call ShippingService::createOrder()',
         ]);
 
         // Link zyda_order to the created order
