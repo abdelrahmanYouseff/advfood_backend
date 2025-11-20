@@ -36,13 +36,23 @@ class OrderSyncService
         $isNewRecord = !DB::table('zyda_orders')->where('phone', $orderData['phone'])->exists();
         
         if ($isNewRecord) {
+            // New order: set status to 'pending' and set created_at
             $payload['phone'] = $orderData['phone'];
+            $payload['status'] = 'pending'; // Set default status for new orders
             $payload['created_at'] = Carbon::now();
             $result = DB::table('zyda_orders')->insert($payload);
         } else {
-            $result = (bool) DB::table('zyda_orders')
-                ->where('phone', $orderData['phone'])
-                ->update($payload);
+            // Existing order: only update if status is not 'received' (don't overwrite received status)
+            $existingOrder = DB::table('zyda_orders')->where('phone', $orderData['phone'])->first();
+            if ($existingOrder && $existingOrder->status !== 'received') {
+                // Only update if status is still pending or null
+                $result = (bool) DB::table('zyda_orders')
+                    ->where('phone', $orderData['phone'])
+                    ->update($payload);
+            } else {
+                // If status is 'received', don't update (preserve received status)
+                $result = true;
+            }
         }
 
         // After saving, try to fetch location from webhook
