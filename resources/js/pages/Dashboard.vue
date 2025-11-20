@@ -12,7 +12,8 @@ import {
     Package,
     Calendar,
     Save,
-    Trash2
+    Trash2,
+    RefreshCcw
 } from 'lucide-vue-next';
 
 interface Props {
@@ -53,13 +54,17 @@ interface Props {
         }>;
     };
     zyda_summary: {
-        count: number;
-        total_amount: number;
+        pending_count: number;
+        received_count: number;
+        pending_total: number;
+        received_total: number;
+        current_filter: string;
     };
 }
 
 interface ZydaOrder {
     id: number;
+    zyda_order_key: string | null;
     name: string | null;
     phone: string;
     address: string | null;
@@ -68,6 +73,7 @@ interface ZydaOrder {
     items: Array<Record<string, unknown>> | null;
     created_at: string | null;
     updated_at: string | null;
+    order_id: number | null;
 }
 
 const props = defineProps<Props>();
@@ -251,13 +257,47 @@ const formatZydaItems = (items: ZydaOrder['items']) => {
         .join('، ');
 };
 
-const zydaOrdersCountLabel = computed(() => `${props.zyda_summary?.count ?? 0} طلب`);
-const zydaOrdersTotalLabel = computed(() => formatZydaTotal(props.zyda_summary?.total_amount ?? 0));
+const zydaOrdersCountLabel = computed(() => {
+    const filter = zydaFilter.value;
+    if (filter === 'received') {
+        return `${props.zyda_summary?.received_count ?? 0} طلب`;
+    }
+    return `${props.zyda_summary?.pending_count ?? 0} طلب`;
+});
+
+const zydaOrdersTotalLabel = computed(() => {
+    const filter = zydaFilter.value;
+    if (filter === 'received') {
+        return formatZydaTotal(props.zyda_summary?.received_total ?? 0);
+    }
+    return formatZydaTotal(props.zyda_summary?.pending_total ?? 0);
+});
+
+const zydaFilter = ref<string>(props.zyda_summary?.current_filter ?? 'pending');
+
+const changeZydaFilter = (filter: 'pending' | 'received') => {
+    zydaFilter.value = filter;
+    router.get('/dashboard', { tab: 'zyda', zyda_filter: filter }, {
+        only: ['zyda_orders', 'zyda_summary'],
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
 
 // State for editing locations
 const editingLocations = ref<Record<number, string>>({});
 const savingOrderId = ref<number | null>(null);
 const deletingOrderId = ref<number | null>(null);
+
+// State for sync
+const syncLoading = ref(false);
+const showSyncModal = ref(false);
+const syncProgress = ref(0);
+const syncMessage = ref('جاري التحميل...');
+const syncLogs = ref<string[]>([]); // Store script output logs
+const logsContainer = ref<HTMLElement | null>(null); // Reference to logs container for auto-scroll
+const syncTimer = ref(0); // Timer in seconds
+const syncTimerInterval = ref<number | null>(null); // Timer interval reference
 
 // Initialize editing locations with current values
 const initializeEditingLocations = () => {
@@ -310,14 +350,32 @@ const updateLocation = async (orderId: number) => {
             order.location = location;
         }
 
-        // Reload to get updated data from server
-        router.reload({
-            only: ['zyda_orders'],
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('✅ Location updated successfully!');
-            },
-        });
+        // Check if order was created/updated (has order_id)
+        const orderCreated = data.order_id || (data.data && data.data.order_id);
+        
+        if (orderCreated) {
+            // If order was created/updated, show success message and redirect to orders page
+            alert('✅ تم حفظ الموقع وإنشاء الطلب بنجاح! سيتم التوجيه إلى صفحة الطلبات...');
+            
+            // Redirect to orders page after a short delay
+            setTimeout(() => {
+                window.location.href = '/orders';
+            }, 1000);
+        } else {
+            // If no order was created, just reload the dashboard
+            // And switch to "received" tab if order was linked
+            router.reload({
+                only: ['zyda_orders', 'zyda_summary'],
+                preserveScroll: true,
+                onSuccess: () => {
+                    console.log('✅ Location updated successfully!');
+                    // If order was linked (has order_id), switch to "received" filter
+                    if (data.data && data.data.order_id) {
+                        changeZydaFilter('received');
+                    }
+                },
+            });
+        }
     } catch (error: any) {
         console.error('❌ Failed to update location:', error);
         alert(error.message || 'حدث خطأ أثناء حفظ الموقع. حاول مرة أخرى.');
@@ -327,6 +385,199 @@ const updateLocation = async (orderId: number) => {
 };
 
 // Delete Zyda order function
+// Sync Zyda orders function
+const syncZydaOrders = async () => {
+    if (syncLoading.value) {
+        return;
+    }
+
+    syncLoading.value = true;
+    showSyncModal.value = true;
+    syncProgress.value = 0;
+    syncMessage.value = 'جاري التحميل...';
+    syncLogs.value = []; // Clear previous logs
+    syncTimer.value = 0; // Reset timer
+
+    // Start timer
+    syncTimerInterval.value = setInterval(() => {
+        syncTimer.value += 1;
+    }, 1000) as unknown as number;
+
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+        if (syncProgress.value < 90) {
+            syncProgress.value += Math.random() * 10;
+            if (syncProgress.value > 90) {
+                syncProgress.value = 90;
+            }
+        }
+    }, 500);
+
+    try {
+        // Use fetch directly with longer timeout for long-running scripts
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            || getCookie('XSRF-TOKEN')
+            || '';
+
+        // Update progress more slowly after 90% while waiting for response
+        const finalProgressInterval = setInterval(() => {
+            if (syncProgress.value >= 90 && syncProgress.value < 95) {
+                syncProgress.value += 0.5;
+            }
+        }, 1000);
+
+        // Make request with longer timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
+
+        try {
+            const response = await fetch(route('orders.sync-zyda'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+            clearInterval(progressInterval);
+            clearInterval(finalProgressInterval);
+            
+            // Stop timer
+            if (syncTimerInterval.value !== null) {
+                clearInterval(syncTimerInterval.value);
+                syncTimerInterval.value = null;
+            }
+
+            console.log('📥 Response status:', response.status);
+            const data = await response.json();
+            console.log('📦 Response data:', data);
+
+            if (!response.ok) {
+                console.error('❌ Response not OK:', data);
+                throw new Error(data.message || 'فشلت المزامنة');
+            }
+
+            // Parse and display script output
+            console.log('📋 Output received:', data.output ? `${data.output.length} chars` : 'empty');
+            
+            if (data.output && data.output.trim().length > 0) {
+                // Split output into lines and filter empty lines
+                const outputLines = data.output.split('\n')
+                    .map((line: string) => line.trim())
+                    .filter((line: string) => line.length > 0);
+                
+                console.log('📝 Parsed output lines:', outputLines.length);
+                syncLogs.value = outputLines;
+                
+                // Auto-scroll to bottom of logs
+                setTimeout(() => {
+                    if (logsContainer.value) {
+                        logsContainer.value.scrollTop = logsContainer.value.scrollHeight;
+                    }
+                }, 100);
+                
+                // Update message with last few meaningful lines
+                const lastLines = outputLines.slice(-5).join('\n');
+                if (lastLines) {
+                    syncMessage.value = lastLines.substring(0, 200); // Limit to 200 chars
+                }
+            } else {
+                // If no output, show a message
+                syncLogs.value = ['⚠️ لا يوجد output من السكريبت. قد يكون السكريبت لا يطبع أي شيء.'];
+                console.warn('⚠️ No output from script');
+            }
+
+            // Success - Complete progress
+            syncProgress.value = 100;
+            
+            // Show summary if available
+            if (data.summary) {
+                const summary = data.summary;
+                syncMessage.value = `✅ تمت المزامنة بنجاح! تم إنشاء ${summary.created || 0} وتحديث ${summary.updated || 0} وتخطي ${summary.skipped || 0} (فشل ${summary.failed || 0})`;
+            } else {
+                syncMessage.value = data.message || '✅ تمت المزامنة بنجاح!';
+            }
+
+            // Close modal immediately and redirect to dashboard
+            showSyncModal.value = false;
+            syncLoading.value = false;
+            syncProgress.value = 0;
+
+            // Redirect to dashboard with zyda tab and reload data
+            router.visit('/dashboard?tab=zyda', {
+                only: ['zyda_orders', 'zyda_summary'],
+                preserveState: false,
+                preserveScroll: false,
+            });
+
+        } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            clearInterval(progressInterval);
+            clearInterval(finalProgressInterval);
+            
+            // Stop timer
+            if (syncTimerInterval.value !== null) {
+                clearInterval(syncTimerInterval.value);
+                syncTimerInterval.value = null;
+            }
+            
+            console.error('❌ Sync fetch error:', fetchError);
+            
+            if (fetchError.name === 'AbortError') {
+                syncProgress.value = 100;
+                syncMessage.value = 'انتهى وقت الانتظار. يرجى المحاولة مرة أخرى.';
+                syncLogs.value = ['❌ انتهى وقت الانتظار (10 دقائق).'];
+            } else {
+                syncProgress.value = 100;
+                const errorMsg = fetchError.message || 'خطأ غير معروف';
+                syncMessage.value = 'حدث خطأ أثناء المزامنة: ' + errorMsg;
+                syncLogs.value = [
+                    '❌ حدث خطأ أثناء المزامنة:',
+                    errorMsg,
+                    'يرجى التحقق من سجلات Laravel للحصول على مزيد من التفاصيل.'
+                ];
+            }
+            
+            setTimeout(() => {
+                showSyncModal.value = false;
+                syncLoading.value = false;
+                syncProgress.value = 0;
+                syncTimer.value = 0;
+            }, 3000);
+        }
+    } catch (error: any) {
+        clearInterval(progressInterval);
+        
+        // Stop timer
+        if (syncTimerInterval.value !== null) {
+            clearInterval(syncTimerInterval.value);
+            syncTimerInterval.value = null;
+        }
+        
+        syncProgress.value = 100;
+        syncMessage.value = 'حدث خطأ أثناء المزامنة: ' + (error.message || 'خطأ غير معروف');
+        console.error('❌ Sync error:', error);
+        setTimeout(() => {
+            showSyncModal.value = false;
+            syncLoading.value = false;
+            syncProgress.value = 0;
+            syncTimer.value = 0;
+        }, 3000);
+    }
+};
+
+// Format timer as MM:SS
+const formatTimer = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
 const deleteZydaOrder = async (orderId: number) => {
     if (!confirm('هل أنت متأكد من حذف هذا الطلب؟')) {
         return;
@@ -616,6 +867,14 @@ const getCookie = (name: string): string | null => {
                                 <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
                                 إجمالي القيمة: {{ zydaOrdersTotalLabel }}
                             </div>
+                            <button
+                                @click="syncZydaOrders"
+                                :disabled="syncLoading"
+                                class="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <RefreshCcw :class="['h-4 w-4', syncLoading ? 'animate-spin' : '']" />
+                                مزامنة Zyda
+                            </button>
                             <Link
                                 href="/orders"
                                 class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -623,6 +882,32 @@ const getCookie = (name: string): string | null => {
                                 إدارة الطلبات
                             </Link>
                         </div>
+                    </div>
+
+                    <!-- Filter Tabs -->
+                    <div class="mt-4 flex items-center gap-2 border-b border-gray-200">
+                        <button
+                            @click="changeZydaFilter('pending')"
+                            :class="[
+                                'px-4 py-2 text-sm font-medium transition rounded-t-lg border-b-2',
+                                zydaFilter === 'pending'
+                                    ? 'border-blue-600 text-blue-600 bg-blue-50'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
+                        >
+                            قيد الانتظار ({{ props.zyda_summary?.pending_count ?? 0 }})
+                        </button>
+                        <button
+                            @click="changeZydaFilter('received')"
+                            :class="[
+                                'px-4 py-2 text-sm font-medium transition rounded-t-lg border-b-2',
+                                zydaFilter === 'received'
+                                    ? 'border-green-600 text-green-600 bg-green-50'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ]"
+                        >
+                            مستلمة ({{ props.zyda_summary?.received_count ?? 0 }})
+                        </button>
                     </div>
 
                     <div class="mt-6 overflow-x-auto">
@@ -635,7 +920,7 @@ const getCookie = (name: string): string | null => {
                                     <th class="px-4 py-3">الموقع</th>
                                     <th class="px-4 py-3">الإجمالي</th>
                                     <th class="px-4 py-3">الأصناف</th>
-                                    <th class="px-4 py-3">تاريخ الإنشاء</th>
+                                    <th class="px-4 py-3">الكود الفريد</th>
                                     <th class="px-4 py-3">إجراءات</th>
                                 </tr>
                             </thead>
@@ -670,7 +955,7 @@ const getCookie = (name: string): string | null => {
                                     </td>
                                     <td class="px-4 py-3 text-gray-900 font-semibold">{{ formatZydaTotal(order.total_amount) }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ formatZydaItems(order.items) }}</td>
-                                    <td class="px-4 py-3 text-gray-600">{{ order.created_at ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-gray-900 font-mono text-sm">{{ order.zyda_order_key ?? '—' }}</td>
                                     <td class="px-4 py-3">
                                         <button
                                             @click="deleteZydaOrder(order.id)"
@@ -699,6 +984,80 @@ const getCookie = (name: string): string | null => {
                                 v-html="link.label"
                             />
                         </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Modal -->
+        <div v-if="showSyncModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div class="relative w-full max-w-3xl mx-4">
+                <div class="bg-white rounded-2xl shadow-2xl p-6 max-h-[90vh] flex flex-col">
+                    <!-- Header -->
+                    <div class="text-center mb-4">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-3">
+                            <RefreshCcw :class="['h-8 w-8 text-blue-600', syncLoading ? 'animate-spin' : '']" />
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2">جاري المزامنة</h3>
+                        <div class="flex items-center justify-center gap-2 mt-2">
+                            <Clock class="h-4 w-4 text-gray-500" />
+                            <span class="text-sm font-mono text-gray-600 font-semibold">الوقت المستغرق: {{ formatTimer(syncTimer) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mb-4">
+                        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div
+                                class="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-300 ease-out"
+                                :style="{ width: syncProgress + '%' }"
+                            >
+                                <div class="h-full bg-white bg-opacity-30 animate-pulse"></div>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-center">
+                            <span class="text-sm font-medium text-gray-700">{{ Math.round(syncProgress) }}%</span>
+                        </div>
+                    </div>
+
+                    <!-- Script Output Logs -->
+                    <div class="flex-1 overflow-hidden mb-4">
+                        <div ref="logsContainer" class="bg-gray-900 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
+                            <div v-if="syncLogs.length === 0" class="text-gray-400">
+                                <div class="flex justify-center space-x-2 mb-2">
+                                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                                </div>
+                                <p class="text-center">جاري تشغيل السكريبت...</p>
+                            </div>
+                            <div v-else class="space-y-1">
+                                <div
+                                    v-for="(log, index) in syncLogs"
+                                    :key="index"
+                                    :class="[
+                                        'text-left whitespace-pre-wrap break-words',
+                                        log.includes('[ERROR]') || log.includes('ERROR') || log.includes('❌') ? 'text-red-400' :
+                                        log.includes('[SUCCESS]') || log.includes('SUCCESS') || log.includes('✅') ? 'text-green-400' :
+                                        log.includes('[WARN]') || log.includes('WARN') || log.includes('⚠️') ? 'text-yellow-400' :
+                                        log.includes('[STEP]') || log.includes('STEP') ? 'text-blue-400' :
+                                        log.includes('[INFO]') || log.includes('INFO') ? 'text-cyan-400' :
+                                        log.includes('ORDER #') || log.includes('============================================================') ? 'text-green-300 font-bold' :
+                                        log.includes('SUMMARY') ? 'text-yellow-300 font-bold' :
+                                        'text-gray-300'
+                                    ]"
+                                >
+                                    {{ log }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current Message -->
+                    <div class="text-center">
+                        <p class="text-sm font-medium text-gray-700 bg-gray-50 rounded-lg p-3">
+                            {{ syncMessage }}
+                        </p>
                     </div>
                 </div>
             </div>

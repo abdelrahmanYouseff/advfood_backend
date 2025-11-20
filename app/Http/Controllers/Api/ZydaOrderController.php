@@ -24,18 +24,53 @@ class ZydaOrderController extends Controller
 
     public function store(Request $request)
     {
+        try {
+            Log::info('📥 Zyda order received via API', [
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'payload_keys' => array_keys($request->all()),
+                'zyda_order_key' => $request->input('zyda_order_key'),
+                'phone' => $request->input('phone'),
+            ]);
+
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
             'phone' => 'required|string|max:50',
             'address' => 'nullable|string|max:500',
             'location' => 'nullable|string|max:255',
             'total_amount' => 'nullable|numeric|min:0',
-            'items' => 'required|array|min:1',
-        ]);
+                'items' => 'nullable|array',
+                'zyda_order_key' => 'required|string|max:255', // Unique order identifier from Zyda
+            ]);
 
+            Log::info('✅ Validation passed', [
+                'zyda_order_key' => $validated['zyda_order_key'],
+                'phone' => $validated['phone'],
+            ]);
+
+            // Check if order exists using zyda_order_key (unique identifier from Zyda)
         $exists = DB::table('zyda_orders')
-            ->where('phone', $validated['phone'])
+                ->where('zyda_order_key', $validated['zyda_order_key'])
             ->exists();
+
+            // If order already exists, return success without processing (no duplicate)
+            if ($exists) {
+                Log::info('ℹ️ Zyda order already exists, skipping', [
+                    'zyda_order_key' => $validated['zyda_order_key'],
+                    'phone' => $validated['phone'],
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'operation' => 'skipped',
+                    'message' => 'Order already exists in database',
+                ]);
+            }
+
+            Log::info('🔄 Saving new Zyda order', [
+                'zyda_order_key' => $validated['zyda_order_key'],
+                'phone' => $validated['phone'],
+            ]);
 
         $payload = [
             'name' => $validated['name'] ?? null,
@@ -44,20 +79,47 @@ class ZydaOrderController extends Controller
             'location' => $validated['location'] ?? null,
             'total_amount' => $validated['total_amount'] ?? 0,
             'items' => $validated['items'],
+                'zyda_order_key' => $validated['zyda_order_key'],
         ];
 
         $result = $this->orderSyncService->saveScrapedOrder($payload);
 
         if (!$result) {
+                Log::error('❌ Failed to save Zyda order in OrderSyncService', [
+                    'phone' => $validated['phone'],
+                    'zyda_order_key' => $validated['zyda_order_key'],
+                    'payload' => $payload,
+                ]);
             throw ValidationException::withMessages([
                 'phone' => ['Failed to save Zyda order.'],
             ]);
         }
 
-        return response()->json([
-            'success' => true,
-            'operation' => $exists ? 'updated' : 'created',
-        ]);
+            Log::info('✅ New Zyda order saved successfully', [
+                'phone' => $validated['phone'],
+                'zyda_order_key' => $validated['zyda_order_key'],
+                'total_amount' => $validated['total_amount'] ?? 0,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'operation' => 'created',
+                'message' => 'Order saved successfully',
+            ]);
+        } catch (ValidationException $e) {
+            Log::error('❌ Validation error in Zyda order store', [
+                'errors' => $e->errors(),
+                'payload' => $request->all(),
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('❌ Unexpected error in Zyda order store', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'payload' => $request->all(),
+            ]);
+            throw $e;
+        }
     }
 
     public function updateLocation(Request $request, $id)
@@ -191,13 +253,11 @@ class ZydaOrderController extends Controller
         // Generate order number
         $orderNumber = 'ZYDA-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
 
-        // Calculate totals
-        $subtotal = (float) $zydaOrder->total_amount;
-        $deliveryFee = $restaurant->delivery_fee ?? 10.00;
-        $tax = $subtotal * 0.15; // 15% tax
-        $total = $subtotal + $deliveryFee + $tax;
+        // Use the exact total_amount from Zyda order (no additional fees or tax)
+        // Each order should have its own data only, as it comes from Zyda
+        $totalAmount = (float) $zydaOrder->total_amount;
 
-        // Create the order
+        // Create the order with exact amount from Zyda
         $order = Order::create([
             'order_number' => $orderNumber,
             'user_id' => $user->id,
@@ -205,10 +265,10 @@ class ZydaOrderController extends Controller
             'shop_id' => $shopId,
             'status' => 'pending',
             'source' => 'zyda',
-            'subtotal' => $subtotal,
-            'delivery_fee' => $deliveryFee,
-            'tax' => $tax,
-            'total' => $total,
+            'subtotal' => $totalAmount, // Use total from Zyda as subtotal
+            'delivery_fee' => 0, // No additional delivery fee
+            'tax' => 0, // No additional tax (already included in Zyda total)
+            'total' => $totalAmount, // Use exact total from Zyda
             'delivery_address' => $zydaOrder->address ?? 'عنوان غير محدد',
             'delivery_phone' => $zydaOrder->phone,
             'delivery_name' => $zydaOrder->name ?? 'عميل',
@@ -219,24 +279,86 @@ class ZydaOrderController extends Controller
             'sound' => true,
         ]);
 
-        // Create order items from zyda_order items
-        if (!empty($zydaOrder->items) && is_array($zydaOrder->items)) {
-            $menuItem = MenuItem::where('restaurant_id', $restaurant->id)->first();
-            
-            foreach ($zydaOrder->items as $item) {
-                // Try to get item details from zyda order item structure
-                $itemName = $item['name'] ?? $item['item_name'] ?? 'منتج من زيدا';
-                $itemPrice = isset($item['price']) ? (float) $item['price'] : ($subtotal / max(count($zydaOrder->items), 1));
-                $itemQuantity = isset($item['quantity']) ? (int) $item['quantity'] : 1;
+        // Link zyda_order to the created order
+        $zydaOrder->order_id = $order->id;
+        $zydaOrder->save();
 
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'menu_item_id' => $menuItem ? $menuItem->id : null,
-                    'item_name' => $itemName,
-                    'price' => $itemPrice,
-                    'quantity' => $itemQuantity,
-                    'subtotal' => $itemPrice * $itemQuantity,
-                ]);
+        // Create order items from zyda_order items
+        if (!empty($zydaOrder->items)) {
+            // Parse items (can be JSON string or array)
+            $items = is_string($zydaOrder->items) ? json_decode($zydaOrder->items, true) : $zydaOrder->items;
+            
+            if (is_array($items) && count($items) > 0) {
+                $menuItem = MenuItem::where('restaurant_id', $restaurant->id)->first();
+                
+                // Calculate total quantity for price distribution if needed
+                $totalQuantity = 0;
+                foreach ($items as $item) {
+                    if (is_array($item)) {
+                        $totalQuantity += isset($item['quantity']) ? (int) $item['quantity'] : 1;
+                    } else {
+                        // Handle old format: string like "2x Burger"
+                        $totalQuantity += 1;
+                    }
+                }
+                
+                foreach ($items as $item) {
+                    if (is_array($item)) {
+                        // New structured format: {"name": "Burger", "quantity": 2, "price": 37.0}
+                        $itemName = $item['name'] ?? $item['item_name'] ?? 'منتج من زيدا';
+                        $itemQuantity = isset($item['quantity']) ? (int) $item['quantity'] : 1;
+                        
+                        // IMPORTANT: Use exact price from Zyda if available, otherwise calculate proportionally
+                        if (isset($item['price']) && $item['price'] !== null && $item['price'] > 0) {
+                            // Use exact price from Zyda platform (as is, no modifications)
+                            $itemPrice = (float) $item['price'];
+                            Log::info('✅ Using exact price from Zyda', [
+                                'item_name' => $itemName,
+                                'quantity' => $itemQuantity,
+                                'price' => $itemPrice,
+                            ]);
+                        } else {
+                            // If price not available, calculate proportionally based on quantity
+                            $itemPrice = $totalQuantity > 0 ? ($totalAmount / $totalQuantity) : ($totalAmount / count($items));
+                            Log::warning('⚠️ Price not available from Zyda, calculating proportionally', [
+                                'item_name' => $itemName,
+                                'quantity' => $itemQuantity,
+                                'calculated_price' => $itemPrice,
+                            ]);
+                        }
+                    } else {
+                        // Old format: string like "2x Burger"
+                        // Parse it
+                        $itemStr = (string) $item;
+                        if (preg_match('/^(\d+)x\s*(.+)$/i', $itemStr, $matches)) {
+                            $itemQuantity = (int) $matches[1];
+                            $itemName = trim($matches[2]);
+                            $itemPrice = $totalQuantity > 0 ? ($totalAmount / $totalQuantity) : ($totalAmount / count($items));
+                        } else {
+                            // Fallback
+                            $itemName = $itemStr;
+                            $itemQuantity = 1;
+                            $itemPrice = $totalAmount / count($items);
+                        }
+                    }
+
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'menu_item_id' => $menuItem ? $menuItem->id : null,
+                        'item_name' => $itemName,
+                        'price' => $itemPrice,
+                        'quantity' => $itemQuantity,
+                        'subtotal' => $itemPrice * $itemQuantity,
+                    ]);
+                    
+                    Log::info('✅ Order item created', [
+                        'order_id' => $order->id,
+                        'item_name' => $itemName,
+                        'quantity' => $itemQuantity,
+                        'price' => $itemPrice,
+                        'subtotal' => $itemPrice * $itemQuantity,
+                    ]);
+                }
             }
         }
 

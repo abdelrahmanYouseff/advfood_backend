@@ -24,25 +24,55 @@ class OrderSyncService
             return false;
         }
 
+        // Check if zyda_order_key is provided (required for unique identification)
+        $zydaOrderKey = $orderData['zyda_order_key'] ?? null;
+        
+        if (empty($zydaOrderKey)) {
+            Log::error('❌ Zyda order key is required', [
+                'phone' => $orderData['phone'] ?? null,
+            ]);
+            return false;
+        }
+
         $payload = [
             'name' => $orderData['name'] ?? null,
             'address' => $orderData['address'] ?? null,
             'location' => $orderData['location'] ?? null,
             'total_amount' => isset($orderData['total_amount']) ? (float) $orderData['total_amount'] : 0,
             'items' => isset($orderData['items']) ? json_encode($orderData['items']) : json_encode([]),
+            'zyda_order_key' => $zydaOrderKey,
             'updated_at' => Carbon::now(),
         ];
 
-        $isNewRecord = !DB::table('zyda_orders')->where('phone', $orderData['phone'])->exists();
+        // Check if order exists using zyda_order_key (unique identifier from Zyda)
+        // IMPORTANT: Only add order if it doesn't exist. If exists, skip (don't add duplicate)
+        $existingOrder = DB::table('zyda_orders')
+            ->where('zyda_order_key', $zydaOrderKey)
+            ->first();
+        
+        $isNewRecord = !$existingOrder;
         
         if ($isNewRecord) {
+            // New order: add it to database
             $payload['phone'] = $orderData['phone'];
             $payload['created_at'] = Carbon::now();
             $result = DB::table('zyda_orders')->insert($payload);
+            
+            Log::info('✅ New Zyda order added to database', [
+                'phone' => $orderData['phone'],
+                'name' => $orderData['name'] ?? null,
+                'zyda_order_key' => $zydaOrderKey,
+                'total_amount' => $payload['total_amount'],
+            ]);
         } else {
-            $result = (bool) DB::table('zyda_orders')
-                ->where('phone', $orderData['phone'])
-                ->update($payload);
+            // Order already exists: skip (don't add duplicate)
+            $result = true; // Return true to indicate "processed" (skipped)
+            Log::info('ℹ️ Zyda order already exists in database, skipping (no duplicate)', [
+                'phone' => $orderData['phone'],
+                'zyda_order_key' => $zydaOrderKey,
+                'zyda_order_id' => $existingOrder->id,
+                'order_id' => $existingOrder->order_id ?? null,
+            ]);
         }
 
         // After saving, try to fetch location from webhook

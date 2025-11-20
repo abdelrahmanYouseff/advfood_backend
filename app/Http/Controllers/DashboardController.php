@@ -42,15 +42,33 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        // Show only Zyda orders that haven't been linked to an Order yet (order_id is null)
-        $zyda_orders = ZydaOrder::whereNull('order_id')
+        // Get filter from request (pending or received)
+        // pending = order_id is null (not linked to an order yet)
+        // received = order_id is not null (already linked to an order)
+        $filter = request()->get('zyda_filter', 'pending');
+        
+        // Show Zyda orders based on order_id filter
+        $zydaQuery = ZydaOrder::query();
+        
+        if ($filter === 'received') {
+            $zydaQuery->whereNotNull('order_id');
+        } else {
+            // Default: show pending orders (order_id is null - not linked yet)
+            $zydaQuery->whereNull('order_id');
+        }
+        
+        $zyda_orders = $zydaQuery
             ->orderByDesc('created_at')
             ->paginate(25)
             ->withQueryString();
 
+        // Summary for both pending and received
         $zyda_summary = [
-            'count' => ZydaOrder::whereNull('order_id')->count(),
-            'total_amount' => ZydaOrder::whereNull('order_id')->sum('total_amount'),
+            'pending_count' => ZydaOrder::whereNull('order_id')->count(),
+            'received_count' => ZydaOrder::whereNotNull('order_id')->count(),
+            'pending_total' => ZydaOrder::whereNull('order_id')->sum('total_amount'),
+            'received_total' => ZydaOrder::whereNotNull('order_id')->sum('total_amount'),
+            'current_filter' => $filter,
         ];
 
         return Inertia::render('Dashboard', [

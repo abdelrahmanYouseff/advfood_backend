@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2, RefreshCcw } from 'lucide-vue-next';
+import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2 } from 'lucide-vue-next';
 
 interface Props {
     orders: Array<{
@@ -750,36 +750,6 @@ const acceptOrder = async (orderId: number) => {
     }
 };
 
-const syncLoading = ref(false);
-
-const syncZydaOrders = async () => {
-    if (syncLoading.value) {
-        return;
-    }
-
-    syncLoading.value = true;
-
-    await router.post(route('orders.sync-zyda'), {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            const successMessage = (page.props.flash as any)?.success as string | undefined;
-            if (successMessage) {
-                alert(successMessage);
-            } else {
-                alert('تمت مزامنة طلبات Zyda بنجاح');
-            }
-        },
-        onError: () => {
-            const errorMessage = (page.props.flash as any)?.error as string | undefined;
-            alert(errorMessage ?? 'حدث خطأ أثناء مزامنة طلبات Zyda');
-        },
-        onFinish: () => {
-            syncLoading.value = false;
-        },
-    });
-};
-
-
 // Create test order function
 // Load sound preference and set up notifications
 onMounted(() => {
@@ -897,15 +867,6 @@ onMounted(() => {
 
                     <!-- Action Buttons -->
                     <div class="flex items-center gap-3">
-                        <button
-                            type="button"
-                            @click="syncZydaOrders"
-                            :disabled="syncLoading"
-                            class="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                            <RefreshCcw :class="['h-4 w-4', syncLoading ? 'animate-spin' : '']" />
-                            مزامنة Zyda
-                        </button>
                         <Link
                             :href="route('orders.create')"
                             class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
