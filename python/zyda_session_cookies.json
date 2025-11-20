@@ -1,0 +1,149 @@
+[
+  {
+    "domain": ".zyda.com",
+    "expiry": 1798191044,
+    "httpOnly": false,
+    "name": "_ga_CCHR5G2FD8",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "GS2.1.s1763630397$o1$g1$t1763631044$j57$l0$h0"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1795167044,
+    "httpOnly": false,
+    "name": "mp_5387f456b7dd662bd205621a6fe3fb9d_mixpanel",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "%7B%22distinct_id%22%3A%22%24device%3A49b2b8df-5056-4c68-9571-4703fec2e94f%22%2C%22%24device_id%22%3A%2249b2b8df-5056-4c68-9571-4703fec2e94f%22%2C%22%24initial_referrer%22%3A%22%24direct%22%2C%22%24initial_referring_domain%22%3A%22%24direct%22%2C%22__mps%22%3A%7B%7D%2C%22__mpso%22%3A%7B%22%24initial_referrer%22%3A%22%24direct%22%2C%22%24initial_referring_domain%22%3A%22%24direct%22%7D%2C%22__mpus%22%3A%7B%7D%2C%22__mpa%22%3A%7B%7D%2C%22__mpu%22%3A%7B%7D%2C%22__mpr%22%3A%5B%5D%2C%22__mpap%22%3A%5B%5D%7D"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1779183043,
+    "httpOnly": false,
+    "name": "hubspotutk",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "22d6062daf9908cd7d57425a821c63d4"
+  },
+  {
+    "domain": ".zyda.com",
+    "httpOnly": false,
+    "name": "__hssrc",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "1"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1779183043,
+    "httpOnly": false,
+    "name": "__hstc",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "136317743.22d6062daf9908cd7d57425a821c63d4.1763630399477.1763630399477.1763630399477.1"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1798191041,
+    "httpOnly": false,
+    "name": "_ga",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "GA1.1.1955153248.1763630397"
+  },
+  {
+    "domain": ".dash.zyda.com",
+    "expiry": 1763631615,
+    "httpOnly": false,
+    "name": "_BEAMER_FILTER_BY_URL_LmpYWhLp36422",
+    "path": "/",
+    "sameSite": "None",
+    "secure": true,
+    "value": "false"
+  },
+  {
+    "domain": ".dash.zyda.com",
+    "httpOnly": false,
+    "name": "delivery_zone_ms_store_id",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "5617"
+  },
+  {
+    "domain": ".dash.zyda.com",
+    "httpOnly": false,
+    "name": "delivery_zone_ms_token",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "eyJhbGciOiJSUzUxMiJ9.eyJyZXN0YXVyYW50X2lkIjo1NjE3LCJwZXJtaXNzaW9ucyI6eyJkZWxpdmVyeV96b25lIjp7ImluZGV4Ijp0cnVlLCJzaG93Ijp0cnVlLCJ1cGRhdGUiOnRydWUsImNyZWF0ZSI6dHJ1ZSwiZGVzdHJveSI6dHJ1ZSwibW92ZV90byI6dHJ1ZX0sImRlbGl2ZXJ5X3pvbmVfYXJlYSI6eyJpbmRleCI6dHJ1ZSwic2hvdyI6dHJ1ZSwidXBkYXRlIjp0cnVlLCJjcmVhdGVkIjp0cnVlLCJkZXN0cm95Ijp0cnVlfX0sInVzZXJfcm9sZSI6Im93bmVyIn0.HG7gWcHeCU67rdfQfjwXNtfBtD9aIVvXL-uvy-3MX9gFvpCOTEsvbe7W_CgFr2sW8qxcB69DOjFXbxlKPA842kVPDy0R8LHznkSGC7i1Yk_5S46Grgt2rFNm8txSjy_te1UHaXqpq2h_wgysp9nqyt78m0LYu39bEpWORapmj9XXgcImPk1kUE2SJQ5YlRO--ADc5fP4juEMhDKC4iEs6xrwaLuvWf2R9tYmL_lR5XNKRXiviFXhx5cmN5gRkNJuil-PQRvKEfeV8QBCu5ISOMkRh2t6HZs9ZcC8IbdZtUSIZXxxWGHH_a4oBUVGZOfQ2F602mgA7TLP531TEnVAiQ"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1763632843,
+    "httpOnly": false,
+    "name": "__hssc",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "136317743.3.1763630399477"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1789550462,
+    "httpOnly": false,
+    "name": "_BEAMER_USER_ID_LmpYWhLp36422",
+    "path": "/",
+    "sameSite": "None",
+    "secure": true,
+    "value": "38a2b1ae-0abb-4db1-8e93-9c28006db3a2"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1763717444,
+    "httpOnly": false,
+    "name": "_clsk",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "5tbm2o%5E1763631044617%5E10%5E1%5Ez.clarity.ms%2Fcollect"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1795166395,
+    "httpOnly": false,
+    "name": "_clck",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "ylua36%5E2%5Eg16%5E0%5E2150"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1789550462,
+    "httpOnly": false,
+    "name": "_BEAMER_FIRST_VISIT_LmpYWhLp36422",
+    "path": "/",
+    "sameSite": "None",
+    "secure": true,
+    "value": "2025-11-20T09:21:02.808Z"
+  },
+  {
+    "domain": ".zyda.com",
+    "expiry": 1763631615,
+    "httpOnly": false,
+    "name": "_BEAMER_FILTER_BY_URL_LmpYWhLp36422",
+    "path": "/",
+    "sameSite": "None",
+    "secure": true,
+    "value": "false"
+  }
+]

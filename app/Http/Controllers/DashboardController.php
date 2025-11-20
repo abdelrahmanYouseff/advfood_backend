@@ -43,19 +43,18 @@ class DashboardController extends Controller
             ->get();
 
         // Get filter from request (pending or received)
+        // pending = order_id is null (not linked to an order yet)
+        // received = order_id is not null (already linked to an order)
         $filter = request()->get('zyda_filter', 'pending');
         
-        // Show Zyda orders based on status filter
+        // Show Zyda orders based on order_id filter
         $zydaQuery = ZydaOrder::query();
         
         if ($filter === 'received') {
-            $zydaQuery->where('status', 'received');
+            $zydaQuery->whereNotNull('order_id');
         } else {
-            // Default: show pending orders (status = pending or null)
-            $zydaQuery->where(function($q) {
-                $q->where('status', 'pending')
-                  ->orWhereNull('status');
-            });
+            // Default: show pending orders (order_id is null - not linked yet)
+            $zydaQuery->whereNull('order_id');
         }
         
         $zyda_orders = $zydaQuery
@@ -65,14 +64,10 @@ class DashboardController extends Controller
 
         // Summary for both pending and received
         $zyda_summary = [
-            'pending_count' => ZydaOrder::where(function($q) {
-                $q->where('status', 'pending')->orWhereNull('status');
-            })->count(),
-            'received_count' => ZydaOrder::where('status', 'received')->count(),
-            'pending_total' => ZydaOrder::where(function($q) {
-                $q->where('status', 'pending')->orWhereNull('status');
-            })->sum('total_amount'),
-            'received_total' => ZydaOrder::where('status', 'received')->sum('total_amount'),
+            'pending_count' => ZydaOrder::whereNull('order_id')->count(),
+            'received_count' => ZydaOrder::whereNotNull('order_id')->count(),
+            'pending_total' => ZydaOrder::whereNull('order_id')->sum('total_amount'),
+            'received_total' => ZydaOrder::whereNotNull('order_id')->sum('total_amount'),
             'current_filter' => $filter,
         ];
 
