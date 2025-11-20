@@ -26,7 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
-        $schedule->command('sync:zyda-orders')->everyMinute()->withoutOverlapping();
+        $schedule->command('sync:zyda-orders')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/schedule.log'))
+            ->emailOutputOnFailure(env('ADMIN_EMAIL'));
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
