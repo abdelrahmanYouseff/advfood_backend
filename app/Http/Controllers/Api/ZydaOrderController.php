@@ -620,6 +620,62 @@ class ZydaOrderController extends Controller
         
         return $finalUrl;
     }
+    
+    /**
+     * Extract coordinates from final Google Maps URL
+     */
+    protected function extractCoordinatesFromFinalUrl(string $url): ?array
+    {
+        // Parse final URL
+        $parsedUrl = parse_url($url);
+        
+        // Extract from query parameters (q=lat,lng)
+        if (isset($parsedUrl['query'])) {
+            parse_str($parsedUrl['query'], $queryParams);
+            if (isset($queryParams['q'])) {
+                $qValue = $queryParams['q'];
+                if (preg_match('/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)/', $qValue, $matches)) {
+                    $lat = (float) $matches[1];
+                    $lng = (float) $matches[2];
+                    if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                        return [
+                            'latitude' => $lat,
+                            'longitude' => $lng,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Extract from path (@lat,lng format)
+        if (isset($parsedUrl['path'])) {
+            // Match @lat,lng or @lat,lng,zoom
+            if (preg_match('/@([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)(?:,(\d+)z)?/', $parsedUrl['path'], $matches)) {
+                $lat = (float) $matches[1];
+                $lng = (float) $matches[2];
+                if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    return [
+                        'latitude' => $lat,
+                        'longitude' => $lng,
+                    ];
+                }
+            }
+        }
+
+        // Try to find coordinates anywhere in the final URL
+        if (preg_match('/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)/', $url, $matches)) {
+            $lat = (float) $matches[1];
+            $lng = (float) $matches[2];
+            if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                return [
+                    'latitude' => $lat,
+                    'longitude' => $lng,
+                ];
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Get final URL after following redirects using cURL
