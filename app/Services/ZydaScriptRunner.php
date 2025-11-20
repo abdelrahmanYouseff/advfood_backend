@@ -30,24 +30,47 @@ class ZydaScriptRunner
 
     protected function runScript(string $scriptPath): string
     {
-        // Try python3 first (server default), fallback to python (local)
+        // Try to find Python binary (venv first, then python3, then python)
         // Run: cd python && python3 scrap_zyda.py
         $scriptName = basename($scriptPath);
         $pythonDir = dirname($scriptPath);
-        
+
+        // Check for virtual environment first
+        $venvPython = $pythonDir . '/venv/bin/python3';
+        $venvPythonAlt = $pythonDir . '/venv/bin/python';
+
+        $pythonBinary = null;
+
+        // Priority 1: Try venv/bin/python3
+        if (file_exists($venvPython)) {
+            $pythonBinary = $venvPython;
+            Log::info('🔍 Found venv Python binary', ['path' => $pythonBinary]);
+        }
+        // Priority 2: Try venv/bin/python
+        elseif (file_exists($venvPythonAlt)) {
+            $pythonBinary = $venvPythonAlt;
+            Log::info('🔍 Found venv Python binary (alt)', ['path' => $pythonBinary]);
+        }
+        // Priority 3: Try system python3
+        else {
+            $pythonBinary = 'python3';
+            Log::info('🔍 Using system python3');
+        }
+
         Log::info('🔍 Running script', [
             'script' => $scriptName,
             'directory' => $pythonDir,
-            'command' => "cd {$pythonDir} && python3 {$scriptName}",
+            'python_binary' => $pythonBinary,
+            'command' => "cd {$pythonDir} && {$pythonBinary} {$scriptName}",
         ]);
-        
+
         try {
-            // Try python3 first (for server)
-            return $this->executeProcess('python3', $scriptName, $pythonDir);
+            return $this->executeProcess($pythonBinary, $scriptName, $pythonDir);
         } catch (ProcessFailedException $e) {
             // Fallback to python if python3 command not found (for local)
-            if ($this->isCommandNotFound($e)) {
-                Log::warning('python3 command not found, fallback to python', [
+            if ($this->isCommandNotFound($e) && $pythonBinary !== 'python') {
+                Log::warning('Primary Python binary failed, fallback to python', [
+                    'failed_binary' => $pythonBinary,
                     'script' => $scriptName,
                 ]);
                 return $this->executeProcess('python', $scriptName, $pythonDir);
@@ -80,32 +103,43 @@ class ZydaScriptRunner
             'PATH' => getenv('PATH'),
             'PYTHONUNBUFFERED' => '1', // Ensure Python output is not buffered
         ];
-        
+
+        // If using venv, add venv/bin to PATH
+        if (strpos($binary, 'venv') !== false) {
+            $venvBin = dirname($binary);
+            $env['PATH'] = $venvBin . ':' . getenv('PATH');
+            $env['VIRTUAL_ENV'] = dirname($venvBin);
+            Log::info('🔧 Using virtual environment', [
+                'venv_bin' => $venvBin,
+                'venv_path' => $env['VIRTUAL_ENV'],
+            ]);
+        }
+
         // Create process: cd to python directory and run python script
         $process = new Process([$binary, $scriptName], $workingDir, $env);
         $process->setTimeout(600); // 10 minutes
         $process->setIdleTimeout(600); // 10 minutes idle
-        
+
         Log::info('▶️ Executing process...', [
             'command' => "{$binary} {$scriptName}",
             'working_dir' => $workingDir,
             'env' => $env,
             'binary_exists' => file_exists($binary),
         ]);
-        
+
         // Capture output in real-time
         $realTimeOutput = '';
-        
+
         try {
             $process->start();
             Log::info('🔄 Process started (PID: ' . $process->getPid() . '), waiting for output...');
-            
+
             // Read output in real-time
             while ($process->isRunning()) {
                 // Get incremental output
                 $newOutput = $process->getIncrementalOutput();
                 $newError = $process->getIncrementalErrorOutput();
-                
+
                 if (!empty($newOutput)) {
                     $realTimeOutput .= $newOutput;
                     // Log each line
@@ -117,23 +151,23 @@ class ZydaScriptRunner
                         }
                     }
                 }
-                
+
                 if (!empty($newError)) {
                     Log::warning('📥 Python stderr', ['output' => trim($newError)]);
                 }
-                
+
                 // Small sleep to avoid busy waiting (reduced for faster response)
                 usleep(50000); // 0.05 seconds (reduced from 0.1)
             }
-            
+
             // Get any remaining output
             $remainingOutput = $process->getOutput();
             $remainingError = $process->getErrorOutput();
-            
+
             if (!empty($remainingOutput)) {
                 $realTimeOutput .= $remainingOutput;
             }
-            
+
             Log::info('⏸️ Process finished', [
                 'exit_code' => $process->getExitCode(),
                 'running' => $process->isRunning(),
@@ -146,7 +180,7 @@ class ZydaScriptRunner
                 'exit_code' => $process->getExitCode(),
                 'running' => $process->isRunning(),
             ]);
-            
+
             // Try to get output even if there was an error
             if (!$process->isRunning()) {
                 $realTimeOutput .= $process->getOutput();
