@@ -38,12 +38,49 @@ class ShippingController extends Controller
             return response()->json(['error' => 'Order not found'], 404);
         }
 
+        // Log attempt
+        \Illuminate\Support\Facades\Log::info('🔄 Manual shipping order creation attempt', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'shop_id' => $order->shop_id,
+            'current_dsp_order_id' => $order->dsp_order_id,
+        ]);
+
         $shippingOrder = $this->shippingService->createOrder($order);
         if (!$shippingOrder) {
-            return response()->json(['error' => 'Failed to create shipping order. Check logs.'], 500);
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to create shipping order. Check logs for details.',
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'message' => 'Review storage/logs/laravel.log for detailed error information'
+            ], 500);
         }
 
-        return response()->json($shippingOrder);
+        // Update order with dsp_order_id if returned
+        if (isset($shippingOrder['dsp_order_id'])) {
+            $order->dsp_order_id = $shippingOrder['dsp_order_id'];
+            $order->shipping_status = $shippingOrder['shipping_status'] ?? 'New Order';
+            $order->save();
+
+            \Illuminate\Support\Facades\Log::info('✅ Order updated with shipping information', [
+                'order_id' => $order->id,
+                'dsp_order_id' => $order->dsp_order_id,
+                'shipping_status' => $order->shipping_status,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order sent to shipping company successfully',
+            'data' => $shippingOrder,
+            'order' => [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'dsp_order_id' => $order->dsp_order_id,
+                'shipping_status' => $order->shipping_status,
+            ]
+        ]);
     }
 
     public function getStatus(string $dspOrderId)

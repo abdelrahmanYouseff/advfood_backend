@@ -555,6 +555,74 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Resend order to shipping company
+     */
+    public function resendToShipping(string $id)
+    {
+        $order = Order::findOrFail($id);
+
+        Log::info('🔄 Manual resend order to shipping company', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'shop_id' => $order->shop_id,
+            'current_dsp_order_id' => $order->dsp_order_id,
+        ]);
+
+        // Check if order already has dsp_order_id
+        if (!empty($order->dsp_order_id)) {
+            return redirect()->back()
+                ->with('info', 'الطلب تم إرساله بالفعل إلى شركة الشحن (DSP Order ID: ' . $order->dsp_order_id . ')');
+        }
+
+        // Check if order has shop_id
+        if (empty($order->shop_id)) {
+            return redirect()->back()
+                ->with('error', 'الطلب لا يحتوي على shop_id. يرجى التأكد من إعدادات المطعم.');
+        }
+
+        try {
+            $shippingService = new \App\Services\ShippingService();
+            $shippingResult = $shippingService->createOrder($order);
+
+            if ($shippingResult && isset($shippingResult['dsp_order_id'])) {
+                // Update order with shipping information
+                $order->dsp_order_id = $shippingResult['dsp_order_id'];
+                $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
+                $order->save();
+
+                Log::info('✅ Order resent to shipping company successfully', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'dsp_order_id' => $order->dsp_order_id,
+                    'shipping_status' => $order->shipping_status,
+                ]);
+
+                return redirect()->back()
+                    ->with('success', 'تم إرسال الطلب إلى شركة الشحن بنجاح! (DSP Order ID: ' . $order->dsp_order_id . ')');
+            } else {
+                Log::warning('⚠️ Failed to resend order to shipping company', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'reason' => 'Shipping service returned null or no dsp_order_id',
+                ]);
+
+                return redirect()->back()
+                    ->with('error', 'فشل إرسال الطلب إلى شركة الشحن. يرجى مراجعة السجلات (storage/logs/laravel.log) للتفاصيل.');
+            }
+        } catch (\Exception $e) {
+            Log::error('❌ Error resending order to shipping company', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'حدث خطأ أثناء إرسال الطلب: ' . $e->getMessage());
+        }
+    }
+
     protected function generateOrderNumber(): string
     {
         $date = now()->format('Ymd');

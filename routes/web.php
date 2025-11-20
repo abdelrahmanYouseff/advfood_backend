@@ -57,6 +57,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('orders', OrderController::class);
     Route::patch('orders/{order}/accept', [OrderController::class, 'accept'])->name('orders.accept');
     Route::post('orders/{order}/update-status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
+    Route::post('orders/{order}/resend-shipping', [OrderController::class, 'resendToShipping'])->name('orders.resend-shipping');
     Route::post('orders/create-test', [OrderController::class, 'createTestOrder'])->name('orders.create-test');
     Route::delete('orders/delete-test', [OrderController::class, 'deleteTestOrders'])->name('orders.delete-test');
     Route::post('orders/sync-zyda', ZydaSyncController::class)->name('orders.sync-zyda');
