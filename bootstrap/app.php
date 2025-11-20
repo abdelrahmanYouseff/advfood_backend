@@ -28,9 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('sync:zyda-orders')
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping(5) // Release lock after 5 minutes if still running
             ->appendOutputTo(storage_path('logs/schedule.log'))
-            ->emailOutputOnFailure(env('ADMIN_EMAIL'));
+            ->emailOutputOnFailure(env('ADMIN_EMAIL', null));
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
