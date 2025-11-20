@@ -105,6 +105,17 @@ class Order extends Model
 
             // Send order to shipping company automatically after order is created
             // Send ALL orders that have shop_id (regardless of payment status)
+            \Illuminate\Support\Facades\Log::info('🔍 Checking if order should be sent to shipping company', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'shop_id' => $order->shop_id ?? 'NULL',
+                'shop_id_type' => gettype($order->shop_id),
+                'shop_id_empty' => empty($order->shop_id),
+                'shop_id_not_empty' => !empty($order->shop_id),
+                'payment_status' => $order->payment_status,
+                'source' => $order->source ?? 'NULL',
+            ]);
+
             if (!empty($order->shop_id)) {
                 try {
                     \Illuminate\Support\Facades\Log::info('📦 Sending order to shipping company automatically after creation', [
@@ -112,6 +123,7 @@ class Order extends Model
                         'order_number' => $order->order_number,
                         'shop_id' => $order->shop_id,
                         'payment_status' => $order->payment_status,
+                        'source' => $order->source ?? 'NULL',
                     ]);
 
                     $shippingService = new \App\Services\ShippingService();

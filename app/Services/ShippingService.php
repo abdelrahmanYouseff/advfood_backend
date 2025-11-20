@@ -208,8 +208,12 @@ class ShippingService
 
             // Use customer_latitude and customer_longitude from order
             // These are the coordinates set by the customer when they select their location
-            $latitude = isset($orderObj->customer_latitude) ? $orderObj->customer_latitude : null;
-            $longitude = isset($orderObj->customer_longitude) ? $orderObj->customer_longitude : null;
+            $latitude = isset($orderObj->customer_latitude) && !empty($orderObj->customer_latitude) 
+                ? (float) $orderObj->customer_latitude 
+                : null;
+            $longitude = isset($orderObj->customer_longitude) && !empty($orderObj->customer_longitude) 
+                ? (float) $orderObj->customer_longitude 
+                : null;
 
             Log::info('📍 Customer location coordinates', [
                 'order_id' => $orderObj->id ?? null,
@@ -217,7 +221,39 @@ class ShippingService
                 'customer_latitude' => $latitude,
                 'customer_longitude' => $longitude,
                 'has_coordinates' => !is_null($latitude) && !is_null($longitude),
+                'latitude_type' => gettype($latitude),
+                'longitude_type' => gettype($longitude),
             ]);
+
+            // Validate required fields before building payload
+            $missingFields = [];
+            if (empty($orderObj->delivery_name)) {
+                $missingFields[] = 'delivery_name';
+            }
+            if (empty($orderObj->delivery_phone)) {
+                $missingFields[] = 'delivery_phone';
+            }
+            if (empty($orderObj->delivery_address)) {
+                $missingFields[] = 'delivery_address';
+            }
+            if (is_null($latitude) || is_null($longitude)) {
+                $missingFields[] = 'coordinates';
+            }
+
+            if (!empty($missingFields)) {
+                Log::error('❌ Missing required fields for shipping API', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderIdString,
+                    'missing_fields' => $missingFields,
+                    'delivery_name' => $orderObj->delivery_name ?? 'MISSING',
+                    'delivery_phone' => $orderObj->delivery_phone ?? 'MISSING',
+                    'delivery_address' => $orderObj->delivery_address ?? 'MISSING',
+                    'customer_latitude' => $orderObj->customer_latitude ?? 'MISSING',
+                    'customer_longitude' => $orderObj->customer_longitude ?? 'MISSING',
+                ]);
+                
+                // Still try to send, but log the warning
+            }
 
             // Use phone number as-is (without appending order ID)
             // Remove any existing suffix if present (from previous orders)
@@ -236,25 +272,41 @@ class ShippingService
             // IMPORTANT: The 'id' field MUST contain order_number (e.g., ORD-20251104-D80175)
             // We NEVER use the internal database id - only order_number
             // This is the same order_number that appears in the system and is tracked everywhere
+            
+            // Build coordinate object - only include if both lat and lng are available
+            $coordinate = null;
+            if (!is_null($latitude) && !is_null($longitude)) {
+                $coordinate = [
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                ];
+            }
+
             $payload = [
                 'id' => $orderIdString, // This is the order_number (e.g., ORD-20251104-D80175) - NOT the database id
                 'shop_id' => $shopIdForApi,
-                'delivery_details' => [
+                'delivery_details' => array_filter([
                     'name' => $orderObj->delivery_name ?? null,
                     'phone' => $uniquePhone,
                     'email' => $uniqueEmail,
-                    'coordinate' => [
-                        'latitude' => $latitude,
-                        'longitude' => $longitude,
-                    ],
+                    'coordinate' => $coordinate, // Only include if coordinates are available
                     'address' => $orderObj->delivery_address ?? null,
-                ],
-                'order' => [
+                ], function($value) {
+                    return !is_null($value) && $value !== '';
+                }),
+                'order' => array_filter([
                     'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
                     'total' => (float) ($orderObj->total ?? 0),
                     'notes' => $orderObj->special_instructions ?? null,
-                ],
+                ], function($value) {
+                    return !is_null($value) && $value !== '';
+                }),
             ];
+
+            // Remove coordinate from delivery_details if it's null
+            if (is_null($coordinate)) {
+                unset($payload['delivery_details']['coordinate']);
+            }
 
             Log::info('📋 Shipping payload prepared with order_number (NOT id)', [
                 'order_id' => $orderObj->id ?? null,
@@ -304,6 +356,9 @@ class ShippingService
                 : $request->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
 
             // Log immediate response details
+            $responseBody = $response ? $response->body() : null;
+            $responseJson = $response ? $response->json() : null;
+            
             Log::info('📡 Shipping API Response Received (immediate)', [
                 'order_id' => $orderObj->id ?? null,
                 'order_number' => $orderObj->order_number ?? 'MISSING',
@@ -312,8 +367,10 @@ class ShippingService
                 'http_status' => $response ? $response->status() : 'NO_RESPONSE',
                 'response_successful' => $response ? $response->successful() : false,
                 'response_failed' => $response ? $response->failed() : true,
-                'response_body_preview' => $response ? substr($response->body(), 0, 500) : 'NO_RESPONSE',
+                'response_body_full' => $responseBody, // Log full response body
+                'response_json' => $responseJson, // Log parsed JSON
                 'url' => $url,
+                'payload_sent' => $payload, // Log what was sent
             ]);
 
             // Log the response details

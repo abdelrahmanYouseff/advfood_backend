@@ -334,7 +334,28 @@ class ZydaOrderController extends Controller
         $coordinates = $locationData['coordinates'] ?? null;
         
         // Get shop_id from restaurant
-        $shopId = $restaurant->shop_id ?? (string) $restaurant->id;
+        // IMPORTANT: If restaurant doesn't have shop_id, use a default or restaurant id
+        // Make sure shop_id is never empty so order can be sent to shipping
+        $shopId = !empty($restaurant->shop_id) ? $restaurant->shop_id : (string) $restaurant->id;
+        
+        // Ensure shop_id is not empty string
+        if (empty($shopId) || trim($shopId) === '') {
+            $shopId = (string) $restaurant->id; // Fallback to restaurant ID
+            Log::warning('⚠️ Restaurant shop_id is empty, using restaurant ID as fallback', [
+                'restaurant_id' => $restaurant->id,
+                'fallback_shop_id' => $shopId,
+            ]);
+        }
+
+        Log::info('🔍 Zyda Order Creation - Checking shop_id', [
+            'restaurant_id' => $restaurant->id,
+            'restaurant_name' => $restaurant->name ?? 'N/A',
+            'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
+            'shop_id_to_use' => $shopId,
+            'shop_id_type' => gettype($shopId),
+            'shop_id_empty' => empty($shopId),
+            'shop_id_trimmed_empty' => trim($shopId) === '',
+        ]);
 
         // Generate order number
         $orderNumber = 'ZYDA-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
@@ -342,6 +363,15 @@ class ZydaOrderController extends Controller
         // Use the exact total_amount from Zyda order (no additional fees or tax)
         // Each order should have its own data only, as it comes from Zyda
         $totalAmount = (float) $zydaOrder->total_amount;
+
+        Log::info('📦 Creating Order from ZydaOrder', [
+            'zyda_order_id' => $zydaOrder->id,
+            'order_number' => $orderNumber,
+            'restaurant_id' => $restaurant->id,
+            'shop_id' => $shopId,
+            'total_amount' => $totalAmount,
+            'has_coordinates' => !empty($coordinates),
+        ]);
 
         // Create the order with exact amount from Zyda
         $order = Order::create([
@@ -363,6 +393,14 @@ class ZydaOrderController extends Controller
             'payment_method' => 'cash',
             'payment_status' => 'paid', // Set as paid to show in orders list
             'sound' => true,
+        ]);
+
+        Log::info('✅ Order created from ZydaOrder', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'shop_id' => $order->shop_id,
+            'payment_status' => $order->payment_status,
+            'source' => $order->source,
         ]);
 
         // Link zyda_order to the created order
