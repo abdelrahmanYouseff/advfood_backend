@@ -361,48 +361,87 @@ class ZydaOrderController extends Controller
         // Each order should have its own data only, as it comes from Zyda
         $totalAmount = (float) $zydaOrder->total_amount;
 
-        Log::info('📦 Creating Order from ZydaOrder with same config as successful orders', [
+        // Validate required data for shipping
+        $deliveryName = $zydaOrder->name ?? 'عميل';
+        $deliveryPhone = $zydaOrder->phone ?? null;
+        $deliveryAddress = $zydaOrder->address ?? 'عنوان غير محدد';
+        $customerLatitude = $coordinates['latitude'] ?? null;
+        $customerLongitude = $coordinates['longitude'] ?? null;
+
+        // Log validation before creating order
+        Log::info('📦 Creating Order from ZydaOrder - Validating required data for shipping', [
             'zyda_order_id' => $zydaOrder->id,
             'order_number' => $orderNumber,
             'user_id' => $userId,
             'restaurant_id' => $restaurantId,
             'shop_id' => $shopId,
             'total_amount' => $totalAmount,
-            'has_coordinates' => !empty($coordinates),
-            'status' => 'confirmed', // Same as successful order
-            'payment_method' => 'online', // Same as successful order
+            'delivery_name' => $deliveryName,
+            'delivery_phone' => $deliveryPhone,
+            'delivery_address' => $deliveryAddress,
+            'has_coordinates' => !empty($customerLatitude) && !empty($customerLongitude),
+            'customer_latitude' => $customerLatitude,
+            'customer_longitude' => $customerLongitude,
+            'status' => 'confirmed',
+            'payment_method' => 'online',
+            'payment_status' => 'paid',
         ]);
 
-        // Create the order with same configuration as successful order (id: 133)
-        // This ensures it will be accepted by shipping company
+        // Validate critical fields before creating order
+        $missingFields = [];
+        if (empty($deliveryName)) {
+            $missingFields[] = 'delivery_name';
+        }
+        if (empty($deliveryPhone)) {
+            $missingFields[] = 'delivery_phone';
+        }
+        if (empty($deliveryAddress)) {
+            $missingFields[] = 'delivery_address';
+        }
+        if (empty($customerLatitude) || empty($customerLongitude)) {
+            $missingFields[] = 'coordinates';
+        }
+
+        if (!empty($missingFields)) {
+            Log::warning('⚠️ Missing required fields for shipping', [
+                'zyda_order_id' => $zydaOrder->id,
+                'missing_fields' => $missingFields,
+            ]);
+        }
+
+        // Create the order with basic data only (as requested)
+        // The Order Model boot method will automatically send it to shipping company
         $order = Order::create([
             'order_number' => $orderNumber,
-            'user_id' => $userId, // Fixed: 36 (same as successful order)
-            'restaurant_id' => $restaurantId, // Fixed: 821017372 (same as successful order)
+            'user_id' => $userId, // Fixed: 36
+            'restaurant_id' => $restaurantId, // Fixed: 821017372
             'shop_id' => $shopId, // Fixed: 11185 (required for Zyda orders)
-            'status' => 'confirmed', // Fixed: confirmed (same as successful order, not pending)
-            'shipping_status' => 'New Order', // Set shipping status
+            'status' => 'confirmed', // Must be confirmed
+            'shipping_status' => 'New Order',
             'source' => 'zyda',
-            'subtotal' => $totalAmount, // Use total from Zyda as subtotal
-            'delivery_fee' => 0, // No additional delivery fee
-            'tax' => 0, // No additional tax (already included in Zyda total)
-            'total' => $totalAmount, // Use exact total from Zyda
-            'delivery_address' => $zydaOrder->address ?? 'عنوان غير محدد',
-            'delivery_phone' => $zydaOrder->phone,
-            'delivery_name' => $zydaOrder->name ?? 'عميل',
-            'customer_latitude' => $coordinates['latitude'] ?? null,
-            'customer_longitude' => $coordinates['longitude'] ?? null,
-            'payment_method' => 'online', // Fixed: online (same as successful order, not cash)
-            'payment_status' => 'paid', // Already paid
+            'subtotal' => $totalAmount,
+            'delivery_fee' => 0,
+            'tax' => 0,
+            'total' => $totalAmount,
+            // Basic customer data only
+            'delivery_name' => $deliveryName,
+            'delivery_phone' => $deliveryPhone,
+            'delivery_address' => $deliveryAddress,
+            'customer_latitude' => $customerLatitude,
+            'customer_longitude' => $customerLongitude,
+            'payment_method' => 'online', // Must be online
+            'payment_status' => 'paid', // Must be paid
             'sound' => true,
         ]);
 
-        Log::info('✅ Order created from ZydaOrder', [
+        Log::info('✅ Order created from ZydaOrder - Will be sent to shipping automatically', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
             'shop_id' => $order->shop_id,
             'payment_status' => $order->payment_status,
             'source' => $order->source,
+            'has_coordinates' => !empty($order->customer_latitude) && !empty($order->customer_longitude),
+            'note' => 'Order Model boot method will automatically send to shipping company',
         ]);
 
         // Link zyda_order to the created order

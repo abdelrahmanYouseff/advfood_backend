@@ -565,11 +565,24 @@ class ShippingService
                 'updated_at' => now(),
             ];
 
-            DB::table('shipping_orders')->insert($row);
+            // Try to insert into shipping_orders table
+            try {
+                DB::table('shipping_orders')->insert($row);
+                Log::info('✅ Shipping order saved to shipping_orders table', [
+                    'order_id' => $orderObj->id ?? null,
+                    'dsp_order_id' => $dspOrderId,
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('⚠️ Failed to insert into shipping_orders table (may already exist)', [
+                    'order_id' => $orderObj->id ?? null,
+                    'dsp_order_id' => $dspOrderId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             // Log final success with all details
-            Log::info('🎉 Order successfully sent to shipping company and saved!', [
-                'order_id' => $orderObj->id,
+            Log::info('🎉 Order successfully sent to shipping company!', [
+                'order_id' => $orderObj->id ?? null,
                 'order_number' => $orderIdString,
                 'dsp_order_id' => $dspOrderId,
                 'shipping_status' => $shippingStatus,
@@ -584,9 +597,18 @@ class ShippingService
                     'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
                     'notes' => $orderObj->special_instructions ?? null,
                 ],
+                'note' => 'Returning dsp_order_id to Order Model boot method for saving',
             ]);
 
-            return $row;
+            // IMPORTANT: Return array with dsp_order_id so Order Model boot method can save it
+            // This ensures dsp_order_id is saved in orders table
+            return [
+                'dsp_order_id' => $dspOrderId,
+                'shipping_status' => $shippingStatus,
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderIdString,
+                'shop_id' => $shopIdString,
+            ];
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             // Handle connection errors (network issues, DNS, etc.)
             Log::error('🔴 Connection Exception - Cannot reach shipping API', [

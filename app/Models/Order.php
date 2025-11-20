@@ -149,6 +149,20 @@ class Order extends Model
                             $order->dsp_order_id = $shippingResult['dsp_order_id'];
                             $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
                             $order->save();
+
+                            \Illuminate\Support\Facades\Log::info('✅ Order updated with dsp_order_id from shipping company', [
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'dsp_order_id' => $order->dsp_order_id,
+                                'shipping_status' => $order->shipping_status,
+                            ]);
+                        } else {
+                            \Illuminate\Support\Facades\Log::warning('⚠️ Shipping result received but no dsp_order_id found', [
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'shipping_result_keys' => array_keys($shippingResult ?? []),
+                                'shipping_result' => $shippingResult,
+                            ]);
                         }
                     } else {
                         \Illuminate\Support\Facades\Log::warning('⚠️ Failed to automatically send order to shipping company after creation', [
