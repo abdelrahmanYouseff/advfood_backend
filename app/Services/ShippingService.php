@@ -481,6 +481,7 @@ class ShippingService
                     ]);
                 }
 
+                // CRITICAL: Log detailed error before returning null
                 Log::error('🛑 ShippingService::createOrder() returning NULL due to failed response', [
                     'order_id' => $orderObj->id ?? null,
                     'order_number' => $orderObj->order_number ?? 'MISSING',
@@ -490,13 +491,20 @@ class ShippingService
                     'response_body' => $responseBody,
                     'response_json' => $responseJson,
                     'payload_sent' => $payload,
+                    'shop_id_used' => $shopIdForApi,
+                    'delivery_details' => $payload['delivery_details'] ?? 'MISSING',
+                    'order_details' => $payload['order'] ?? 'MISSING',
                 ]);
 
                 // Log the specific validation errors from shipping company for 422 errors
-                if ($statusCode === 422 && isset($responseJson['errors'])) {
-                    Log::error('🔴 VALIDATION ERRORS FROM SHIPPING COMPANY:', [
-                        'errors' => $responseJson['errors'],
+                if ($statusCode === 422) {
+                    Log::error('🔴 VALIDATION ERROR (422) FROM SHIPPING COMPANY:', [
+                        'order_id' => $orderObj->id ?? null,
+                        'order_number' => $orderIdString,
+                        'shop_id' => $shopIdForApi,
+                        'errors' => $responseJson['errors'] ?? 'No errors array provided',
                         'message' => $responseJson['message'] ?? 'Validation failed',
+                        'full_response' => $responseJson,
                         'payload_sent' => $payload,
                         'check_fields' => [
                             'shop_id' => $shopIdForApi,
@@ -506,7 +514,31 @@ class ShippingService
                             'has_coordinate' => isset($payload['delivery_details']['coordinate']),
                             'coordinate' => $payload['delivery_details']['coordinate'] ?? 'MISSING',
                             'total' => $payload['order']['total'] ?? 'MISSING',
+                            'payment_type' => $payload['order']['payment_type'] ?? 'MISSING',
                         ],
+                        'diagnosis' => 'Check the errors array above to see which fields are invalid',
+                    ]);
+                } elseif ($statusCode === 401) {
+                    Log::error('🔴 AUTHENTICATION ERROR (401) - Invalid API Key', [
+                        'order_id' => $orderObj->id ?? null,
+                        'order_number' => $orderIdString,
+                        'api_key_length' => strlen($this->apiKey ?? ''),
+                        'api_key_prefix' => substr($this->apiKey ?? '', 0, 20) . '...',
+                    ]);
+                } elseif ($statusCode === 404) {
+                    Log::error('🔴 NOT FOUND (404) - Invalid endpoint', [
+                        'order_id' => $orderObj->id ?? null,
+                        'order_number' => $orderIdString,
+                        'url' => $url,
+                        'endpoint' => $this->endpoints['create'],
+                    ]);
+                } else {
+                    Log::error('🔴 UNKNOWN ERROR from shipping company', [
+                        'order_id' => $orderObj->id ?? null,
+                        'order_number' => $orderIdString,
+                        'http_status' => $statusCode,
+                        'response_body' => $responseBody,
+                        'response_json' => $responseJson,
                     ]);
                 }
 

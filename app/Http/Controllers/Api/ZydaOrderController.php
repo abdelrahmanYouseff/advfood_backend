@@ -493,15 +493,22 @@ class ZydaOrderController extends Controller
             'step' => 'Calling Order::create() - static::created will fire',
         ]);
 
-        // Create the order with basic data only (as requested)
-        // The Order Model boot method (static::created) will automatically fire after insert
-        // This will trigger automatic contact with shipping company to get dsp_order_id
+        // IMPORTANT: Create Order same way as successful orders (RestLinkController pattern)
+        // Step 1: Create order with payment_status = 'pending' (like normal orders)
+        // Step 2: Then update to 'paid' to trigger static::updated event
+        // This ensures same flow as successful orders
+        Log::info('📝 Step 1: Creating Order with payment_status=pending (like normal orders)', [
+            'zyda_order_id' => $zydaOrder->id,
+            'shop_id' => $shopId,
+            'step' => 'Calling Order::create() with payment_status=pending',
+        ]);
+
         $order = Order::create([
             'order_number' => $orderNumber,
             'user_id' => $userId, // Fixed: 36
             'restaurant_id' => $restaurantId, // Fixed: 821017372
             'shop_id' => $shopId, // Fixed: 11185 (required for Zyda orders)
-            'status' => 'confirmed', // Must be confirmed
+            'status' => 'pending', // Start as pending (like normal orders)
             'shipping_status' => 'New Order',
             'source' => 'zyda',
             'subtotal' => $totalAmount,
@@ -515,21 +522,42 @@ class ZydaOrderController extends Controller
             'customer_latitude' => $customerLatitude,
             'customer_longitude' => $customerLongitude,
             'payment_method' => 'online', // Must be online
-            'payment_status' => 'paid', // Must be paid
+            'payment_status' => 'pending', // Start as pending (like normal orders)
             'sound' => true,
         ]);
 
-        // IMPORTANT: Refresh order to get dsp_order_id if boot method already saved it
-        // Boot method runs synchronously, so if shipping was successful, dsp_order_id should be here
+        Log::info('✅ Step 1: Order created with payment_status=pending', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'payment_status' => $order->payment_status,
+            'step' => 'Now updating to payment_status=paid to trigger static::updated',
+        ]);
+
+        // Step 2: Update payment_status to 'paid' to trigger static::updated event
+        // This is the SAME pattern as successful orders (RestLinkController)
+        // The static::updated event will send order to shipping company
+        Log::info('📝 Step 2: Updating payment_status to paid (same as normal orders)', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'step' => 'This will trigger static::updated event to send to shipping',
+        ]);
+
+        $order->payment_status = 'paid';
+        $order->status = 'confirmed'; // Update status to confirmed
+        $order->save();
+
+        // IMPORTANT: Refresh order to get dsp_order_id if static::updated event saved it
+        // static::updated event runs synchronously, so if shipping was successful, dsp_order_id should be here
         $order->refresh();
 
-        Log::info('✅ Order created from ZydaOrder - boot method should have fired', [
+        Log::info('✅ Order created from ZydaOrder - Following same pattern as successful orders', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
             'shop_id' => $order->shop_id,
             'payment_status' => $order->payment_status,
+            'status' => $order->status,
             'source' => $order->source,
-            'dsp_order_id' => $order->dsp_order_id ?? 'NULL (check logs for boot method execution)',
+            'dsp_order_id' => $order->dsp_order_id ?? 'NULL (check logs for static::updated event execution)',
             'shipping_status' => $order->shipping_status,
             'has_coordinates' => !empty($order->customer_latitude) && !empty($order->customer_longitude),
             'customer_latitude' => $order->customer_latitude,
@@ -538,8 +566,8 @@ class ZydaOrderController extends Controller
             'delivery_phone' => $order->delivery_phone,
             'delivery_address' => $order->delivery_address,
             'total' => $order->total,
-            'note' => 'Order Model boot method (static::created) should have automatically contacted shipping company',
-            'next_step' => 'Check logs for: 🔄 Order inserted into orders table - Starting automatic shipping company contact',
+            'note' => 'Following same pattern as RestLinkController: create with pending → update to paid → static::updated sends to shipping',
+            'next_step' => 'Check logs for: 🔄 ORDER MODEL UPDATED EVENT TRIGGERED → ✅ PAYMENT_STATUS CHANGED TO PAID',
         ]);
 
         // Link zyda_order to the created order

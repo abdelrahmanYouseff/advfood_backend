@@ -166,14 +166,40 @@ class Order extends Model
                         ]);
                     } else {
                         // FAILURE: Shipping company did not return dsp_order_id
+                        // Check logs immediately before this for detailed error from ShippingService
                         \Illuminate\Support\Facades\Log::error('❌ Shipping company did not return dsp_order_id', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'shop_id' => $order->shop_id,
                             'shipping_result' => $shippingResult,
+                            'shipping_result_type' => gettype($shippingResult),
                             'shipping_result_keys' => array_keys($shippingResult ?? []),
-                            'reason' => 'Shipping service returned null or no dsp_order_id - Check logs for API error details',
+                            'reason' => 'Shipping service returned null or no dsp_order_id',
+                            'note' => 'Check logs immediately above for detailed error from ShippingService',
+                            'check_for' => [
+                                '📡 Shipping API Response Received (immediate)',
+                                '❌ Failed to send order to shipping company',
+                                '🔴 VALIDATION ERROR (422) FROM SHIPPING COMPANY:',
+                                '🔴 AUTHENTICATION ERROR (401)',
+                                '🛑 ShippingService::createOrder() returning NULL',
+                            ],
                             'step' => 'FAILED - Order NOT sent to shipping company',
+                        ]);
+
+                        // Also log the order data that was sent to help debug
+                        \Illuminate\Support\Facades\Log::info('📋 Order data that was sent to shipping company', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'shop_id' => $order->shop_id,
+                            'delivery_name' => $order->delivery_name,
+                            'delivery_phone' => $order->delivery_phone,
+                            'delivery_address' => $order->delivery_address,
+                            'customer_latitude' => $order->customer_latitude,
+                            'customer_longitude' => $order->customer_longitude,
+                            'total' => $order->total,
+                            'payment_method' => $order->payment_method,
+                            'payment_status' => $order->payment_status,
+                            'source' => $order->source,
                         ]);
                     }
                 } catch (\Exception $e) {
