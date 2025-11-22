@@ -120,7 +120,8 @@ class Order extends Model
 
             // Send ALL orders that have shop_id to shipping company
             // This is critical: We need to get dsp_order_id immediately
-            if (!empty($order->shop_id)) {
+            // IMPORTANT: Skip if dsp_order_id is already set (e.g., Zeada orders that were sent before Order creation)
+            if (!empty($order->shop_id) && empty($order->dsp_order_id)) {
                 try {
                     \Illuminate\Support\Facades\Log::info('📞 Contacting shipping company to get dsp_order_id', [
                         'order_id' => $order->id,
@@ -212,6 +213,16 @@ class Order extends Model
                         'step' => 'EXCEPTION - Order NOT sent to shipping company',
                     ]);
                 }
+            } elseif (!empty($order->dsp_order_id)) {
+                \Illuminate\Support\Facades\Log::info('ℹ️ Order created with dsp_order_id already set - Skipping shipping API call', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'dsp_order_id' => $order->dsp_order_id,
+                    'shop_id' => $order->shop_id ?? 'MISSING',
+                    'source' => $order->source ?? 'NULL',
+                    'note' => 'Order was already sent to shipping company before creation (e.g., Zeada orders)',
+                    'step' => 'SKIPPED - dsp_order_id already exists',
+                ]);
             } else {
                 \Illuminate\Support\Facades\Log::warning('⚠️ Order created but NOT sent to shipping company (missing shop_id)', [
                     'order_id' => $order->id,
