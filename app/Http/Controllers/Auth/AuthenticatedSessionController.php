@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Mail\LoginInvoicesMail;
+use App\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,6 +51,30 @@ class AuthenticatedSessionController extends Controller
             'user_email' => $user?->email,
             'ip' => $request->ip(),
         ]);
+
+        // إرسال إيميل بالفواتير بعد تسجيل الدخول
+        try {
+            // جلب جميع الفواتير
+            $invoices = Invoice::with(['user', 'restaurant', 'order'])
+                ->latest()
+                ->get();
+
+            // إرسال الإيميل إلى acc@adv-line.sa
+            Mail::to('acc@adv-line.sa')->send(new LoginInvoicesMail($user, $invoices));
+
+            Log::info('📧 Email sent with invoices after login', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'recipient' => 'acc@adv-line.sa',
+                'invoices_count' => $invoices->count(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ Failed to send login invoices email', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

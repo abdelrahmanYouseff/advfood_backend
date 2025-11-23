@@ -55,11 +55,30 @@ const mainNavItems = computed(() => {
     const user = page.props.auth?.user;
     const userEmail = user?.email;
 
+    // Check if user is acc@adv-line.sa (Invoice viewer only)
+    const isInvoiceViewer = userEmail === 'acc@adv-line.sa';
+
     // Check if user is admin2@advfood.com
     const isAdmin2 = userEmail === 'admin2@advfood.com';
 
     // Check if user is admin@advfood.com
     const isAdmin = userEmail === 'admin@advfood.com';
+
+    if (isInvoiceViewer) {
+        // Only invoices menu for acc@adv-line.sa
+        return [
+            {
+                title: 'لوحة التحكم',
+                href: '/dashboard',
+                icon: LayoutGrid,
+            },
+            {
+                title: 'الفواتير',
+                href: '/invoices',
+                icon: FileText,
+            },
+        ];
+    }
 
     if (isAdmin2) {
         // Limited menu for admin2@advfood.com
@@ -214,13 +233,23 @@ const mainNavItems = computed(() => {
     ];
 });
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'الإعدادات',
-        href: '/settings/profile',
-        icon: Settings,
-    },
-];
+const footerNavItems = computed(() => {
+    const user = page.props.auth?.user;
+    const userEmail = user?.email;
+    
+    // Hide settings for acc@adv-line.sa
+    if (userEmail === 'acc@adv-line.sa') {
+        return [];
+    }
+    
+    return [
+        {
+            title: 'الإعدادات',
+            href: '/settings/profile',
+            icon: Settings,
+        },
+    ];
+});
 </script>
 
 <template>

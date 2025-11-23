@@ -14,11 +14,26 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
-            'name' => 'Admin',
-            'email' => 'admin@advfood.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password123'),
-        ]);
+        // Admin user
+        User::updateOrCreate(
+            ['email' => 'admin@advfood.com'],
+            [
+                'name' => 'Admin',
+                'email_verified_at' => now(),
+                'password' => Hash::make('password123'),
+                'role' => 'admin',
+            ]
+        );
+
+        // Invoice viewer user (acc@adv-line.sa)
+        User::updateOrCreate(
+            ['email' => 'acc@adv-line.sa'],
+            [
+                'name' => 'Invoice Viewer',
+                'email_verified_at' => now(),
+                'password' => Hash::make('password123'),
+                'role' => 'user',
+            ]
+        );
     }
 }

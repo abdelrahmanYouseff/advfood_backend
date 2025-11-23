@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/vue3';
-import { Plus, FileText, User, Store, DollarSign, Calendar, CreditCard, Hash } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { Plus, FileText, User, Store, DollarSign, Calendar, CreditCard, Hash, Search, Filter, X, Eye, TrendingUp } from 'lucide-vue-next';
+import { ref, computed } from 'vue';
 
 interface Props {
     invoices: Array<{
@@ -11,8 +12,12 @@ interface Props {
         order_reference?: string;
         status: string;
         total: number;
+        subtotal?: number;
+        delivery_fee?: number;
+        tax?: number;
         due_date: string;
         created_at: string;
+        paid_at?: string;
         user: {
             name: string;
             email: string;
@@ -24,9 +29,57 @@ interface Props {
             order_number: string;
         };
     }>;
+    filters?: {
+        search?: string;
+        date_from?: string;
+        date_to?: string;
+        status?: string;
+    };
 }
 
 const props = defineProps<Props>();
+
+// Filter state
+const searchQuery = ref(props.filters?.search || '');
+const dateFrom = ref(props.filters?.date_from || '');
+const dateTo = ref(props.filters?.date_to || '');
+const statusFilter = ref(props.filters?.status || 'all');
+
+// Statistics
+const totalInvoices = computed(() => props.invoices.length);
+const totalAmount = computed(() => props.invoices.reduce((sum, inv) => sum + inv.total, 0));
+const paidInvoices = computed(() => props.invoices.filter(inv => inv.status === 'paid').length);
+const pendingInvoices = computed(() => props.invoices.filter(inv => inv.status === 'pending').length);
+
+// Apply filters
+const applyFilters = () => {
+    router.get(route('invoices.index'), {
+        search: searchQuery.value || null,
+        date_from: dateFrom.value || null,
+        date_to: dateTo.value || null,
+        status: statusFilter.value !== 'all' ? statusFilter.value : null,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+// Clear filters
+const clearFilters = () => {
+    searchQuery.value = '';
+    dateFrom.value = '';
+    dateTo.value = '';
+    statusFilter.value = 'all';
+    router.get(route('invoices.index'), {}, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+// Check if any filter is active
+const hasActiveFilters = computed(() => {
+    return searchQuery.value || dateFrom.value || dateTo.value || statusFilter.value !== 'all';
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -50,10 +103,18 @@ const getStatusColor = (status: string) => {
 };
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('ar-SA', {
         style: 'currency',
         currency: 'SAR',
     }).format(amount);
+};
+
+const formatDate = (date: string) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 const getStatusText = (status: string) => {
@@ -68,93 +129,252 @@ const getStatusText = (status: string) => {
 </script>
 
 <template>
-    <Head title="Invoices" />
+    <Head title="الفواتير" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold">الفواتير</h1>
-                    <p class="text-muted-foreground">إدارة جميع فواتير العملاء</p>
+                    <h1 class="text-3xl font-bold">الفواتير</h1>
+                    <p class="text-muted-foreground mt-1">إدارة جميع فواتير العملاء</p>
                 </div>
                 <Link
                     :href="route('invoices.create')"
-                    class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                 >
                     <Plus class="h-4 w-4" />
                     إنشاء فاتورة
                 </Link>
             </div>
 
-            <!-- Invoices List -->
-            <div class="space-y-4">
-                <div v-for="invoice in invoices" :key="invoice.id" class="rounded-xl border bg-card p-6 shadow-sm">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                            <div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/20">
-                                <FileText class="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                                <div class="flex items-center space-x-2">
-                                    <h3 class="font-semibold">{{ invoice.invoice_number }}</h3>
-                                    <span :class="['inline-flex rounded-full px-2 py-1 text-xs font-medium', getStatusColor(invoice.status)]">
-                                        {{ getStatusText(invoice.status) }}
-                                    </span>
-                                </div>
-                                <div class="mt-1 flex items-center space-x-4 text-sm text-muted-foreground">
-                                    <div class="flex items-center space-x-1">
-                                        <User class="h-4 w-4" />
-                                        <span>{{ invoice.user.name }}</span>
-                                    </div>
-                                    <div class="flex items-center space-x-1">
-                                        <Store class="h-4 w-4" />
-                                        <span>{{ invoice.restaurant.name }}</span>
-                                    </div>
-                                    <div class="flex items-center space-x-1">
-                                        <CreditCard class="h-4 w-4" />
-                                        <span>Order: {{ invoice.order.order_number }}</span>
-                                    </div>
-                                </div>
-                                <div class="mt-2 flex items-center space-x-4 text-sm text-muted-foreground">
-                                    <div class="flex items-center space-x-1">
-                                        <Calendar class="h-4 w-4" />
-                                        <span>Created: {{ new Date(invoice.created_at).toLocaleDateString() }}</span>
-                                    </div>
-                                    <div v-if="invoice.due_date" class="flex items-center space-x-1">
-                                        <Calendar class="h-4 w-4" />
-                                        <span>Due: {{ new Date(invoice.due_date).toLocaleDateString() }}</span>
-                                    </div>
-                                    <div v-if="invoice.order_reference" class="flex items-center space-x-1">
-                                        <Hash class="h-4 w-4" />
-                                        <span>Order Ref: {{ invoice.order_reference }}</span>
-                                    </div>
-                                </div>
-                            </div>
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="rounded-lg border bg-card p-4">
+                    <div class="flex items-center gap-2">
+                        <FileText class="h-5 w-5 text-blue-600" />
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">إجمالي الفواتير</p>
+                            <p class="text-2xl font-bold">{{ totalInvoices }}</p>
                         </div>
-                        <div class="text-right">
-                            <div class="text-lg font-semibold text-green-600">{{ formatCurrency(invoice.total) }}</div>
-                            <div class="mt-2 flex space-x-2">
-                                <Link
-                                    :href="route('invoices.show', invoice.id)"
-                                    class="rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
-                                >
-                                    عرض
-                                </Link>
-                            </div>
+                    </div>
+                </div>
+                <div class="rounded-lg border bg-card p-4">
+                    <div class="flex items-center gap-2">
+                        <DollarSign class="h-5 w-5 text-green-600" />
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">إجمالي المبلغ</p>
+                            <p class="text-2xl font-bold">{{ formatCurrency(totalAmount) }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="rounded-lg border bg-card p-4">
+                    <div class="flex items-center gap-2">
+                        <TrendingUp class="h-5 w-5 text-emerald-600" />
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">مدفوعة</p>
+                            <p class="text-2xl font-bold">{{ paidInvoices }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="rounded-lg border bg-card p-4">
+                    <div class="flex items-center gap-2">
+                        <Calendar class="h-5 w-5 text-yellow-600" />
+                        <div>
+                            <p class="text-sm font-medium text-muted-foreground">معلقة</p>
+                            <p class="text-2xl font-bold">{{ pendingInvoices }}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Filters -->
+            <div class="rounded-lg border bg-card p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <Filter class="h-5 w-5 text-muted-foreground" />
+                        <h3 class="font-semibold text-lg">الفلاتر والبحث</h3>
+                    </div>
+                    <button
+                        v-if="hasActiveFilters"
+                        @click="clearFilters"
+                        class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        <X class="h-4 w-4" />
+                        مسح الفلاتر
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap items-end gap-4">
+                    <!-- Search -->
+                    <div class="relative flex-1 min-w-[200px]">
+                        <Search class="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <input
+                            v-model="searchQuery"
+                            @keyup.enter="applyFilters"
+                            type="text"
+                            placeholder="البحث برقم الفاتورة، اسم العميل، المطعم..."
+                            class="w-full pr-10 rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                    </div>
+
+                    <!-- Date From -->
+                    <div class="min-w-[150px]">
+                        <label class="block text-sm font-medium mb-1">من تاريخ</label>
+                        <input
+                            v-model="dateFrom"
+                            type="date"
+                            class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                    </div>
+
+                    <!-- Date To -->
+                    <div class="min-w-[150px]">
+                        <label class="block text-sm font-medium mb-1">إلى تاريخ</label>
+                        <input
+                            v-model="dateTo"
+                            type="date"
+                            class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="min-w-[150px]">
+                        <label class="block text-sm font-medium mb-1">الحالة</label>
+                        <select
+                            v-model="statusFilter"
+                            class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option value="all">جميع الحالات</option>
+                            <option value="pending">معلق</option>
+                            <option value="paid">مدفوع</option>
+                            <option value="overdue">متأخر</option>
+                            <option value="cancelled">ملغي</option>
+                        </select>
+                    </div>
+
+                    <!-- Apply Button -->
+                    <div>
+                        <button
+                            @click="applyFilters"
+                            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors h-[42px]"
+                        >
+                            <Search class="h-4 w-4" />
+                            تطبيق الفلاتر
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoices Table -->
+            <div class="rounded-lg border bg-card">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[1000px] text-sm">
+                        <thead>
+                            <tr class="border-b bg-muted/50">
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">رقم الفاتورة</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">العميل</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">المطعم</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">رقم الطلب</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">المبلغ</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">الحالة</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">تاريخ الإنشاء</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">تاريخ الاستحقاق</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="invoice in invoices"
+                                :key="invoice.id"
+                                class="border-b transition-colors hover:bg-muted/50"
+                            >
+                                <td class="p-3">
+                                    <div class="flex items-center gap-2">
+                                        <div class="rounded-lg bg-blue-100 p-1.5 dark:bg-blue-900/20">
+                                            <FileText class="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                            <div class="font-medium text-xs">{{ invoice.invoice_number }}</div>
+                                            <div v-if="invoice.order_reference" class="text-[10px] text-muted-foreground">
+                                                Ref: {{ invoice.order_reference }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <div class="flex items-center gap-2">
+                                        <User class="h-3 w-3 text-muted-foreground" />
+                                        <div>
+                                            <div class="font-medium text-xs">{{ invoice.user.name }}</div>
+                                            <div class="text-[10px] text-muted-foreground">{{ invoice.user.email }}</div>
+                                </div>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <div class="flex items-center gap-2">
+                                        <Store class="h-3 w-3 text-muted-foreground" />
+                                        <span class="font-medium text-xs">{{ invoice.restaurant.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <div class="flex items-center gap-2">
+                                        <CreditCard class="h-3 w-3 text-muted-foreground" />
+                                        <span class="font-medium text-xs">{{ invoice.order.order_number }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <div class="text-right">
+                                        <div class="font-bold text-sm text-green-600">{{ formatCurrency(invoice.total) }}</div>
+                                        <div v-if="invoice.subtotal" class="text-[10px] text-muted-foreground">
+                                            فرعي: {{ formatCurrency(invoice.subtotal) }}
+                                </div>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <span :class="['inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium', getStatusColor(invoice.status)]">
+                                        {{ getStatusText(invoice.status) }}
+                                    </span>
+                                </td>
+                                <td class="p-3">
+                                    <div class="flex items-center gap-2 text-xs">
+                                        <Calendar class="h-3 w-3 text-muted-foreground" />
+                                        <span>{{ formatDate(invoice.created_at) }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-3">
+                                    <div v-if="invoice.due_date" class="flex items-center gap-2 text-xs">
+                                        <Calendar class="h-3 w-3 text-muted-foreground" />
+                                        <span>{{ formatDate(invoice.due_date) }}</span>
+                                    </div>
+                                    <span v-else class="text-muted-foreground text-xs">-</span>
+                                </td>
+                                <td class="p-3">
+                                <Link
+                                    :href="route('invoices.show', invoice.id)"
+                                        class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-blue-700 transition-colors"
+                                >
+                                        <Eye class="h-3 w-3" />
+                                    عرض
+                                </Link>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Empty State -->
-            <div v-if="invoices.length === 0" class="flex flex-col items-center justify-center py-12">
-                <FileText class="h-12 w-12 text-muted-foreground" />
-                <h3 class="mt-4 text-lg font-semibold">لا توجد فواتير</h3>
-                <p class="mt-2 text-muted-foreground">ستظهر الفواتير هنا عند إنشائها</p>
+            <div v-if="invoices.length === 0" class="flex flex-col items-center justify-center py-12 rounded-lg border bg-card">
+                <FileText class="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 class="text-xl font-semibold mb-2">لا توجد فواتير</h3>
+                <p class="text-muted-foreground mb-4">
+                    {{ hasActiveFilters ? 'جرب تعديل معايير البحث أو الفلتر.' : 'ستظهر الفواتير هنا عند إنشائها' }}
+                </p>
                 <Link
+                    v-if="!hasActiveFilters"
                     :href="route('invoices.create')"
-                    class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                 >
                     <Plus class="h-4 w-4" />
                     إنشاء فاتورة
