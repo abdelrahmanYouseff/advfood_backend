@@ -426,8 +426,9 @@ class ZydaOrderController extends Controller
             'note' => 'Using fixed values to match successful order configuration',
         ]);
 
-        // Generate order number
-        $orderNumber = 'ZYDA-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+        // Generate unique order number (similar to rest-links but with ZYDA prefix)
+        // Example: ZYDA-20251120-99F962
+        $orderNumber = 'ZYDA-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 
         // Use the exact total_amount from Zyda order (no additional fees or tax)
         // Each order should have its own data only, as it comes from Zyda
