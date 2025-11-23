@@ -344,7 +344,7 @@ const updateLocation = async (orderId: number) => {
             throw new Error(data.message || 'Failed to update location');
         }
 
-        // Update the order in props after successful save
+        // Update the order location locally for better UX
         const order = zydaOrders.value.find((o: ZydaOrder) => o.id === orderId);
         if (order) {
             order.location = location;
@@ -352,20 +352,19 @@ const updateLocation = async (orderId: number) => {
 
         // Check if order was created/updated (has order_id)
         const orderCreated = data.order_id || (data.data && data.data.order_id);
-        
-        // Always redirect to orders page after successful location save
+
         if (orderCreated) {
-            // If order was created/updated, show success message and redirect to orders page
-            alert('✅ تم حفظ الموقع وإنشاء الطلب بنجاح! سيتم التوجيه إلى صفحة الطلبات...');
+            // Location saved and Order created from ZydaOrder
+            alert('✅ تم حفظ الموقع وإنشاء الطلب بنجاح! سيتم تحديث قائمة طلبات Zyda.');
         } else {
-            // If location was saved but no order created yet, show success message
-            alert('✅ تم حفظ الموقع بنجاح! سيتم التوجيه إلى صفحة الطلبات...');
+            // Location saved only
+            alert('✅ تم حفظ الموقع بنجاح!');
         }
-        
-        // Redirect to orders page after a short delay
-        setTimeout(() => {
-            router.visit('/orders');
-        }, 500);
+
+        // بعد إنشاء الطلب، سيتم ربط zyda_order بـ order_id في الباك إند
+        // DashboardController يعرض "قيد الانتظار" للطلبات التي ليس لها order_id فقط
+        // لذلك نعيد تحميل بيانات تبويب Zyda مع نفس الفلتر الحالي
+        changeZydaFilter(zydaFilter.value as 'pending' | 'received');
     } catch (error: any) {
         console.error('❌ Failed to update location:', error);
         alert(error.message || 'حدث خطأ أثناء حفظ الموقع. حاول مرة أخرى.');
@@ -901,17 +900,17 @@ const getCookie = (name: string): string | null => {
                     </div>
 
                     <div class="mt-6 overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-right text-sm">
+                        <table class="min-w-[1100px] divide-y divide-gray-200 text-right text-sm table-auto">
                             <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
                                 <tr>
-                                    <th class="px-4 py-3">الاسم</th>
-                                    <th class="px-4 py-3">رقم الهاتف</th>
-                                    <th class="px-4 py-3">العنوان</th>
-                                    <th class="px-4 py-3">الموقع</th>
-                                    <th class="px-4 py-3">الإجمالي</th>
-                                    <th class="px-4 py-3">الأصناف</th>
-                                    <th class="px-4 py-3">الكود الفريد</th>
-                                    <th class="px-4 py-3">إجراءات</th>
+                                    <th class="px-4 py-3 text-right">الاسم</th>
+                                    <th class="px-4 py-3 text-right">رقم الهاتف</th>
+                                    <th class="px-4 py-3 text-right">العنوان</th>
+                                    <th class="px-4 py-3 text-right">الموقع</th>
+                                    <th class="px-4 py-3 text-right">الإجمالي</th>
+                                    <th class="px-4 py-3 text-right">الأصناف</th>
+                                    <th class="px-4 py-3 text-right">الكود الفريد</th>
+                                    <th class="px-4 py-3 text-right">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
@@ -921,21 +920,45 @@ const getCookie = (name: string): string | null => {
                                     </td>
                                 </tr>
                                 <tr v-for="order in zydaOrders" :key="order.id" class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 font-medium text-gray-900">{{ order.name ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-gray-700">{{ order.phone }}</td>
-                                    <td class="px-4 py-3 text-gray-700 max-w-xs">{{ order.address ?? '—' }}</td>
+                                    <!-- Name -->
+                                    <td class="px-4 py-3">
+                                        <div class="flex flex-col gap-0.5">
+                                            <span class="text-xs font-semibold text-gray-900 truncate">
+                                                {{ order.name ?? '—' }}
+                                            </span>
+                                            <span class="text-[11px] text-gray-500 font-mono">
+                                                ID: {{ order.id }}
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <!-- Phone -->
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
+                                            {{ order.phone }}
+                                        </span>
+                                    </td>
+
+                                    <!-- Address -->
+                                    <td class="px-4 py-3 text-gray-700 max-w-xs">
+                                        <div class="text-xs leading-snug line-clamp-2">
+                                            {{ order.address ?? '—' }}
+                                        </div>
+                                    </td>
+
+                                    <!-- Location (editable) -->
                                     <td class="px-4 py-3">
                                         <div class="flex items-center gap-2">
                                             <input
                                                 v-model="editingLocations[order.id]"
                                                 type="text"
                                                 :placeholder="order.location || 'أدخل الموقع'"
-                                                class="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                class="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                             />
                                             <button
                                                 @click="updateLocation(order.id)"
                                                 :disabled="savingOrderId === order.id"
-                                                class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <Save class="h-3.5 w-3.5" />
                                                 <span v-if="savingOrderId !== order.id">حفظ</span>
@@ -943,14 +966,37 @@ const getCookie = (name: string): string | null => {
                                             </button>
                                         </div>
                                     </td>
-                                    <td class="px-4 py-3 text-gray-900 font-semibold">{{ formatZydaTotal(order.total_amount) }}</td>
-                                    <td class="px-4 py-3 text-gray-600">{{ formatZydaItems(order.items) }}</td>
-                                    <td class="px-4 py-3 text-gray-900 font-mono text-sm">{{ order.zyda_order_key ?? '—' }}</td>
+
+                                    <!-- Total -->
+                                    <td class="px-4 py-3 text-right">
+                                        <div class="text-xs font-bold text-emerald-600">
+                                            {{ formatZydaTotal(order.total_amount) }}
+                                        </div>
+                                    </td>
+
+                                    <!-- Items -->
+                                    <td class="px-4 py-3 text-gray-600">
+                                        <div class="text-[11px] leading-snug">
+                                            {{ formatZydaItems(order.items) }}
+                                        </div>
+                                    </td>
+
+                                    <!-- Unique Code (single line, full) -->
+                                    <td class="px-4 py-3">
+                                        <span
+                                            class="inline-flex items-center rounded-md bg-gray-900 px-3 py-1 text-[11px] font-mono text-white whitespace-nowrap"
+                                            :title="order.zyda_order_key ?? '—'"
+                                        >
+                                            {{ order.zyda_order_key ?? '—' }}
+                                        </span>
+                                    </td>
+
+                                    <!-- Actions -->
                                     <td class="px-4 py-3">
                                         <button
                                             @click="deleteZydaOrder(order.id)"
                                             :disabled="deletingOrderId === order.id"
-                                            class="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                            class="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                                             title="حذف الطلب"
                                         >
                                             <Trash2 class="h-3.5 w-3.5" />
