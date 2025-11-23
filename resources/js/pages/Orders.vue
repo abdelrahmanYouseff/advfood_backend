@@ -495,9 +495,11 @@ const notifiedNewOrders = ref<Set<number>>(new Set());
 
 // Check for orders that need sound announcements
 const checkForOrdersWithSound = () => {
-    // Get all new orders (created within last 5 minutes)
-    const newOrders = filteredOrders.value.filter((order: any) => isNewOrder(order));
-    
+    // Get all new orders (created within last 5 minutes) that are still unaccepted
+    const newOrders = filteredOrders.value.filter(
+        (order: any) => isNewOrder(order) && isUnacceptedOrder(order)
+    );
+
     // Get unaccepted orders (New Order status)
     const unacceptedOrders = filteredOrders.value.filter((order: any) => isUnacceptedOrder(order));
 
@@ -810,7 +812,7 @@ onMounted(() => {
 
     // Check for new orders on initial load
     checkForOrdersWithSound();
-    
+
     // Mark existing new orders as notified to avoid duplicate sounds
     filteredOrders.value.forEach((order: any) => {
         if (isNewOrder(order)) {
@@ -831,21 +833,21 @@ onMounted(() => {
             onSuccess: (page: any) => {
                 console.log('Orders reloaded, checking for sound...');
                 const currentOrderIds = new Set(page.props.orders.map((o: any) => o.id));
-                
+
                 // Check for new orders (orders that weren't in previous list)
                 const newlyAddedOrders = page.props.orders.filter((order: any) => !previousOrderIds.has(order.id));
                 if (newlyAddedOrders.length > 0) {
                     console.log(`🆕 Found ${newlyAddedOrders.length} new order(s)`);
                     newlyAddedOrders.forEach((order: any) => {
-                        // Mark as new and play sound immediately
-                        if (isNewOrder(order)) {
+                        // Mark as new and play sound immediately (only if still unaccepted)
+                        if (isNewOrder(order) && isUnacceptedOrder(order)) {
                             console.log(`🔔 Playing sound for new order: ${order.id}`);
                             playNotificationSound();
                             notifiedNewOrders.value.add(order.id);
                         }
                     });
                 }
-                
+
                 // Check for orders with sound enabled
                 checkForOrdersWithSound();
                 lastOrderCount.value = page.props.orders.length;
@@ -999,13 +1001,6 @@ onMounted(() => {
                     'group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.02]',
                     isNewOrder(order) ? 'ring-2 ring-green-400 ring-opacity-50 animate-pulse' : ''
                 ]">
-                    <!-- Status Badge -->
-                    <div class="absolute top-4 right-4 z-10">
-                        <span :class="['inline-flex rounded-full px-3 py-1 text-xs font-medium shadow-sm', getStatusColor(order.shipping_status)]">
-                            {{ order.shipping_status }}
-                        </span>
-                    </div>
-
                     <!-- New Order Indicator -->
                     <div v-if="isNewOrder(order)" class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-blue-500 z-10"></div>
 
@@ -1025,6 +1020,18 @@ onMounted(() => {
                             <div class="flex-1">
                                 <h3 class="font-bold text-lg text-foreground">{{ order.order_number }}</h3>
                                 <p class="text-sm text-muted-foreground">{{ formatDate(order.created_at) }}</p>
+                                <!-- Shipping Status directly under order number -->
+                                <div class="mt-1 flex items-center space-x-2 text-xs">
+                                    <span class="text-gray-500">حالة الشحن:</span>
+                                    <span
+                                        :class="[
+                                            'inline-flex items-center rounded-full px-2 py-0.5 font-semibold',
+                                            getStatusColor(order.shipping_status)
+                                        ]"
+                                    >
+                                        {{ getShippingStatusLabel(order.shipping_status) }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
@@ -1038,18 +1045,6 @@ onMounted(() => {
 
                         <!-- Order Details -->
                         <div class="space-y-3">
-                            <!-- Shipping Status -->
-                            <div class="flex items-center space-x-2 text-sm">
-                                <Truck class="h-4 w-4 text-gray-500" />
-                                <span class="text-gray-500">حالة الشحن:</span>
-                                <span :class="[
-                                    'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
-                                    getStatusColor(order.shipping_status)
-                                ]">
-                                    {{ getShippingStatusLabel(order.shipping_status) }}
-                                </span>
-                            </div>
-
                             <!-- Order Source -->
                             <div class="flex items-center space-x-2 text-sm">
                                 <Link2 class="h-4 w-4 text-gray-500" />
