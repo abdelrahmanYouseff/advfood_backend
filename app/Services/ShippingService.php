@@ -374,27 +374,64 @@ class ShippingService
                     'Accept' => 'application/json',
                 ]);
 
-            $response = $this->sendAsForm
-                ? $request->asForm()->post($url, $this->flattenArray($payload))
-                : $request->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
-
-            // Log immediate response details
-            $responseBody = $response ? $response->body() : null;
-            $responseJson = $response ? $response->json() : null;
+            $response = null;
+            $responseBody = null;
+            $responseJson = null;
             
-            Log::info('📡 Shipping API Response Received (immediate)', [
-                'order_id' => $orderObj->id ?? null,
-                'order_number' => $orderObj->order_number ?? 'MISSING',
-                'response_exists' => !is_null($response),
-                'response_type' => gettype($response),
-                'http_status' => $response ? $response->status() : 'NO_RESPONSE',
-                'response_successful' => $response ? $response->successful() : false,
-                'response_failed' => $response ? $response->failed() : true,
-                'response_body_full' => $responseBody, // Log full response body
-                'response_json' => $responseJson, // Log parsed JSON
-                'url' => $url,
-                'payload_sent' => $payload, // Log what was sent
-            ]);
+            try {
+                Log::info('🔄 Attempting to send request to shipping company', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderObj->order_number ?? 'MISSING',
+                    'url' => $url,
+                    'method' => $this->sendAsForm ? 'form' : 'json',
+                ]);
+                
+                $response = $this->sendAsForm
+                    ? $request->asForm()->post($url, $this->flattenArray($payload))
+                    : $request->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
+
+                // Log immediate response details
+                $responseBody = $response ? $response->body() : null;
+                $responseJson = $response ? $response->json() : null;
+                
+                Log::info('📡 Shipping API Response Received (immediate)', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderObj->order_number ?? 'MISSING',
+                    'response_exists' => !is_null($response),
+                    'response_type' => gettype($response),
+                    'http_status' => $response ? $response->status() : 'NO_RESPONSE',
+                    'response_successful' => $response ? $response->successful() : false,
+                    'response_failed' => $response ? $response->failed() : true,
+                    'response_body_full' => $responseBody, // Log full response body
+                    'response_json' => $responseJson, // Log parsed JSON
+                    'url' => $url,
+                    'payload_sent' => $payload, // Log what was sent
+                ]);
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                Log::error('🔴 Connection Exception while sending to shipping company', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderObj->order_number ?? 'MISSING',
+                    'url' => $url,
+                    'exception_message' => $e->getMessage(),
+                    'exception_code' => $e->getCode(),
+                    'exception_file' => $e->getFile(),
+                    'exception_line' => $e->getLine(),
+                ]);
+                return null;
+            } catch (\Exception $e) {
+                Log::error('🔴 Exception while sending to shipping company', [
+                    'order_id' => $orderObj->id ?? null,
+                    'order_number' => $orderObj->order_number ?? 'MISSING',
+                    'url' => $url,
+                    'exception_type' => get_class($e),
+                    'exception_message' => $e->getMessage(),
+                    'exception_code' => $e->getCode(),
+                    'exception_file' => $e->getFile(),
+                    'exception_line' => $e->getLine(),
+                    'exception_trace' => $e->getTraceAsString(),
+                ]);
+                return null;
+            }
 
             // Log the response details
             if (!$response || $response->failed()) {
