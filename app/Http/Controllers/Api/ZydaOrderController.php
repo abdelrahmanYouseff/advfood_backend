@@ -528,40 +528,69 @@ class ZydaOrderController extends Controller
         // Contact shipping company to get dsp_order_id
         try {
             $shippingService = new \App\Services\ShippingService();
-            $shippingResult = $shippingService->createOrder($tempOrder);
 
-            if (!$shippingResult || empty($shippingResult['dsp_order_id'])) {
-                // FAILURE: Shipping company did not return dsp_order_id
-                Log::error('❌ Shipping company did not return dsp_order_id - Order will NOT be created', [
+            $shippingResult = null;
+            $dspOrderId = null;
+            $shippingStatus = 'Pending';
+
+            try {
+                // STEP 1: حاول إرسال الطلب لشركة الشحن
+                Log::info('📞 STEP 1: Contacting shipping company to get dsp_order_id for Zyda order', [
+                    'zyda_order_id' => $zydaOrder->id,
+                    'order_number' => $orderNumber,
+                    'shop_id' => $shopId,
+                ]);
+
+                $shippingResult = $shippingService->createOrder($tempOrder);
+            } catch (\Throwable $e) {
+                // فشل في الاتصال / Exception من ShippingService
+                Log::error('❌ Exception while calling ShippingService::createOrder for Zyda order', [
+                    'zyda_order_id' => $zydaOrder->id,
+                    'order_number' => $orderNumber,
+                    'shop_id' => $shopId,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+                // لا نرمي Exception هنا حتى لا نمنع إنشاء الـ Order في النظام
+                $shippingResult = null;
+            }
+
+            if ($shippingResult && !empty($shippingResult['dsp_order_id'])) {
+                // SUCCESS: شركة الشحن رجعت dsp_order_id حقيقي
+                $dspOrderId = $shippingResult['dsp_order_id'];
+                $shippingStatus = $shippingResult['shipping_status'] ?? 'New Order';
+
+                Log::info('✅ STEP 1 SUCCESS: Shipping company returned dsp_order_id', [
+                    'zyda_order_id' => $zydaOrder->id,
+                    'order_number' => $orderNumber,
+                    'dsp_order_id' => $dspOrderId,
+                    'shipping_status' => $shippingStatus,
+                    'step' => 'Now creating Order in database with real dsp_order_id',
+                ]);
+            } else {
+                // FAILURE: شركة الشحن لم تُرجِع dsp_order_id
+                Log::error('❌ Shipping company did not return dsp_order_id - Order will be created WITHOUT dsp_order_id', [
                     'zyda_order_id' => $zydaOrder->id,
                     'order_number' => $orderNumber,
                     'shop_id' => $shopId,
                     'shipping_result' => $shippingResult,
-                    'reason' => 'Shipping company rejected order or returned null',
-                    'action' => 'Order will NOT be inserted into orders table',
+                    'reason' => 'Shipping company rejected order, returned error, or no response',
+                    'action' => 'Order will be created in system with NULL dsp_order_id. You can resend later.',
                 ]);
 
-                throw new \Exception('فشل إرسال الطلب إلى شركة الشحن. لم يتم الحصول على dsp_order_id. يرجى التحقق من البيانات وإعادة المحاولة.');
+                // في هذه الحالة سننشئ الـ Order بدون dsp_order_id
+                $dspOrderId = null;
+                $shippingStatus = 'Pending'; // أو 'Failed' حسب ما تفضله في الواجهة
             }
 
-            // SUCCESS: Shipping company returned dsp_order_id
-            $dspOrderId = $shippingResult['dsp_order_id'];
-            $shippingStatus = $shippingResult['shipping_status'] ?? 'New Order';
-
-            Log::info('✅ STEP 1 SUCCESS: Shipping company returned dsp_order_id', [
+            // STEP 2: إنشاء الـ Order في قاعدة البيانات
+            Log::info('📝 STEP 2: Creating Order in database (may or may not have dsp_order_id)', [
                 'zyda_order_id' => $zydaOrder->id,
                 'order_number' => $orderNumber,
                 'dsp_order_id' => $dspOrderId,
                 'shipping_status' => $shippingStatus,
-                'step' => 'Now creating Order in database with dsp_order_id',
-            ]);
-
-            // STEP 2: Now create Order in database WITH dsp_order_id (guaranteed to exist)
-            Log::info('📝 STEP 2: Creating Order in database with dsp_order_id (shipping company already accepted)', [
-                'zyda_order_id' => $zydaOrder->id,
-                'order_number' => $orderNumber,
-                'dsp_order_id' => $dspOrderId,
-                'step' => 'Calling Order::create() with dsp_order_id pre-filled',
+                'step' => 'Calling Order::create()',
             ]);
 
             // Create Order with dsp_order_id already set (shipping company already accepted it)
