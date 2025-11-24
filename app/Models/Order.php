@@ -98,8 +98,9 @@ class Order extends Model
 
         // Create invoice automatically when order is created
         static::created(function ($order) {
-            // Only create invoice for orders with status 'pending' or 'confirmed'
-            if (in_array($order->status, ['pending', 'confirmed'])) {
+            // 🔹 Any order that is already paid should immediately get an invoice
+            // This ensures every paid order that appears in Orders page has an invoice
+            if ($order->payment_status === 'paid') {
                 $order->createInvoice();
             }
 
@@ -260,7 +261,10 @@ class Order extends Model
                     'has_shop_id' => !empty($order->shop_id),
                 ]);
 
-                // Only send if not already sent (no dsp_order_id)
+                // 🔹 Always ensure an invoice exists once payment is confirmed (idempotent)
+                $order->createInvoice();
+
+                // Only send to shipping if not already sent (no dsp_order_id)
                 if (empty($order->dsp_order_id) && !empty($order->shop_id)) {
                     \Illuminate\Support\Facades\Log::info('🚀 CONDITIONS MET - Calling ShippingService::createOrder', [
                         'order_id' => $order->id,
