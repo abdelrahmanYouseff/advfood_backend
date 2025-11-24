@@ -43,6 +43,7 @@ const page = usePage();
 
 // Filter state
 const selectedStatus = ref<string>('all');
+const viewMode = ref<'cards' | 'table'>('cards'); // 'cards' or 'table' view for orders list
 const filteredOrders = computed(() => {
     if (selectedStatus.value === 'all') {
         return props.orders;
@@ -974,9 +975,9 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- Filter Section -->
-            <div class="flex items-center justify-between bg-white p-4 rounded-lg border shadow-sm">
-                <div class="flex items-center space-x-4">
+            <!-- Filter & View Section -->
+            <div class="flex flex-col gap-3 bg-white p-4 rounded-lg border shadow-sm md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center flex-wrap gap-3">
                     <div class="flex items-center space-x-2">
                         <Filter class="h-5 w-5 text-gray-500" />
                         <span class="text-sm font-medium text-gray-700">فلتر الطلبات:</span>
@@ -989,14 +990,34 @@ onMounted(() => {
                             {{ option.label }}
                         </option>
                     </select>
+
+                    <!-- View mode toggle -->
+                    <div class="flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-1 text-xs font-medium">
+                        <button
+                            type="button"
+                            class="rounded-full px-3 py-1 transition"
+                            :class="viewMode === 'cards' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:bg-gray-100'"
+                            @click="viewMode = 'cards'"
+                        >
+                            عرض كبطاقات
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-full px-3 py-1 transition"
+                            :class="viewMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:bg-gray-100'"
+                            @click="viewMode = 'table'"
+                        >
+                            عرض كجدول
+                        </button>
+                    </div>
                 </div>
                 <div class="text-sm text-gray-500">
                     عرض {{ filteredOrders.length }} من {{ props.orders.length }} طلب
                 </div>
             </div>
 
-            <!-- Orders List -->
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Orders List: Cards View -->
+            <div v-if="viewMode === 'cards'" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <div v-for="order in filteredOrders" :key="order.id" :class="[
                     'group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.02]',
                     isNewOrder(order) ? 'ring-2 ring-green-400 ring-opacity-50 animate-pulse' : ''
@@ -1044,57 +1065,100 @@ onMounted(() => {
                         </div>
 
                         <!-- Order Details -->
-                        <div class="space-y-3">
-                            <!-- Order Source -->
-                            <div class="flex items-center space-x-2 text-sm">
-                                <Link2 class="h-4 w-4 text-gray-500" />
-                                <span class="text-gray-500">مصدر الطلب:</span>
-                                <span class="font-medium text-gray-900">{{ getSourceLabel(order.source) }}</span>
-                            </div>
+                        <div class="mt-4 space-y-4 border-t pt-4">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <!-- Customer Info -->
+                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
+                                        <User class="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500">العميل</span>
+                                        <span class="font-medium text-gray-900 truncate">
+                                            {{ order.user.name }}
+                                        </span>
+                                    </div>
+                                </div>
 
-                            <!-- Current Status -->
-                            <div class="flex items-center space-x-2 text-sm">
-                                <AlertCircle class="h-4 w-4 text-gray-500" />
-                                <span class="text-gray-500">حالة الطلب:</span>
-                                <span :class="[
-                                    'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
-                                    getStatusColor(order.status)
-                                ]">
-                                    {{ getOrderStatusLabel(order.status) }}
-                                </span>
-                            </div>
+                                <!-- Restaurant Info -->
+                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
+                                        <Store class="h-4 w-4 text-emerald-600" />
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500">المطعم</span>
+                                        <span class="font-medium text-gray-900 truncate">
+                                            {{ order.restaurant.name }}
+                                        </span>
+                                    </div>
+                                </div>
 
-                            <!-- Driver Info -->
-                            <div class="flex items-center space-x-2 text-sm">
-                                <UserCircle2 class="h-4 w-4 text-gray-500" />
-                                <span class="text-gray-500">مندوب التوصيل:</span>
-                                <span :class="[
-                                    'font-medium',
-                                    order.driver_name ? 'text-gray-900' : 'text-gray-400 italic'
-                                ]">
-                                    {{ order.driver_name || 'لم يتم التعيين بعد' }}
-                                </span>
-                            </div>
+                                <!-- Order Source -->
+                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
+                                        <Link2 class="h-4 w-4 text-indigo-600" />
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500">مصدر الطلب</span>
+                                        <span class="font-medium text-gray-900">
+                                            {{ getSourceLabel(order.source) }}
+                                        </span>
+                                    </div>
+                                </div>
 
-                            <!-- Customer Info -->
-                            <div class="flex items-center space-x-2 text-sm">
-                                <User class="h-4 w-4 text-gray-500" />
-                                <span class="font-medium text-gray-900">{{ order.user.name }}</span>
-                            </div>
+                                <!-- Driver Info -->
+                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100">
+                                        <UserCircle2 class="h-4 w-4 text-orange-600" />
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500">مندوب التوصيل</span>
+                                        <span
+                                            :class="[
+                                                'font-medium truncate',
+                                                order.driver_name ? 'text-gray-900' : 'text-gray-400 italic'
+                                            ]"
+                                        >
+                                            {{ order.driver_name || 'لم يتم التعيين بعد' }}
+                                        </span>
+                                    </div>
+                                </div>
 
-                            <!-- Restaurant Info -->
-                            <div class="flex items-center space-x-2 text-sm">
-                                <Store class="h-4 w-4 text-gray-500" />
-                                <span class="font-medium text-gray-900">{{ order.restaurant.name }}</span>
-                            </div>
+                                <!-- Order Status -->
+                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100">
+                                        <AlertCircle class="h-4 w-4 text-yellow-600" />
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500">حالة الطلب</span>
+                                        <span
+                                            :class="[
+                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold mt-0.5 self-start',
+                                                getStatusColor(order.status)
+                                            ]"
+                                        >
+                                            {{ getOrderStatusLabel(order.status) }}
+                                        </span>
+                                    </div>
+                                </div>
 
-                            <!-- Items Count -->
-                            <div class="flex items-center space-x-2 text-sm">
-                                <ShoppingCart class="h-4 w-4 text-gray-500" />
-                                <span class="text-gray-900">{{ order.items_count || 0 }} items</span>
-                                <span v-if="order.items_subtotal" class="text-muted-foreground">
-                                    ({{ formatCurrency(order.items_subtotal) }})
-                                </span>
+                                <!-- Items Count -->
+                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100">
+                                        <ShoppingCart class="h-4 w-4 text-purple-600" />
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500">عدد الأصناف</span>
+                                        <div class="flex items-center gap-1">
+                                            <span class="font-medium text-gray-900">
+                                                {{ order.items_count || 0 }} items
+                                            </span>
+                                            <span v-if="order.items_subtotal" class="text-xs text-muted-foreground">
+                                                ({{ formatCurrency(order.items_subtotal) }})
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1129,6 +1193,115 @@ onMounted(() => {
                         </div>
                     </div>
 
+                </div>
+            </div>
+
+            <!-- Orders List: Table View -->
+            <div v-else class="rounded-lg border bg-card mt-4">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[1000px] text-sm">
+                        <thead>
+                            <tr class="border-b bg-muted/50 text-xs text-gray-500">
+                                <th class="h-10 px-3 text-right font-semibold">رقم الطلب</th>
+                                <th class="h-10 px-3 text-right font-semibold">العميل</th>
+                                <th class="h-10 px-3 text-right font-semibold">المطعم</th>
+                                <th class="h-10 px-3 text-right font-semibold">مصدر الطلب</th>
+                                <th class="h-10 px-3 text-right font-semibold">حالة الشحن</th>
+                                <th class="h-10 px-3 text-right font-semibold">حالة الطلب</th>
+                                <th class="h-10 px-3 text-right font-semibold">الإجمالي</th>
+                                <th class="h-10 px-3 text-right font-semibold">التاريخ</th>
+                                <th class="h-10 px-3 text-right font-semibold">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="order in filteredOrders"
+                                :key="order.id"
+                                class="border-b hover:bg-muted/40"
+                            >
+                                <td class="px-3 py-2 align-middle">
+                                    <div class="flex flex-col">
+                                        <span class="font-semibold text-sm">{{ order.order_number }}</span>
+                                        <span class="text-xs text-muted-foreground">{{ formatDate(order.created_at) }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ order.user.name }}
+                                    </div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ order.user.email }}
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <span class="text-sm font-medium text-gray-900">
+                                        {{ order.restaurant.name }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <span class="text-xs font-medium text-gray-700">
+                                        {{ getSourceLabel(order.source) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <span
+                                        :class="[
+                                            'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                            getStatusColor(order.shipping_status)
+                                        ]"
+                                    >
+                                        {{ getShippingStatusLabel(order.shipping_status) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <span
+                                        :class="[
+                                            'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                            getStatusColor(order.status)
+                                        ]"
+                                    >
+                                        {{ getOrderStatusLabel(order.status) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <div class="text-sm font-bold text-emerald-600">
+                                        {{ formatCurrency(order.total) }}
+                                    </div>
+                                    <div v-if="order.items_count" class="text-[11px] text-muted-foreground">
+                                        {{ order.items_count }} items
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ formatDate(order.created_at) }}
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
+                                    <div class="flex flex-wrap gap-1 justify-end">
+                                        <button
+                                            v-if="order.shipping_status === 'New Order'"
+                                            @click="acceptOrder(order.id)"
+                                            class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-green-600 text-white hover:bg-green-700"
+                                        >
+                                            قبول
+                                        </button>
+                                        <Link
+                                            :href="route('orders.show', order.id)"
+                                            class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-blue-600 text-white hover:bg-blue-700"
+                                        >
+                                            عرض
+                                        </Link>
+                                        <Link
+                                            :href="route('orders.edit', order.id)"
+                                            class="rounded-lg border px-3 py-1.5 text-[11px] font-medium border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        >
+                                            تعديل
+                                        </Link>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
