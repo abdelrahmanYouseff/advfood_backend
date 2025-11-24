@@ -36,6 +36,20 @@ class OrderController extends Controller
             return $order;
         });
 
+        // Split orders into open (current) and closed (delivered / cancelled)
+        $closedOrders = $orders->filter(function ($order) {
+            $status = strtolower($order->status ?? '');
+            $shippingStatus = strtolower($order->shipping_status ?? '');
+
+            return in_array($status, ['delivered', 'cancelled'], true)
+                || in_array($shippingStatus, ['delivered', 'cancelled'], true)
+                || !is_null($order->delivered_at);
+        });
+
+        $openOrders = $orders->reject(function ($order) use ($closedOrders) {
+            return $closedOrders->contains('id', $order->id);
+        });
+
         // Calculate statistics
         // New orders: orders that haven't been accepted yet (status is pending OR shipping_status is New Order)
         $totalNewOrders = Order::where('payment_status', 'paid')
@@ -87,13 +101,18 @@ class OrderController extends Controller
 
         Log::info('📋 Orders loaded with statistics', [
             'orders_count' => $orders->count(),
+            'open_orders_count' => $openOrders->count(),
+            'closed_orders_count' => $closedOrders->count(),
             'total_new_orders' => $totalNewOrders,
             'total_closed_orders' => $totalClosedOrders,
             'sample_closed_orders' => $sampleClosedOrders,
         ]);
 
         return Inertia::render('Orders', [
-            'orders' => $orders,
+            // Current / open orders (in-progress)
+            'orders' => $openOrders->values(),
+            // Closed orders (delivered / cancelled) – shown in a separate section
+            'closed_orders' => $closedOrders->values(),
             'statistics' => [
                 'total_new_orders' => $totalNewOrders,
                 'total_closed_orders' => $totalClosedOrders,

@@ -4,8 +4,16 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2 } from 'lucide-vue-next';
 
-interface Props {
-    orders: Array<{
+interface OrderUser {
+    name: string;
+    email: string;
+}
+
+interface OrderRestaurant {
+    name: string;
+}
+
+interface OrderData {
         id: number;
         order_number: string;
         status: string;
@@ -16,13 +24,10 @@ interface Props {
         items_subtotal?: number;
         sound: boolean;
         created_at: string;
-        user: {
-            name: string;
-            email: string;
-        };
-        restaurant: {
-            name: string;
-        };
+    delivered_at?: string | null;
+    driver_name?: string | null;
+    user: OrderUser;
+    restaurant: OrderRestaurant;
         order_items?: Array<{
             id: number;
             item_name: string;
@@ -30,7 +35,11 @@ interface Props {
             price: string;
             subtotal: string;
         }>;
-    }>;
+}
+
+interface Props {
+    orders: Array<OrderData>;
+    closed_orders?: Array<OrderData>;
     statistics?: {
         total_new_orders: number;
         total_closed_orders: number;
@@ -50,6 +59,9 @@ const filteredOrders = computed(() => {
     }
     return props.orders.filter(order => order.shipping_status === selectedStatus.value);
 });
+
+// Closed orders (delivered / cancelled)
+const closedOrders = computed<OrderData[]>(() => props.closed_orders ?? []);
 
 // Available status options
 const statusOptions = [
@@ -504,11 +516,11 @@ const checkForOrdersWithSound = () => {
     // Get unaccepted orders (New Order status)
     const unacceptedOrders = filteredOrders.value.filter((order: any) => isUnacceptedOrder(order));
 
-    // Combine both: new orders OR unaccepted orders
-    const ordersNeedingSound = Array.from(
-        new Map([
-            ...newOrders.map(order => [order.id, order]),
-            ...unacceptedOrders.map(order => [order.id, order])
+    // Combine both: new orders OR unaccepted orders (unique by ID)
+    const ordersNeedingSound: any[] = Array.from(
+        new Map<number, any>([
+            ...newOrders.map(order => [order.id, order] as [number, any]),
+            ...unacceptedOrders.map(order => [order.id, order] as [number, any]),
         ]).values()
     );
 
@@ -545,12 +557,12 @@ const checkForOrdersWithSound = () => {
     }
 
     // Sort orders by creation date (newest first)
-    const sortedOrders = [...ordersNeedingSound].sort((a, b) => {
+    const sortedOrders = [...ordersNeedingSound].sort((a: any, b: any) => {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
     // Only announce the newest order
-    const newestOrder = sortedOrders[0];
+    const newestOrder: any = sortedOrders[0];
 
     // Stop announcements for all other orders (older ones)
     announcementIntervals.forEach((intervalId, orderId) => {
@@ -594,7 +606,6 @@ const monitorOrdersWithSound = () => {
 
 // Check for new orders when component mounts
 import { onMounted, onUnmounted, ref, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
 
 const lastOrderCount = ref(props.orders.length);
 const soundEnabled = ref(true); // Sound is enabled by default
@@ -830,6 +841,7 @@ onMounted(() => {
         const previousOrderIds = new Set(filteredOrders.value.map((o: any) => o.id));
         router.reload({
             only: ['orders'],
+            // @ts-expect-error preserveScroll exists at runtime but is missing from TS types
             preserveScroll: true,
             onSuccess: (page: any) => {
                 console.log('Orders reloaded, checking for sound...');
@@ -1076,9 +1088,9 @@ onMounted(() => {
                                         <span class="text-xs text-gray-500">العميل</span>
                                         <span class="font-medium text-gray-900 truncate">
                                             {{ order.user.name }}
-                                        </span>
+                                </span>
                                     </div>
-                                </div>
+                            </div>
 
                                 <!-- Restaurant Info -->
                                 <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
@@ -1091,7 +1103,7 @@ onMounted(() => {
                                             {{ order.restaurant.name }}
                                         </span>
                                     </div>
-                                </div>
+                            </div>
 
                                 <!-- Order Source -->
                                 <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
@@ -1102,11 +1114,11 @@ onMounted(() => {
                                         <span class="text-xs text-gray-500">مصدر الطلب</span>
                                         <span class="font-medium text-gray-900">
                                             {{ getSourceLabel(order.source) }}
-                                        </span>
+                                </span>
                                     </div>
-                                </div>
+                            </div>
 
-                                <!-- Driver Info -->
+                            <!-- Driver Info -->
                                 <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
                                     <div class="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100">
                                         <UserCircle2 class="h-4 w-4 text-orange-600" />
@@ -1116,13 +1128,13 @@ onMounted(() => {
                                         <span
                                             :class="[
                                                 'font-medium truncate',
-                                                order.driver_name ? 'text-gray-900' : 'text-gray-400 italic'
+                                    order.driver_name ? 'text-gray-900' : 'text-gray-400 italic'
                                             ]"
                                         >
-                                            {{ order.driver_name || 'لم يتم التعيين بعد' }}
-                                        </span>
-                                    </div>
-                                </div>
+                                    {{ order.driver_name || 'لم يتم التعيين بعد' }}
+                                </span>
+                            </div>
+                            </div>
 
                                 <!-- Order Status -->
                                 <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
@@ -1140,9 +1152,9 @@ onMounted(() => {
                                             {{ getOrderStatusLabel(order.status) }}
                                         </span>
                                     </div>
-                                </div>
+                            </div>
 
-                                <!-- Items Count -->
+                            <!-- Items Count -->
                                 <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
                                     <div class="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100">
                                         <ShoppingCart class="h-4 w-4 text-purple-600" />
@@ -1154,8 +1166,8 @@ onMounted(() => {
                                                 {{ order.items_count || 0 }} items
                                             </span>
                                             <span v-if="order.items_subtotal" class="text-xs text-muted-foreground">
-                                                ({{ formatCurrency(order.items_subtotal) }})
-                                            </span>
+                                    ({{ formatCurrency(order.items_subtotal) }})
+                                </span>
                                         </div>
                                     </div>
                                 </div>
@@ -1305,7 +1317,7 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- Empty State -->
+            <!-- Empty State (for open orders) -->
             <div v-if="orders.length === 0" class="flex flex-col items-center justify-center py-12">
                 <ShoppingCart class="h-12 w-12 text-muted-foreground" />
                 <h3 class="mt-4 text-lg font-semibold">No orders found</h3>
@@ -1324,6 +1336,109 @@ onMounted(() => {
                 <ShoppingCart class="h-12 w-12 text-muted-foreground" />
                 <h3 class="mt-4 text-lg font-semibold">لا توجد طلبات بهذه الحالة</h3>
                 <p class="mt-2 text-muted-foreground">جرب اختيار حالة أخرى من الفلتر.</p>
+            </div>
+
+            <!-- Closed Orders Section -->
+            <div v-if="closedOrders.length > 0" class="mt-10 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold text-foreground">الطلبات المغلقة</h2>
+                        <p class="text-sm text-muted-foreground">
+                            الطلبات التي تم تسليمها أو إلغاؤها لا تظهر في قائمة الطلبات الحالية.
+                        </p>
+                    </div>
+                    <div class="rounded-full bg-gray-100 px-4 py-1 text-xs font-medium text-gray-700">
+                        عدد الطلبات المغلقة: {{ closedOrders.length }}
+                    </div>
+                </div>
+
+                <div class="rounded-lg border bg-card">
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[1000px] text-sm">
+                            <thead>
+                                <tr class="border-b bg-muted/50 text-xs text-gray-500">
+                                    <th class="h-10 px-3 text-right font-semibold">رقم الطلب</th>
+                                    <th class="h-10 px-3 text-right font-semibold">العميل</th>
+                                    <th class="h-10 px-3 text-right font-semibold">المطعم</th>
+                                    <th class="h-10 px-3 text-right font-semibold">حالة الشحن</th>
+                                    <th class="h-10 px-3 text-right font-semibold">حالة الطلب</th>
+                                    <th class="h-10 px-3 text-right font-semibold">الإجمالي</th>
+                                    <th class="h-10 px-3 text-right font-semibold">تاريخ الإغلاق</th>
+                                    <th class="h-10 px-3 text-right font-semibold">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="order in closedOrders"
+                                    :key="order.id"
+                                    class="border-b hover:bg-muted/40"
+                                >
+                                    <td class="px-3 py-2 align-middle">
+                                        <div class="flex flex-col">
+                                            <span class="font-semibold text-sm">{{ order.order_number }}</span>
+                                            <span class="text-xs text-muted-foreground">
+                                                {{ formatDate(order.created_at) }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2 align-middle">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ order.user.name }}
+                                        </div>
+                                        <div class="text-xs text-muted-foreground">
+                                            {{ order.user.email }}
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2 align-middle">
+                                        <span class="text-sm font-medium text-gray-900">
+                                            {{ order.restaurant.name }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 align-middle">
+                                        <span
+                                            :class="[
+                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                                getStatusColor(order.shipping_status)
+                                            ]"
+                                        >
+                                            {{ getShippingStatusLabel(order.shipping_status) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 align-middle">
+                                        <span
+                                            :class="[
+                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                                getStatusColor(order.status)
+                                            ]"
+                                        >
+                                            {{ getOrderStatusLabel(order.status) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 align-middle">
+                                        <div class="text-sm font-bold text-emerald-600">
+                                            {{ formatCurrency(order.total) }}
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2 align-middle">
+                                        <div class="text-xs text-muted-foreground">
+                                            {{ order.delivered_at ? formatDate(order.delivered_at) : '—' }}
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-2 align-middle">
+                                        <div class="flex justify-end gap-2">
+                                            <Link
+                                                :href="route('orders.show', order.id)"
+                                                class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-blue-600 text-white hover:bg-blue-700"
+                                            >
+                                                عرض
+                                            </Link>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </AppLayout>
