@@ -76,7 +76,13 @@ const statusFilter = ref(props.filters?.status || 'all');
 
 // Statistics
 const totalInvoices = computed(() => props.invoices.length);
-const totalAmount = computed(() => props.invoices.reduce((sum, inv) => sum + inv.total, 0));
+// Ensure totals are treated as numbers (invoices may come as strings from backend)
+const totalAmount = computed(() =>
+    props.invoices.reduce((sum, inv) => {
+        const numeric = typeof inv.total === 'number' ? inv.total : Number(inv.total ?? 0);
+        return sum + (Number.isFinite(numeric) ? numeric : 0);
+    }, 0),
+);
 const paidInvoices = computed(() => props.invoices.filter(inv => inv.status === 'paid').length);
 const pendingInvoices = computed(() => props.invoices.filter(inv => inv.status === 'pending').length);
 
