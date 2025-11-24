@@ -1232,10 +1232,9 @@ onMounted(() => {
                                 class="border-b hover:bg-muted/40"
                             >
                                 <td class="px-3 py-2 align-middle">
-                                    <div class="flex flex-col">
-                                        <span class="font-semibold text-sm">{{ order.order_number }}</span>
-                                        <span class="text-xs text-muted-foreground">{{ formatDate(order.created_at) }}</span>
-                                    </div>
+                                    <span class="font-semibold text-sm">
+                                        {{ order.order_number }}
+                                    </span>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
                                     <div class="text-sm font-medium text-gray-900">
@@ -1374,12 +1373,9 @@ onMounted(() => {
                                     class="border-b hover:bg-muted/40"
                                 >
                                     <td class="px-3 py-2 align-middle">
-                                        <div class="flex flex-col">
-                                            <span class="font-semibold text-sm">{{ order.order_number }}</span>
-                                            <span class="text-xs text-muted-foreground">
-                                                {{ formatDate(order.created_at) }}
-                                            </span>
-                                        </div>
+                                        <span class="font-semibold text-sm">
+                                            {{ order.order_number }}
+                                        </span>
                                     </td>
                                     <td class="px-3 py-2 align-middle">
                                         <div class="text-sm font-medium text-gray-900">
