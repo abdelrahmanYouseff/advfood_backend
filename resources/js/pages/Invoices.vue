@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Plus, FileText, User, Store, DollarSign, Calendar, CreditCard, Hash, Search, Filter, X, Eye, TrendingUp } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 interface Props {
     invoices: Array<{
@@ -39,6 +39,35 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// Invoices page language (synced with sidebarLang)
+const invoicesLang = ref<'ar' | 'en'>('ar');
+
+if (typeof window !== 'undefined') {
+    const storedLang = window.localStorage.getItem('sidebarLang');
+    if (storedLang === 'en' || storedLang === 'ar') {
+        invoicesLang.value = storedLang;
+    }
+}
+
+onMounted(() => {
+    if (typeof window === 'undefined') return;
+
+    const handler = (event: Event) => {
+        const lang = (event as CustomEvent).detail;
+        if (lang === 'en' || lang === 'ar') {
+            invoicesLang.value = lang;
+        }
+    };
+
+    window.addEventListener('sidebar-lang-changed', handler as EventListener);
+
+    onUnmounted(() => {
+        window.removeEventListener('sidebar-lang-changed', handler as EventListener);
+    });
+});
+
+const t = (ar: string, en: string) => (invoicesLang.value === 'ar' ? ar : en);
+
 // Filter state
 const searchQuery = ref(props.filters?.search || '');
 const dateFrom = ref(props.filters?.date_from || '');
@@ -60,6 +89,7 @@ const applyFilters = () => {
         status: statusFilter.value !== 'all' ? statusFilter.value : null,
     }, {
         preserveState: true,
+        // @ts-expect-error preserveScroll exists at runtime but is missing from TS types
         preserveScroll: true,
     });
 };
@@ -72,6 +102,7 @@ const clearFilters = () => {
     statusFilter.value = 'all';
     router.get(route('invoices.index'), {}, {
         preserveState: true,
+        // @ts-expect-error preserveScroll exists at runtime but is missing from TS types
         preserveScroll: true,
     });
 };
@@ -83,11 +114,11 @@ const hasActiveFilters = computed(() => {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: t('لوحة التحكم', 'Dashboard'),
         href: '/dashboard',
     },
     {
-        title: 'Invoices',
+        title: t('الفواتير', 'Invoices'),
         href: '/invoices',
     },
 ];
@@ -118,33 +149,47 @@ const formatDate = (date: string) => {
 };
 
 const getStatusText = (status: string) => {
-    const statusMap = {
+    if (invoicesLang.value === 'en') {
+        const statusMapEn: Record<string, string> = {
+            pending: 'Pending',
+            paid: 'Paid',
+            overdue: 'Overdue',
+            cancelled: 'Cancelled',
+        };
+        return statusMapEn[status] ?? status;
+    }
+
+    const statusMapAr: Record<string, string> = {
         pending: 'معلق',
         paid: 'مدفوع',
         overdue: 'متأخر',
         cancelled: 'ملغي',
     };
-    return statusMap[status as keyof typeof statusMap] || status;
+    return statusMapAr[status] ?? status;
 };
 </script>
 
 <template>
-    <Head title="الفواتير" />
+    <Head :title="t('الفواتير', 'Invoices')" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold">الفواتير</h1>
-                    <p class="text-muted-foreground mt-1">إدارة جميع فواتير العملاء</p>
+                    <h1 class="text-3xl font-bold">
+                        {{ t('الفواتير', 'Invoices') }}
+                    </h1>
+                    <p class="text-muted-foreground mt-1">
+                        {{ t('إدارة جميع فواتير العملاء', 'Manage all customer invoices') }}
+                    </p>
                 </div>
                 <Link
                     :href="route('invoices.create')"
                     class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                 >
                     <Plus class="h-4 w-4" />
-                    إنشاء فاتورة
+                    {{ t('إنشاء فاتورة', 'Create invoice') }}
                 </Link>
             </div>
 
@@ -154,7 +199,9 @@ const getStatusText = (status: string) => {
                     <div class="flex items-center gap-2">
                         <FileText class="h-5 w-5 text-blue-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">إجمالي الفواتير</p>
+                            <p class="text-sm font-medium text-muted-foreground">
+                                {{ t('إجمالي الفواتير', 'Total invoices') }}
+                            </p>
                             <p class="text-2xl font-bold">{{ totalInvoices }}</p>
                         </div>
                     </div>
@@ -163,7 +210,9 @@ const getStatusText = (status: string) => {
                     <div class="flex items-center gap-2">
                         <DollarSign class="h-5 w-5 text-green-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">إجمالي المبلغ</p>
+                            <p class="text-sm font-medium text-muted-foreground">
+                                {{ t('إجمالي المبلغ', 'Total amount') }}
+                            </p>
                             <p class="text-2xl font-bold">{{ formatCurrency(totalAmount) }}</p>
                         </div>
                     </div>
@@ -172,7 +221,9 @@ const getStatusText = (status: string) => {
                     <div class="flex items-center gap-2">
                         <TrendingUp class="h-5 w-5 text-emerald-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">مدفوعة</p>
+                            <p class="text-sm font-medium text-muted-foreground">
+                                {{ t('مدفوعة', 'Paid') }}
+                            </p>
                             <p class="text-2xl font-bold">{{ paidInvoices }}</p>
                         </div>
                     </div>
@@ -181,7 +232,9 @@ const getStatusText = (status: string) => {
                     <div class="flex items-center gap-2">
                         <Calendar class="h-5 w-5 text-yellow-600" />
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">معلقة</p>
+                            <p class="text-sm font-medium text-muted-foreground">
+                                {{ t('معلقة', 'Pending') }}
+                            </p>
                             <p class="text-2xl font-bold">{{ pendingInvoices }}</p>
                         </div>
                     </div>
@@ -193,7 +246,9 @@ const getStatusText = (status: string) => {
                     <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <Filter class="h-5 w-5 text-muted-foreground" />
-                        <h3 class="font-semibold text-lg">الفلاتر والبحث</h3>
+                        <h3 class="font-semibold text-lg">
+                            {{ t('الفلاتر والبحث', 'Filters & search') }}
+                        </h3>
                     </div>
                     <button
                         v-if="hasActiveFilters"
@@ -201,7 +256,7 @@ const getStatusText = (status: string) => {
                         class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
                     >
                         <X class="h-4 w-4" />
-                        مسح الفلاتر
+                        {{ t('مسح الفلاتر', 'Clear filters') }}
                     </button>
                 </div>
 
@@ -213,14 +268,16 @@ const getStatusText = (status: string) => {
                             v-model="searchQuery"
                             @keyup.enter="applyFilters"
                             type="text"
-                            placeholder="البحث برقم الفاتورة، اسم العميل، المطعم..."
+                            :placeholder="t('البحث برقم الفاتورة، اسم العميل، المطعم...', 'Search by invoice number, customer name, restaurant...')"
                             class="w-full pr-10 rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         />
                     </div>
 
                     <!-- Date From -->
                     <div class="min-w-[150px]">
-                        <label class="block text-sm font-medium mb-1">من تاريخ</label>
+                        <label class="block text-sm font-medium mb-1">
+                            {{ t('من تاريخ', 'From date') }}
+                        </label>
                         <input
                             v-model="dateFrom"
                             type="date"
@@ -230,7 +287,9 @@ const getStatusText = (status: string) => {
 
                     <!-- Date To -->
                     <div class="min-w-[150px]">
-                        <label class="block text-sm font-medium mb-1">إلى تاريخ</label>
+                        <label class="block text-sm font-medium mb-1">
+                            {{ t('إلى تاريخ', 'To date') }}
+                        </label>
                         <input
                             v-model="dateTo"
                             type="date"
@@ -240,16 +299,28 @@ const getStatusText = (status: string) => {
 
                     <!-- Status Filter -->
                     <div class="min-w-[150px]">
-                        <label class="block text-sm font-medium mb-1">الحالة</label>
+                        <label class="block text-sm font-medium mb-1">
+                            {{ t('الحالة', 'Status') }}
+                        </label>
                         <select
                             v-model="statusFilter"
                             class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
-                            <option value="all">جميع الحالات</option>
-                            <option value="pending">معلق</option>
-                            <option value="paid">مدفوع</option>
-                            <option value="overdue">متأخر</option>
-                            <option value="cancelled">ملغي</option>
+                            <option value="all">
+                                {{ t('جميع الحالات', 'All statuses') }}
+                            </option>
+                            <option value="pending">
+                                {{ t('معلق', 'Pending') }}
+                            </option>
+                            <option value="paid">
+                                {{ t('مدفوع', 'Paid') }}
+                            </option>
+                            <option value="overdue">
+                                {{ t('متأخر', 'Overdue') }}
+                            </option>
+                            <option value="cancelled">
+                                {{ t('ملغي', 'Cancelled') }}
+                            </option>
                         </select>
                     </div>
 
@@ -260,7 +331,7 @@ const getStatusText = (status: string) => {
                             class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors h-[42px]"
                         >
                             <Search class="h-4 w-4" />
-                            تطبيق الفلاتر
+                            {{ t('تطبيق الفلاتر', 'Apply filters') }}
                         </button>
                     </div>
                 </div>
@@ -272,15 +343,33 @@ const getStatusText = (status: string) => {
                     <table class="w-full min-w-[1000px] text-sm">
                         <thead>
                             <tr class="border-b bg-muted/50">
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">رقم الفاتورة</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">العميل</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">المطعم</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">رقم الطلب</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">المبلغ</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">الحالة</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">تاريخ الإنشاء</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">تاريخ الاستحقاق</th>
-                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">الإجراءات</th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('رقم الفاتورة', 'Invoice #') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('العميل', 'Customer') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('المطعم', 'Restaurant') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('رقم الطلب', 'Order #') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('المبلغ', 'Amount') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('الحالة', 'Status') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('تاريخ الإنشاء', 'Created at') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('تاريخ الاستحقاق', 'Due date') }}
+                                </th>
+                                <th class="h-10 px-3 text-right align-middle font-semibold text-xs">
+                                    {{ t('الإجراءات', 'Actions') }}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -327,7 +416,7 @@ const getStatusText = (status: string) => {
                                     <div class="text-right">
                                         <div class="font-bold text-sm text-green-600">{{ formatCurrency(invoice.total) }}</div>
                                         <div v-if="invoice.subtotal" class="text-[10px] text-muted-foreground">
-                                            فرعي: {{ formatCurrency(invoice.subtotal) }}
+                                            {{ t('فرعي:', 'Subtotal:') }} {{ formatCurrency(invoice.subtotal) }}
                                 </div>
                                     </div>
                                 </td>
@@ -355,7 +444,7 @@ const getStatusText = (status: string) => {
                                         class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-blue-700 transition-colors"
                                 >
                                         <Eye class="h-3 w-3" />
-                                    عرض
+                                    {{ t('عرض', 'View') }}
                                 </Link>
                                 </td>
                             </tr>
@@ -367,9 +456,15 @@ const getStatusText = (status: string) => {
             <!-- Empty State -->
             <div v-if="invoices.length === 0" class="flex flex-col items-center justify-center py-12 rounded-lg border bg-card">
                 <FileText class="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 class="text-xl font-semibold mb-2">لا توجد فواتير</h3>
+                <h3 class="text-xl font-semibold mb-2">
+                    {{ t('لا توجد فواتير', 'No invoices found') }}
+                </h3>
                 <p class="text-muted-foreground mb-4">
-                    {{ hasActiveFilters ? 'جرب تعديل معايير البحث أو الفلتر.' : 'ستظهر الفواتير هنا عند إنشائها' }}
+                    {{
+                        hasActiveFilters
+                            ? t('جرب تعديل معايير البحث أو الفلتر.', 'Try adjusting the search or filters.')
+                            : t('ستظهر الفواتير هنا عند إنشائها', 'Invoices will appear here once created.')
+                    }}
                 </p>
                 <Link
                     v-if="!hasActiveFilters"
@@ -377,7 +472,7 @@ const getStatusText = (status: string) => {
                     class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                 >
                     <Plus class="h-4 w-4" />
-                    إنشاء فاتورة
+                    {{ t('إنشاء فاتورة', 'Create invoice') }}
                 </Link>
             </div>
         </div>

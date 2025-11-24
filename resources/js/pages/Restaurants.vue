@@ -3,6 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { Plus, Store, Phone, Mail, Clock, MapPin, Trash2 } from 'lucide-vue-next';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 interface Props {
     restaurants: Array<{
@@ -23,13 +24,42 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// Restaurants page language (synced with sidebarLang)
+const restaurantsLang = ref<'ar' | 'en'>('ar');
+
+if (typeof window !== 'undefined') {
+    const storedLang = window.localStorage.getItem('sidebarLang');
+    if (storedLang === 'en' || storedLang === 'ar') {
+        restaurantsLang.value = storedLang;
+    }
+}
+
+onMounted(() => {
+    if (typeof window === 'undefined') return;
+
+    const handler = (event: Event) => {
+        const lang = (event as CustomEvent).detail;
+        if (lang === 'en' || lang === 'ar') {
+            restaurantsLang.value = lang;
+        }
+    };
+
+    window.addEventListener('sidebar-lang-changed', handler as EventListener);
+
+    onUnmounted(() => {
+        window.removeEventListener('sidebar-lang-changed', handler as EventListener);
+    });
+});
+
+const t = (ar: string, en: string) => (restaurantsLang.value === 'ar' ? ar : en);
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'لوحة التحكم',
+        title: t('لوحة التحكم', 'Dashboard'),
         href: '/dashboard',
     },
     {
-        title: 'المطاعم',
+        title: t('المطاعم', 'Restaurants'),
         href: '/restaurants',
     },
 ];
@@ -50,29 +80,36 @@ const formatTime = (time: string) => {
 };
 
 const deleteRestaurant = (restaurantId: number, restaurantName: string) => {
-    if (confirm(`هل أنت متأكد من حذف المطعم "${restaurantName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
+    if (confirm(t(
+        `هل أنت متأكد من حذف المطعم "${restaurantName}"؟ هذا الإجراء لا يمكن التراجع عنه.`,
+        `Are you sure you want to delete restaurant "${restaurantName}"? This action cannot be undone.`
+    ))) {
         router.delete(route('restaurants.destroy', restaurantId));
     }
 };
 </script>
 
 <template>
-    <Head title="المطاعم" />
+    <Head :title="t('المطاعم', 'Restaurants')" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold">المطاعم</h1>
-                    <p class="text-muted-foreground">إدارة جميع المطاعم وإعداداتها</p>
+                    <h1 class="text-2xl font-bold">
+                        {{ t('المطاعم', 'Restaurants') }}
+                    </h1>
+                    <p class="text-muted-foreground">
+                        {{ t('إدارة جميع المطاعم وإعداداتها', 'Manage all restaurants and their settings') }}
+                    </p>
                 </div>
                 <Link
                     :href="route('restaurants.create')"
                     class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                     <Plus class="h-4 w-4" />
-                    إضافة مطعم
+                    {{ t('إضافة مطعم', 'Add restaurant') }}
                 </Link>
             </div>
 
@@ -104,7 +141,7 @@ const deleteRestaurant = (restaurantId: number, restaurantName: string) => {
                                             : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                                     ]"
                                 >
-                                    {{ restaurant.is_active ? 'نشط' : 'غير نشط' }}
+                                    {{ restaurant.is_active ? t('نشط', 'Active') : t('غير نشط', 'Inactive') }}
                                 </span>
                             </div>
                             <p class="mt-1 text-sm text-muted-foreground">{{ restaurant.description }}</p>
@@ -129,8 +166,14 @@ const deleteRestaurant = (restaurantId: number, restaurantName: string) => {
                             </div>
 
                             <div class="mt-4 flex items-center justify-between text-sm">
-                                <span class="text-muted-foreground">رسوم التوصيل: {{ formatCurrency(restaurant.delivery_fee) }}</span>
-                                <span class="text-muted-foreground">{{ restaurant.delivery_time }} دقيقة</span>
+                                <span class="text-muted-foreground">
+                                    {{ t('رسوم التوصيل:', 'Delivery fee:') }} {{ formatCurrency(restaurant.delivery_fee) }}
+                                </span>
+                                <span class="text-muted-foreground">
+                                    {{ restaurantsLang === 'ar'
+                                        ? `${restaurant.delivery_time} دقيقة`
+                                        : `${restaurant.delivery_time} mins` }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -139,18 +182,18 @@ const deleteRestaurant = (restaurantId: number, restaurantName: string) => {
                             :href="route('restaurants.edit', restaurant.id)"
                             class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                         >
-                            تعديل
+                            {{ t('تعديل', 'Edit') }}
                         </Link>
                         <Link
                             :href="route('restaurants.show', restaurant.id)"
                             class="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
                         >
-                            عرض
+                            {{ t('عرض', 'View') }}
                         </Link>
                         <button
                             @click="deleteRestaurant(restaurant.id, restaurant.name)"
                             class="rounded-lg border border-red-300 bg-white px-3 py-2 text-center text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-600 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                            title="حذف المطعم"
+                            :title="t('حذف المطعم', 'Delete restaurant')"
                         >
                             <Trash2 class="h-4 w-4" />
                         </button>
@@ -161,14 +204,18 @@ const deleteRestaurant = (restaurantId: number, restaurantName: string) => {
             <!-- Empty State -->
             <div v-if="restaurants.length === 0" class="flex flex-col items-center justify-center py-12">
                 <Store class="h-12 w-12 text-muted-foreground" />
-                <h3 class="mt-4 text-lg font-semibold">لا توجد مطاعم</h3>
-                <p class="mt-2 text-muted-foreground">ابدأ بإضافة أول مطعم.</p>
+                <h3 class="mt-4 text-lg font-semibold">
+                    {{ t('لا توجد مطاعم', 'No restaurants found') }}
+                </h3>
+                <p class="mt-2 text-muted-foreground">
+                    {{ t('ابدأ بإضافة أول مطعم.', 'Start by adding the first restaurant.') }}
+                </p>
                 <Link
                     :href="route('restaurants.create')"
                     class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                     <Plus class="h-4 w-4" />
-                    إضافة مطعم
+                    {{ t('إضافة مطعم', 'Add restaurant') }}
                 </Link>
             </div>
         </div>

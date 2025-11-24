@@ -79,6 +79,37 @@ interface ZydaOrder {
 const props = defineProps<Props>();
 const page = usePage();
 
+// Dashboard language state (linked with sidebar language toggle)
+const dashboardLang = ref<'ar' | 'en'>('ar');
+
+if (typeof window !== 'undefined') {
+    const storedLang = window.localStorage.getItem('sidebarLang');
+    if (storedLang === 'en' || storedLang === 'ar') {
+        dashboardLang.value = storedLang;
+    }
+}
+
+// Keep dashboard language in sync with sidebar language toggle
+onMounted(() => {
+    if (typeof window === 'undefined') return;
+
+    const handler = (event: Event) => {
+        const lang = (event as CustomEvent).detail;
+        if (lang === 'en' || lang === 'ar') {
+            dashboardLang.value = lang;
+        }
+    };
+
+    window.addEventListener('sidebar-lang-changed', handler as EventListener);
+
+    onUnmounted(() => {
+        window.removeEventListener('sidebar-lang-changed', handler as EventListener);
+    });
+});
+
+// Simple translation helper
+const t = (ar: string, en: string) => (dashboardLang.value === 'ar' ? ar : en);
+
 const resolveTabFromUrl = (url: string) => (url.includes('tab=zyda') ? 'zyda' : 'overview');
 
 const activeTab = ref<'overview' | 'zyda'>(resolveTabFromUrl(page.url));
@@ -92,7 +123,7 @@ watch(
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'لوحة التحكم',
+        title: t('لوحة التحكم', 'Dashboard'),
         href: '/dashboard',
     },
 ];
@@ -631,9 +662,11 @@ const getCookie = (name: string): string | null => {
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-semibold text-gray-900">لوحة التحكم</h1>
+                    <h1 class="text-3xl font-semibold text-gray-900">
+                        {{ t('لوحة التحكم', 'Dashboard') }}
+                    </h1>
                     <p class="mt-2 text-sm text-muted-foreground">
-                        نظرة سريعة على أداء الطلبات والمطاعم.
+                        {{ t('نظرة سريعة على أداء الطلبات والمطاعم.', 'Quick overview of orders and restaurant performance.') }}
                     </p>
                 </div>
                 <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-white p-1 text-sm font-medium">
@@ -642,14 +675,14 @@ const getCookie = (name: string): string | null => {
                         :class="activeTab === 'overview' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
                         @click="activeTab = 'overview'"
                     >
-                        تقارير عامة
+                        {{ t('تقارير عامة', 'Overview') }}
                     </button>
                     <button
                         class="rounded-full px-4 py-2 transition"
                         :class="activeTab === 'zyda' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'"
                         @click="activeTab = 'zyda'"
                     >
-                        Zyda Orders
+                        {{ t('طلبات Zyda', 'Zyda Orders') }}
                     </button>
                 </div>
             </div>
@@ -660,11 +693,13 @@ const getCookie = (name: string): string | null => {
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-sm font-medium text-muted-foreground">المطاعم</p>
+                                <p class="text-sm font-medium text-muted-foreground">
+                                    {{ t('المطاعم', 'Restaurants') }}
+                                </p>
                                 <p class="text-2xl font-bold">{{ stats.total_restaurants }}</p>
                             </div>
-                            <div class="rounded-lg bg-green-100 p-3 dark:bg-green-900/20">
-                                <Store class="h-6 w-6 text-green-600 dark:text-green-400" />
+                            <div class="rounded-lg bg-[#ce4622] p-3">
+                                <Store class="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </div>
@@ -672,11 +707,13 @@ const getCookie = (name: string): string | null => {
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-sm font-medium text-muted-foreground">إجمالي الطلبات</p>
+                                <p class="text-sm font-medium text-muted-foreground">
+                                    {{ t('إجمالي الطلبات', 'Total Orders') }}
+                                </p>
                                 <p class="text-2xl font-bold">{{ stats.total_orders }}</p>
                             </div>
-                            <div class="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/20">
-                                <ShoppingCart class="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                            <div class="rounded-lg bg-[#ce4622] p-3">
+                                <ShoppingCart class="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </div>
@@ -684,11 +721,13 @@ const getCookie = (name: string): string | null => {
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-sm font-medium text-muted-foreground">إجمالي الإيرادات</p>
+                                <p class="text-sm font-medium text-muted-foreground">
+                                    {{ t('إجمالي الإيرادات', 'Total Revenue') }}
+                                </p>
                                 <p class="text-2xl font-bold">{{ formatCurrency(stats.total_revenue) }}</p>
                             </div>
-                            <div class="rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/20">
-                                <DollarSign class="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                            <div class="rounded-lg bg-[#ce4622] p-3">
+                                <DollarSign class="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </div>
@@ -699,11 +738,13 @@ const getCookie = (name: string): string | null => {
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-sm font-medium text-muted-foreground">الطلبات المعلقة</p>
+                                <p class="text-sm font-medium text-muted-foreground">
+                                    {{ t('الطلبات المعلقة', 'Pending Orders') }}
+                                </p>
                                 <p class="text-2xl font-bold text-yellow-600">{{ stats.pending_orders }}</p>
                             </div>
-                            <div class="rounded-lg bg-yellow-100 p-3 dark:bg-yellow-900/20">
-                                <Clock class="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                            <div class="rounded-lg bg-[#ce4622] p-3">
+                                <Clock class="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </div>
@@ -711,11 +752,13 @@ const getCookie = (name: string): string | null => {
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-sm font-medium text-muted-foreground">طلبات اليوم</p>
+                                <p class="text-sm font-medium text-muted-foreground">
+                                    {{ t('طلبات اليوم', 'Today\'s Orders') }}
+                                </p>
                                 <p class="text-2xl font-bold">{{ stats.today_orders }}</p>
                             </div>
-                            <div class="rounded-lg bg-indigo-100 p-3 dark:bg-indigo-900/20">
-                                <Calendar class="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                            <div class="rounded-lg bg-[#ce4622] p-3">
+                                <Calendar class="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </div>
@@ -723,11 +766,13 @@ const getCookie = (name: string): string | null => {
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-sm font-medium text-muted-foreground">إيرادات اليوم</p>
+                                <p class="text-sm font-medium text-muted-foreground">
+                                    {{ t('إيرادات اليوم', 'Today\'s Revenue') }}
+                                </p>
                                 <p class="text-2xl font-bold text-emerald-600">{{ formatCurrency(stats.today_revenue) }}</p>
                             </div>
-                            <div class="rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/20">
-                                <TrendingUp class="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                            <div class="rounded-lg bg-[#ce4622] p-3">
+                                <TrendingUp class="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </div>
@@ -738,12 +783,14 @@ const getCookie = (name: string): string | null => {
                     <!-- Recent Orders -->
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold">الطلبات الأخيرة</h3>
+                            <h3 class="text-lg font-semibold">
+                                {{ t('الطلبات الأخيرة', 'Recent Orders') }}
+                            </h3>
                             <Link
                                 :href="route('orders.index')"
                                 class="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
                             >
-                                عرض الكل
+                                {{ t('عرض الكل', 'View all') }}
                             </Link>
                         </div>
                         <div class="space-y-3">
@@ -762,8 +809,8 @@ const getCookie = (name: string): string | null => {
                                 </div>
 
                                 <div class="flex items-center space-x-3">
-                                    <div class="rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 p-2 dark:from-blue-900/20 dark:to-purple-900/20">
-                                        <Package class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                    <div class="rounded-lg bg-[#ce4622] p-2">
+                                        <Package class="h-4 w-4 text-white" />
                                     </div>
                                     <div>
                                         <p class="font-medium">{{ order.order_number }}</p>
@@ -784,7 +831,9 @@ const getCookie = (name: string): string | null => {
                     <!-- Top Restaurants -->
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold">أفضل المطاعم</h3>
+                            <h3 class="text-lg font-semibold">
+                                {{ t('أفضل المطاعم', 'Top Restaurants') }}
+                            </h3>
                             <Link
                                 :href="route('restaurants.index')"
                                 class="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
@@ -800,11 +849,14 @@ const getCookie = (name: string): string | null => {
                                     </div>
                                     <div>
                                         <p class="font-medium">{{ restaurant.name }}</p>
-                                        <p class="text-sm text-muted-foreground">{{ restaurant.orders_count }} طلب</p>
+                                        <p class="text-sm text-muted-foreground">
+                                            <span v-if="dashboardLang === 'ar'">{{ restaurant.orders_count }} طلب</span>
+                                            <span v-else>{{ restaurant.orders_count }} orders</span>
+                                        </p>
                                     </div>
                                 </div>
-                                <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/20">
-                                    <Store class="h-4 w-4 text-green-600 dark:text-green-400" />
+                                <div class="rounded-lg bg-[#ce4622] p-2">
+                                    <Store class="h-4 w-4 text-white" />
                                 </div>
                             </div>
                         </div>
@@ -816,19 +868,21 @@ const getCookie = (name: string): string | null => {
                 <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h2 class="text-xl font-semibold text-gray-900">طلبات Zyda</h2>
+                            <h2 class="text-xl font-semibold text-gray-900">
+                                {{ t('طلبات Zyda', 'Zyda Orders') }}
+                            </h2>
                             <p class="mt-1 text-sm text-muted-foreground">
-                                عرض أحدث الطلبات المستوردة من منصة Zyda.
+                                {{ t('عرض أحدث الطلبات المستوردة من منصة Zyda.', 'View the latest orders imported from Zyda platform.') }}
                             </p>
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-blue-500"></span>
-                                إجمالي الطلبات: {{ zydaOrdersCountLabel }}
+                                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-[#ce4622]"></span>
+                                {{ t('إجمالي الطلبات', 'Total Orders') }}: {{ zydaOrdersCountLabel }}
                             </div>
                             <div class="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
                                 <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                                إجمالي القيمة: {{ zydaOrdersTotalLabel }}
+                                {{ t('إجمالي القيمة', 'Total Amount') }}: {{ zydaOrdersTotalLabel }}
                             </div>
                             <button
                                 @click="syncZydaOrders"
@@ -836,13 +890,13 @@ const getCookie = (name: string): string | null => {
                                 class="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <RefreshCcw :class="['h-4 w-4', syncLoading ? 'animate-spin' : '']" />
-                                مزامنة Zyda
+                                {{ t('مزامنة Zyda', 'Sync Zyda') }}
                             </button>
                             <Link
                                 href="/orders"
                                 class="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                             >
-                                إدارة الطلبات
+                                {{ t('إدارة الطلبات', 'Manage Orders') }}
                             </Link>
                         </div>
                     </div>
@@ -858,7 +912,7 @@ const getCookie = (name: string): string | null => {
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             ]"
                         >
-                            قيد الانتظار ({{ props.zyda_summary?.pending_count ?? 0 }})
+                            {{ t('قيد الانتظار', 'Pending') }} ({{ props.zyda_summary?.pending_count ?? 0 }})
                         </button>
                         <button
                             @click="changeZydaFilter('received')"
@@ -869,7 +923,7 @@ const getCookie = (name: string): string | null => {
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             ]"
                         >
-                            مستلمة ({{ props.zyda_summary?.received_count ?? 0 }})
+                            {{ t('مستلمة', 'Received') }} ({{ props.zyda_summary?.received_count ?? 0 }})
                         </button>
                     </div>
 
@@ -877,20 +931,36 @@ const getCookie = (name: string): string | null => {
                         <table class="min-w-[1100px] divide-y divide-gray-200 text-right text-sm table-auto">
                             <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
                                 <tr>
-                                    <th class="px-4 py-3 text-right">الاسم</th>
-                                    <th class="px-4 py-3 text-right">رقم الهاتف</th>
-                                    <th class="px-4 py-3 text-right">العنوان</th>
-                                    <th class="px-4 py-3 text-right">الموقع</th>
-                                    <th class="px-4 py-3 text-right">الإجمالي</th>
-                                    <th class="px-4 py-3 text-right">الأصناف</th>
-                                    <th class="px-4 py-3 text-right">الكود الفريد</th>
-                                    <th class="px-4 py-3 text-right">إجراءات</th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('الاسم', 'Name') }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('رقم الهاتف', 'Phone number') }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('العنوان', 'Address') }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('الموقع', 'Location') }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('الإجمالي', 'Total') }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('الأصناف', 'Items') }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('الكود الفريد', 'Unique code') }}
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        {{ t('إجراءات', 'Actions') }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
                                 <tr v-if="zydaOrders.length === 0">
                                     <td colspan="8" class="px-6 py-8 text-center text-sm text-muted-foreground">
-                                        لا توجد طلبات Zyda مسجلة حتى الآن.
+                                        {{ t('لا توجد طلبات Zyda مسجلة حتى الآن.', 'No Zyda orders recorded yet.') }}
                                     </td>
                                 </tr>
                                 <tr v-for="order in zydaOrders" :key="order.id" class="hover:bg-gray-50">
@@ -926,7 +996,7 @@ const getCookie = (name: string): string | null => {
                                             <input
                                                 v-model="editingLocations[order.id]"
                                                 type="text"
-                                                :placeholder="order.location || 'أدخل الموقع'"
+                                                :placeholder="order.location || t('أدخل الموقع', 'Enter location')"
                                                 class="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                             />
                                             <button
@@ -935,7 +1005,9 @@ const getCookie = (name: string): string | null => {
                                                 class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <Save class="h-3.5 w-3.5" />
-                                                <span v-if="savingOrderId !== order.id">حفظ</span>
+                                                <span v-if="savingOrderId !== order.id">
+                                                    {{ t('حفظ', 'Save') }}
+                                                </span>
                                                 <span v-else>...</span>
                                             </button>
                                         </div>
@@ -971,10 +1043,12 @@ const getCookie = (name: string): string | null => {
                                             @click="deleteZydaOrder(order.id)"
                                             :disabled="deletingOrderId === order.id"
                                             class="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                            title="حذف الطلب"
+                                            :title="t('حذف الطلب', 'Delete order')"
                                         >
                                             <Trash2 class="h-3.5 w-3.5" />
-                                            <span v-if="deletingOrderId !== order.id">حذف</span>
+                                            <span v-if="deletingOrderId !== order.id">
+                                                {{ t('حذف', 'Delete') }}
+                                            </span>
                                             <span v-else>...</span>
                                         </button>
                                     </td>
@@ -1006,12 +1080,16 @@ const getCookie = (name: string): string | null => {
                     <!-- Header -->
                     <div class="text-center mb-4">
                         <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-3">
-                            <RefreshCcw :class="['h-8 w-8 text-blue-600', syncLoading ? 'animate-spin' : '']" />
+                            <RefreshCcw :class="['h-8 w-8 text-[#ce4622]', syncLoading ? 'animate-spin' : '']" />
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-900 mb-2">جاري المزامنة</h3>
+                        <h3 class="text-2xl font-bold text-gray-900 mb-2">
+                            {{ t('جاري المزامنة', 'Sync in progress') }}
+                        </h3>
                         <div class="flex items-center justify-center gap-2 mt-2">
-                            <Clock class="h-4 w-4 text-gray-500" />
-                            <span class="text-sm font-mono text-gray-600 font-semibold">الوقت المستغرق: {{ formatTimer(syncTimer) }}</span>
+                            <Clock class="h-4 w-4 text-[#ce4622]" />
+                            <span class="text-sm font-mono text-gray-600 font-semibold">
+                                {{ t('الوقت المستغرق:', 'Elapsed time:') }} {{ formatTimer(syncTimer) }}
+                            </span>
                         </div>
                     </div>
 
@@ -1039,7 +1117,9 @@ const getCookie = (name: string): string | null => {
                                     <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
                                     <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
                                 </div>
-                                <p class="text-center">جاري تشغيل السكريبت...</p>
+                                <p class="text-center">
+                                    {{ t('جاري تشغيل السكريبت...', 'Running sync script...') }}
+                                </p>
                             </div>
                             <div v-else class="space-y-1">
                                 <div

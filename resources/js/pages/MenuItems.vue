@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Plus, Menu, Store, DollarSign, Clock, Star, Filter, Tag, Trash2 } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 interface Props {
     menuItems: Array<{
@@ -29,6 +29,35 @@ interface Props {
 const props = defineProps<Props>();
 const page = usePage() as any;
 
+// Menu items language (synced with sidebarLang)
+const menuLang = ref<'ar' | 'en'>('ar');
+
+if (typeof window !== 'undefined') {
+    const storedLang = window.localStorage.getItem('sidebarLang');
+    if (storedLang === 'en' || storedLang === 'ar') {
+        menuLang.value = storedLang;
+    }
+}
+
+onMounted(() => {
+    if (typeof window === 'undefined') return;
+
+    const handler = (event: Event) => {
+        const lang = (event as CustomEvent).detail;
+        if (lang === 'en' || lang === 'ar') {
+            menuLang.value = lang;
+        }
+    };
+
+    window.addEventListener('sidebar-lang-changed', handler as EventListener);
+
+    onUnmounted(() => {
+        window.removeEventListener('sidebar-lang-changed', handler as EventListener);
+    });
+});
+
+const t = (ar: string, en: string) => (menuLang.value === 'ar' ? ar : en);
+
 // Filter state
 const selectedRestaurantId = ref('');
 
@@ -50,11 +79,11 @@ const getRestaurantName = (id: number) => {
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Dashboard',
+        title: t('لوحة التحكم', 'Dashboard'),
         href: '/dashboard',
     },
     {
-        title: 'Menu Items',
+        title: t('عناصر القائمة', 'Menu Items'),
         href: '/menu-items',
     },
 ];
@@ -68,14 +97,20 @@ const formatCurrency = (amount: number) => {
 
 // Delete function with confirmation
 const deleteMenuItem = (item: any) => {
-    if (confirm(`هل أنت متأكد من حذف "${item.name}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+    if (confirm(t(
+        `هل أنت متأكد من حذف "${item.name}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`,
+        `Are you sure you want to delete "${item.name}"?\n\nThis action cannot be undone.`
+    ))) {
         router.delete(route('menu-items.destroy', item.id), {
             onSuccess: () => {
                 // Success message will be handled by the controller
             },
             onError: (errors) => {
                 console.error('Error deleting menu item:', errors);
-                alert('حدث خطأ أثناء حذف المنتج. يرجى المحاولة مرة أخرى.');
+                alert(t(
+                    'حدث خطأ أثناء حذف المنتج. يرجى المحاولة مرة أخرى.',
+                    'An error occurred while deleting the item. Please try again.'
+                ));
             }
         });
     }
@@ -83,7 +118,7 @@ const deleteMenuItem = (item: any) => {
 </script>
 
 <template>
-    <Head title="Menu Items" />
+    <Head :title="t('عناصر القائمة', 'Menu Items')" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
@@ -120,15 +155,19 @@ const deleteMenuItem = (item: any) => {
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold">عناصر القائمة</h1>
-                    <p class="text-muted-foreground">إدارة قوائم الطعام للمطاعم</p>
+                    <h1 class="text-2xl font-bold">
+                        {{ t('عناصر القائمة', 'Menu Items') }}
+                    </h1>
+                    <p class="text-muted-foreground">
+                        {{ t('إدارة قوائم الطعام للمطاعم', 'Manage restaurant food menus') }}
+                    </p>
                 </div>
                 <Link
                     :href="route('menu-items.create')"
                     class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-blue-600 hover:to-purple-700 hover:shadow-xl hover:scale-105"
                 >
                     <Plus class="h-4 w-4 transition-transform group-hover:rotate-90" />
-                    إضافة منتج جديد
+                    {{ t('إضافة منتج جديد', 'Add new item') }}
                 </Link>
             </div>
 
@@ -137,14 +176,16 @@ const deleteMenuItem = (item: any) => {
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2">
                         <Filter class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        <span class="text-sm font-semibold text-gray-900 dark:text-white">فلتر المنتجات</span>
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">
+                            {{ t('فلتر المنتجات', 'Filter items') }}
+                        </span>
                     </div>
                     <div class="relative">
                         <select
                             v-model="selectedRestaurantId"
                             class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                         >
-                            <option value="">جميع المطاعم</option>
+                            <option value="">{{ t('جميع المطاعم', 'All restaurants') }}</option>
                             <option v-for="restaurant in restaurants" :key="restaurant.id" :value="restaurant.id">
                                 {{ restaurant.name }}
                             </option>
@@ -153,10 +194,20 @@ const deleteMenuItem = (item: any) => {
                 </div>
                 <div class="text-sm text-gray-600 dark:text-gray-400">
                     <span v-if="selectedRestaurantId">
-                        {{ filteredMenuItems.length }} منتج في {{ getRestaurantName(parseInt(selectedRestaurantId)) }}
+                        <template v-if="menuLang === 'ar'">
+                            {{ filteredMenuItems.length }} منتج في {{ getRestaurantName(parseInt(selectedRestaurantId)) }}
+                        </template>
+                        <template v-else>
+                            {{ filteredMenuItems.length }} items in {{ getRestaurantName(parseInt(selectedRestaurantId)) }}
+                        </template>
                     </span>
                     <span v-else>
-                        {{ filteredMenuItems.length }} منتج إجمالي
+                        <template v-if="menuLang === 'ar'">
+                            {{ filteredMenuItems.length }} منتج إجمالي
+                        </template>
+                        <template v-else>
+                            {{ filteredMenuItems.length }} total items
+                        </template>
                     </span>
                 </div>
             </div>
@@ -186,13 +237,13 @@ const deleteMenuItem = (item: any) => {
                                         : 'bg-red-500 text-white'
                                 ]"
                             >
-                                {{ item.is_available ? 'متاح' : 'غير متاح' }}
+                                {{ item.is_available ? t('متاح', 'Available') : t('غير متاح', 'Unavailable') }}
                             </span>
                             <span
                                 v-if="item.is_featured"
                                 class="inline-flex items-center rounded-full bg-yellow-500 px-2 py-1 text-xs font-medium text-white shadow-sm"
                             >
-                                مميز
+                                {{ t('مميز', 'Featured') }}
                             </span>
                         </div>
                         
@@ -215,7 +266,9 @@ const deleteMenuItem = (item: any) => {
                         <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                             <div class="flex items-center space-x-1">
                                 <Store class="h-3 w-3" />
-                                <span class="line-clamp-1">{{ item.restaurant?.name || 'غير محدد' }}</span>
+                                <span class="line-clamp-1">
+                                    {{ item.restaurant?.name || t('غير محدد', 'Not set') }}
+                                </span>
                             </div>
                             <div class="flex items-center space-x-1">
                                 <Clock class="h-3 w-3" />
@@ -229,18 +282,18 @@ const deleteMenuItem = (item: any) => {
                                 :href="route('menu-items.show', item.id)"
                                 class="flex-1 rounded-lg bg-blue-500 px-2 py-1.5 text-center text-xs font-medium text-white transition-colors hover:bg-blue-600"
                             >
-                                عرض
+                                {{ t('عرض', 'View') }}
                             </Link>
                             <Link
                                 :href="route('menu-items.edit', item.id)"
                                 class="flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                             >
-                                تعديل
+                                {{ t('تعديل', 'Edit') }}
                             </Link>
                             <button
                                 @click="deleteMenuItem(item)"
                                 class="rounded-lg bg-red-500 px-2 py-1.5 text-center text-xs font-medium text-white transition-colors hover:bg-red-600"
-                                title="حذف المنتج"
+                                :title="t('حذف المنتج', 'Delete item')"
                             >
                                 <Trash2 class="h-3 w-3" />
                             </button>
@@ -255,17 +308,27 @@ const deleteMenuItem = (item: any) => {
                     <Menu class="h-16 w-16 text-blue-500 dark:text-blue-400" />
                 </div>
                 <h3 class="mt-6 text-xl font-bold text-gray-900 dark:text-white">
-                    {{ selectedRestaurantId ? 'لا توجد منتجات في هذا المطعم' : 'لا توجد منتجات في القائمة' }}
+                    <template v-if="selectedRestaurantId">
+                        {{ t('لا توجد منتجات في هذا المطعم', 'No items in this restaurant') }}
+                    </template>
+                    <template v-else>
+                        {{ t('لا توجد منتجات في القائمة', 'No items in the menu') }}
+                    </template>
                 </h3>
                 <p class="mt-2 text-center text-gray-600 dark:text-gray-400">
-                    {{ selectedRestaurantId ? 'جرب اختيار مطعم آخر أو أضف منتجات جديدة' : 'ابدأ بإضافة منتجات جديدة للمطاعم' }}
+                    <template v-if="selectedRestaurantId">
+                        {{ t('جرب اختيار مطعم آخر أو أضف منتجات جديدة', 'Try selecting another restaurant or add new items') }}
+                    </template>
+                    <template v-else>
+                        {{ t('ابدأ بإضافة منتجات جديدة للمطاعم', 'Start by adding new items to restaurants') }}
+                    </template>
                 </p>
                 <Link
                     :href="route('menu-items.create')"
                     class="mt-6 group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:from-blue-600 hover:to-purple-700 hover:shadow-xl hover:scale-105"
                 >
                     <Plus class="h-4 w-4 transition-transform group-hover:rotate-90" />
-                    إضافة منتج جديد
+                    {{ t('إضافة منتج جديد', 'Add new item') }}
                 </Link>
             </div>
         </div>

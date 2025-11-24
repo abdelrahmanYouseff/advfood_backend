@@ -50,6 +50,35 @@ const props = defineProps<Props>();
 
 const page = usePage();
 
+// Orders page language (synced with sidebarLang)
+const ordersLang = ref<'ar' | 'en'>('ar');
+
+if (typeof window !== 'undefined') {
+    const storedLang = window.localStorage.getItem('sidebarLang');
+    if (storedLang === 'en' || storedLang === 'ar') {
+        ordersLang.value = storedLang;
+    }
+}
+
+onMounted(() => {
+    if (typeof window === 'undefined') return;
+
+    const handler = (event: Event) => {
+        const lang = (event as CustomEvent).detail;
+        if (lang === 'en' || lang === 'ar') {
+            ordersLang.value = lang;
+        }
+    };
+
+    window.addEventListener('sidebar-lang-changed', handler as EventListener);
+
+    onUnmounted(() => {
+        window.removeEventListener('sidebar-lang-changed', handler as EventListener);
+    });
+});
+
+const t = (ar: string, en: string) => (ordersLang.value === 'ar' ? ar : en);
+
 // Filter state
 const selectedStatus = ref<string>('all');
 const viewMode = ref<'cards' | 'table'>('cards'); // 'cards' or 'table' view for orders list
@@ -65,23 +94,23 @@ const closedOrders = computed<OrderData[]>(() => props.closed_orders ?? []);
 
 // Available status options
 const statusOptions = [
-    { value: 'all', label: 'جميع الطلبات' },
-    { value: 'New Order', label: 'طلب جديد' },
-    { value: 'Confirmed', label: 'مؤكد' },
-    { value: 'Preparing', label: 'قيد التحضير' },
-    { value: 'Ready', label: 'جاهز' },
-    { value: 'Out for Delivery', label: 'خارج للتوصيل' },
-    { value: 'Delivered', label: 'تم التسليم' },
-    { value: 'Cancelled', label: 'ملغي' }
+    { value: 'all', label: t('جميع الطلبات', 'All orders') },
+    { value: 'New Order', label: t('طلب جديد', 'New order') },
+    { value: 'Confirmed', label: t('مؤكد', 'Confirmed') },
+    { value: 'Preparing', label: t('قيد التحضير', 'Preparing') },
+    { value: 'Ready', label: t('جاهز', 'Ready') },
+    { value: 'Out for Delivery', label: t('خارج للتوصيل', 'Out for delivery') },
+    { value: 'Delivered', label: t('تم التسليم', 'Delivered') },
+    { value: 'Cancelled', label: t('ملغي', 'Cancelled') }
 ];
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'لوحة التحكم',
+        title: t('لوحة التحكم', 'Dashboard'),
         href: '/dashboard',
     },
     {
-        title: 'الطلبات',
+        title: t('الطلبات', 'Orders'),
         href: '/orders',
     },
 ];
@@ -892,7 +921,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <Head title="الطلبات" />
+    <Head :title="t('الطلبات', 'Orders')" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 p-6">
@@ -900,11 +929,21 @@ onMounted(() => {
             <div class="flex items-center justify-between">
                 <div>
                     <div>
-                        <h1 class="text-2xl font-bold">الطلبات</h1>
-                        <p class="text-muted-foreground">إدارة جميع طلبات العملاء</p>
+                        <h1 class="text-2xl font-bold">
+                            {{ t('الطلبات', 'Orders') }}
+                        </h1>
+                        <p class="text-muted-foreground">
+                            {{ t('إدارة جميع طلبات العملاء', 'Manage all customer orders') }}
+                        </p>
                         <div v-if="filteredOrders.filter((order: any) => order.sound === true).length > 0" class="mt-2">
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 animate-pulse">
-                                🔔 {{ filteredOrders.filter((order: any) => order.sound === true).length }} طلب بصوت نشط
+                                🔔
+                                <span v-if="ordersLang === 'ar'">
+                                    {{ filteredOrders.filter((order: any) => order.sound === true).length }} طلب بصوت نشط
+                                </span>
+                                <span v-else>
+                                    {{ filteredOrders.filter((order: any) => order.sound === true).length }} orders with active sound
+                                </span>
                             </span>
                         </div>
                     </div>
@@ -950,7 +989,7 @@ onMounted(() => {
                             class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
                         >
                             <Plus class="h-4 w-4" />
-                            إنشاء طلب
+                            {{ t('إنشاء طلب', 'Create order') }}
                         </Link>
                     </div>
                 </div>
@@ -992,7 +1031,9 @@ onMounted(() => {
                 <div class="flex items-center flex-wrap gap-3">
                     <div class="flex items-center space-x-2">
                         <Filter class="h-5 w-5 text-gray-500" />
-                        <span class="text-sm font-medium text-gray-700">فلتر الطلبات:</span>
+                        <span class="text-sm font-medium text-gray-700">
+                            {{ t('فلتر الطلبات:', 'Filter orders:') }}
+                        </span>
                     </div>
                     <select
                         v-model="selectedStatus"
@@ -1024,7 +1065,12 @@ onMounted(() => {
                     </div>
                 </div>
                 <div class="text-sm text-gray-500">
+                    <template v-if="ordersLang === 'ar'">
                     عرض {{ filteredOrders.length }} من {{ props.orders.length }} طلب
+                    </template>
+                    <template v-else>
+                        Showing {{ filteredOrders.length }} of {{ props.orders.length }} orders
+                    </template>
                 </div>
             </div>
 
@@ -1085,7 +1131,9 @@ onMounted(() => {
                                         <User class="h-4 w-4 text-blue-600" />
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">العميل</span>
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('العميل', 'Customer') }}
+                                        </span>
                                         <span class="font-medium text-gray-900 truncate">
                                             {{ order.user.name }}
                                 </span>
@@ -1098,7 +1146,9 @@ onMounted(() => {
                                         <Store class="h-4 w-4 text-emerald-600" />
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">المطعم</span>
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('المطعم', 'Restaurant') }}
+                                        </span>
                                         <span class="font-medium text-gray-900 truncate">
                                             {{ order.restaurant.name }}
                                         </span>
@@ -1111,7 +1161,9 @@ onMounted(() => {
                                         <Link2 class="h-4 w-4 text-indigo-600" />
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">مصدر الطلب</span>
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('مصدر الطلب', 'Order source') }}
+                                        </span>
                                         <span class="font-medium text-gray-900">
                                             {{ getSourceLabel(order.source) }}
                                 </span>
@@ -1124,14 +1176,16 @@ onMounted(() => {
                                         <UserCircle2 class="h-4 w-4 text-orange-600" />
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">مندوب التوصيل</span>
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('مندوب التوصيل', 'Driver') }}
+                                        </span>
                                         <span
                                             :class="[
                                                 'font-medium truncate',
                                     order.driver_name ? 'text-gray-900' : 'text-gray-400 italic'
                                             ]"
                                         >
-                                    {{ order.driver_name || 'لم يتم التعيين بعد' }}
+                                            {{ order.driver_name || t('لم يتم التعيين بعد', 'Not assigned yet') }}
                                 </span>
                             </div>
                             </div>
@@ -1142,7 +1196,9 @@ onMounted(() => {
                                         <AlertCircle class="h-4 w-4 text-yellow-600" />
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">حالة الطلب</span>
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('حالة الطلب', 'Order status') }}
+                                        </span>
                                         <span
                                             :class="[
                                                 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold mt-0.5 self-start',
@@ -1160,7 +1216,9 @@ onMounted(() => {
                                         <ShoppingCart class="h-4 w-4 text-purple-600" />
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">عدد الأصناف</span>
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('عدد الأصناف', 'Items count') }}
+                                        </span>
                                         <div class="flex items-center gap-1">
                                             <span class="font-medium text-gray-900">
                                                 {{ order.items_count || 0 }} items
@@ -1214,15 +1272,33 @@ onMounted(() => {
                     <table class="w-full min-w-[1000px] text-sm">
                         <thead>
                             <tr class="border-b bg-muted/50 text-xs text-gray-500">
-                                <th class="h-10 px-3 text-right font-semibold">رقم الطلب</th>
-                                <th class="h-10 px-3 text-right font-semibold">العميل</th>
-                                <th class="h-10 px-3 text-right font-semibold">المطعم</th>
-                                <th class="h-10 px-3 text-right font-semibold">مصدر الطلب</th>
-                                <th class="h-10 px-3 text-right font-semibold">حالة الشحن</th>
-                                <th class="h-10 px-3 text-right font-semibold">حالة الطلب</th>
-                                <th class="h-10 px-3 text-right font-semibold">الإجمالي</th>
-                                <th class="h-10 px-3 text-right font-semibold">التاريخ</th>
-                                <th class="h-10 px-3 text-right font-semibold">الإجراءات</th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('رقم الطلب', 'Order #') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('العميل', 'Customer') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('المطعم', 'Restaurant') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('مصدر الطلب', 'Source') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('حالة الشحن', 'Shipping status') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('حالة الطلب', 'Order status') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('الإجمالي', 'Total') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('التاريخ', 'Date') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('الإجراءات', 'Actions') }}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1288,25 +1364,25 @@ onMounted(() => {
                                     </div>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
-                                    <div class="flex flex-wrap gap-1 justify-end">
+                                        <div class="flex flex-wrap gap-1 justify-end">
                                         <button
                                             v-if="order.shipping_status === 'New Order'"
                                             @click="acceptOrder(order.id)"
                                             class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-green-600 text-white hover:bg-green-700"
                                         >
-                                            قبول
+                                            {{ t('قبول', 'Accept') }}
                                         </button>
                                         <Link
                                             :href="route('orders.show', order.id)"
                                             class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-blue-600 text-white hover:bg-blue-700"
                                         >
-                                            عرض
+                                            {{ t('عرض', 'View') }}
                                         </Link>
                                         <Link
                                             :href="route('orders.edit', order.id)"
                                             class="rounded-lg border px-3 py-1.5 text-[11px] font-medium border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                                         >
-                                            تعديل
+                                            {{ t('تعديل', 'Edit') }}
                                         </Link>
                                     </div>
                                 </td>
@@ -1319,35 +1395,53 @@ onMounted(() => {
             <!-- Empty State (for open orders) -->
             <div v-if="orders.length === 0" class="flex flex-col items-center justify-center py-12">
                 <ShoppingCart class="h-12 w-12 text-muted-foreground" />
-                <h3 class="mt-4 text-lg font-semibold">No orders found</h3>
-                <p class="mt-2 text-muted-foreground">Orders will appear here once customers start placing them.</p>
+                <h3 class="mt-4 text-lg font-semibold">
+                    {{ t('لا توجد طلبات', 'No orders found') }}
+                </h3>
+                <p class="mt-2 text-muted-foreground">
+                    {{ t('ستظهر الطلبات هنا بمجرد بدء العملاء في الطلب.', 'Orders will appear here once customers start placing them.') }}
+                </p>
                 <Link
                     :href="route('orders.create')"
                     class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                     <Plus class="h-4 w-4" />
-                    إنشاء طلب
+                    {{ t('إنشاء طلب', 'Create order') }}
                 </Link>
             </div>
 
             <!-- Empty State for Filtered Results -->
             <div v-if="filteredOrders.length === 0 && props.orders.length > 0" class="flex flex-col items-center justify-center py-12">
                 <ShoppingCart class="h-12 w-12 text-muted-foreground" />
-                <h3 class="mt-4 text-lg font-semibold">لا توجد طلبات بهذه الحالة</h3>
-                <p class="mt-2 text-muted-foreground">جرب اختيار حالة أخرى من الفلتر.</p>
+                <h3 class="mt-4 text-lg font-semibold">
+                    {{ t('لا توجد طلبات بهذه الحالة', 'No orders with this status') }}
+                </h3>
+                <p class="mt-2 text-muted-foreground">
+                    {{ t('جرب اختيار حالة أخرى من الفلتر.', 'Try selecting another status from the filter.') }}
+                </p>
             </div>
 
             <!-- Closed Orders Section -->
             <div v-if="closedOrders.length > 0" class="mt-10 space-y-4">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h2 class="text-xl font-semibold text-foreground">الطلبات المغلقة</h2>
+                        <h2 class="text-xl font-semibold text-foreground">
+                            {{ t('الطلبات المغلقة', 'Closed orders') }}
+                        </h2>
                         <p class="text-sm text-muted-foreground">
-                            الطلبات التي تم تسليمها أو إلغاؤها لا تظهر في قائمة الطلبات الحالية.
+                            {{ t(
+                                'الطلبات التي تم تسليمها أو إلغاؤها لا تظهر في قائمة الطلبات الحالية.',
+                                'Orders that have been delivered or cancelled will not appear in the current orders list.'
+                            ) }}
                         </p>
                     </div>
                     <div class="rounded-full bg-gray-100 px-4 py-1 text-xs font-medium text-gray-700">
-                        عدد الطلبات المغلقة: {{ closedOrders.length }}
+                        <span v-if="ordersLang === 'ar'">
+                            عدد الطلبات المغلقة: {{ closedOrders.length }}
+                        </span>
+                        <span v-else>
+                            Closed orders: {{ closedOrders.length }}
+                        </span>
                     </div>
                 </div>
 
@@ -1356,14 +1450,30 @@ onMounted(() => {
                         <table class="w-full min-w-[1000px] text-sm">
                             <thead>
                                 <tr class="border-b bg-muted/50 text-xs text-gray-500">
-                                    <th class="h-10 px-3 text-right font-semibold">رقم الطلب</th>
-                                    <th class="h-10 px-3 text-right font-semibold">العميل</th>
-                                    <th class="h-10 px-3 text-right font-semibold">المطعم</th>
-                                    <th class="h-10 px-3 text-right font-semibold">حالة الشحن</th>
-                                    <th class="h-10 px-3 text-right font-semibold">حالة الطلب</th>
-                                    <th class="h-10 px-3 text-right font-semibold">الإجمالي</th>
-                                    <th class="h-10 px-3 text-right font-semibold">تاريخ الإغلاق</th>
-                                    <th class="h-10 px-3 text-right font-semibold">الإجراءات</th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('رقم الطلب', 'Order #') }}
+                                    </th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('العميل', 'Customer') }}
+                                    </th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('المطعم', 'Restaurant') }}
+                                    </th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('حالة الشحن', 'Shipping status') }}
+                                    </th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('حالة الطلب', 'Order status') }}
+                                    </th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('الإجمالي', 'Total') }}
+                                    </th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('تاريخ الإغلاق', 'Closed at') }}
+                                    </th>
+                                    <th class="h-10 px-3 text-right font-semibold">
+                                        {{ t('الإجراءات', 'Actions') }}
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1426,7 +1536,7 @@ onMounted(() => {
                                                 :href="route('orders.show', order.id)"
                                                 class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-blue-600 text-white hover:bg-blue-700"
                                             >
-                                                عرض
+                                                {{ t('عرض', 'View') }}
                                             </Link>
                                         </div>
                                     </td>
