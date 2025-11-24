@@ -320,10 +320,10 @@ const updateLocation = async (orderId: number) => {
 
     try {
         // Get CSRF token from meta tag or cookie
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
             || getCookie('XSRF-TOKEN')
             || '';
-        
+
         const response = await fetch(`/api/zyda/orders/${orderId}/location`, {
             method: 'PATCH',
             headers: {
@@ -435,7 +435,7 @@ const syncZydaOrders = async () => {
             clearTimeout(timeoutId);
             clearInterval(progressInterval);
             clearInterval(finalProgressInterval);
-            
+
             // Stop timer
             if (syncTimerInterval.value !== null) {
                 clearInterval(syncTimerInterval.value);
@@ -453,23 +453,23 @@ const syncZydaOrders = async () => {
 
             // Parse and display script output
             console.log('📋 Output received:', data.output ? `${data.output.length} chars` : 'empty');
-            
+
             if (data.output && data.output.trim().length > 0) {
                 // Split output into lines and filter empty lines
                 const outputLines = data.output.split('\n')
                     .map((line: string) => line.trim())
                     .filter((line: string) => line.length > 0);
-                
+
                 console.log('📝 Parsed output lines:', outputLines.length);
                 syncLogs.value = outputLines;
-                
+
                 // Auto-scroll to bottom of logs
                 setTimeout(() => {
                     if (logsContainer.value) {
                         logsContainer.value.scrollTop = logsContainer.value.scrollHeight;
                     }
                 }, 100);
-                
+
                 // Update message with last few meaningful lines
                 const lastLines = outputLines.slice(-5).join('\n');
                 if (lastLines) {
@@ -483,7 +483,7 @@ const syncZydaOrders = async () => {
 
             // Success - Complete progress
             syncProgress.value = 100;
-            
+
             // Show summary if available
             if (data.summary) {
                 const summary = data.summary;
@@ -508,15 +508,15 @@ const syncZydaOrders = async () => {
             clearTimeout(timeoutId);
             clearInterval(progressInterval);
             clearInterval(finalProgressInterval);
-            
+
             // Stop timer
             if (syncTimerInterval.value !== null) {
                 clearInterval(syncTimerInterval.value);
                 syncTimerInterval.value = null;
             }
-            
+
             console.error('❌ Sync fetch error:', fetchError);
-            
+
             if (fetchError.name === 'AbortError') {
                 syncProgress.value = 100;
                 syncMessage.value = 'انتهى وقت الانتظار. يرجى المحاولة مرة أخرى.';
@@ -531,7 +531,7 @@ const syncZydaOrders = async () => {
                     'يرجى التحقق من سجلات Laravel للحصول على مزيد من التفاصيل.'
                 ];
             }
-            
+
             setTimeout(() => {
                 showSyncModal.value = false;
                 syncLoading.value = false;
@@ -541,13 +541,13 @@ const syncZydaOrders = async () => {
         }
     } catch (error: any) {
         clearInterval(progressInterval);
-        
+
         // Stop timer
         if (syncTimerInterval.value !== null) {
             clearInterval(syncTimerInterval.value);
             syncTimerInterval.value = null;
         }
-        
+
         syncProgress.value = 100;
         syncMessage.value = 'حدث خطأ أثناء المزامنة: ' + (error.message || 'خطأ غير معروف');
         console.error('❌ Sync error:', error);
@@ -576,10 +576,10 @@ const deleteZydaOrder = async (orderId: number) => {
 
     try {
         // Get CSRF token from meta tag or cookie
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
             || getCookie('XSRF-TOKEN')
             || '';
-        
+
         const response = await fetch(`/api/zyda/orders/${orderId}`, {
             method: 'DELETE',
             headers: {
@@ -728,32 +728,6 @@ const getCookie = (name: string): string | null => {
                             </div>
                             <div class="rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/20">
                                 <TrendingUp class="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div class="rounded-xl border bg-card p-6 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-muted-foreground">طلبات Zyda</p>
-                                <p class="text-2xl font-bold text-blue-600">{{ props.zyda_summary.count }}</p>
-                            </div>
-                            <div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/20">
-                                <Package class="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border bg-card p-6 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-muted-foreground">إجمالي Zyda</p>
-                                <p class="text-2xl font-bold text-emerald-600">{{ formatZydaTotal(props.zyda_summary.total_amount) }}</p>
-                            </div>
-                            <div class="rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/20">
-                                <DollarSign class="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                             </div>
                         </div>
                     </div>
