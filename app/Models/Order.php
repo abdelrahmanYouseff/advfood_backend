@@ -104,6 +104,26 @@ class Order extends Model
                 $order->createInvoice();
             }
 
+            // 🔹 NEW RULE:
+            // Do NOT contact shipping company on creation unless payment_status === 'paid'.
+            // This is important for /rest-links (link orders) and any other pending/unpaid orders.
+            if ($order->payment_status !== 'paid') {
+                \Illuminate\Support\Facades\Log::info('⏸ Skipping shipping API call on create because payment_status is NOT paid', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_status' => $order->payment_status,
+                    'status' => $order->status,
+                    'shipping_status' => $order->shipping_status,
+                    'source' => $order->source ?? 'NULL',
+                    'shop_id' => $order->shop_id ?? 'NULL',
+                    'step' => 'Order Model boot method - static::created hook (shipping skipped until payment confirmed)',
+                ]);
+
+                // We return early here; when payment_status becomes "paid",
+                // static::updated() hook will send the order to the shipping company.
+                return;
+            }
+
             // IMPORTANT: Immediately contact shipping company after order is created
             // This happens automatically when order is inserted into orders table
             // Goal: Get dsp_order_id from shipping company and update it in database
@@ -119,8 +139,7 @@ class Order extends Model
                 'step' => 'Order Model boot method - static::created hook',
             ]);
 
-            // Send ALL orders that have shop_id to shipping company
-            // This is critical: We need to get dsp_order_id immediately
+            // Send ALL orders that have shop_id to shipping company (only for paid orders)
             // IMPORTANT: Skip if dsp_order_id is already set (e.g., Zeada orders that were sent before Order creation)
             if (!empty($order->shop_id) && empty($order->dsp_order_id)) {
                 try {
