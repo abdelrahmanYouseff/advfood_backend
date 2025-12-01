@@ -136,13 +136,17 @@ class TestNoonController extends Controller
             return view('payment-success');
         }
 
-        \Illuminate\Support\Facades\Log::info('💰 PAYMENT SUCCESS CALLBACK STARTED', [
+        $payload = $request->all();
+        $paymentSuccessful = $this->isPaymentSuccessful($payload);
+
+        \Illuminate\Support\Facades\Log::info('💰 PAYMENT REDIRECT CALLBACK RECEIVED', [
             'request_all_params' => $request->all(),
             'request_url' => $request->fullUrl(),
             'request_method' => $request->method(),
             'ip' => $request->ip(),
             'environment' => config('app.env'),
             'timestamp' => now()->toDateTimeString(),
+            'payment_successful_in_redirect' => $paymentSuccessful,
         ]);
 
         $orderId = $request->get('order_id');
@@ -209,6 +213,30 @@ class TestNoonController extends Controller
                 'current_shop_id' => $order->shop_id ?? 'MISSING',
                 'restaurant_id' => $order->restaurant_id,
             ]);
+
+            // ✅ IMPORTANT:
+            // Do NOT mark order as paid or confirmed unless payment is really successful.
+            // Noon may redirect here even when the payment failed or was cancelled.
+            if (!$paymentSuccessful) {
+                \Illuminate\Support\Facades\Log::warning('⚠️ Payment redirect indicates payment NOT successful. Keeping / marking order as failed.', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'current_payment_status' => $order->payment_status,
+                    'callback_payload' => $payload,
+                ]);
+
+                // Optionally mark as failed/cancelled (only if still pending)
+                if ($order->payment_status === 'pending') {
+                    $order->payment_status = 'failed';
+                    if ($order->status !== 'cancelled') {
+                        $order->status = 'cancelled';
+                    }
+                    $order->save();
+                }
+
+                // Show proper failure page to the customer
+                return response()->view('payment-failed', ['orderId' => $order->id]);
+            }
 
             // Only update if payment_status is still pending (avoid duplicate processing)
             if ($order->payment_status === 'pending') {
@@ -387,8 +415,52 @@ class TestNoonController extends Controller
                 'request_params' => $request->all(),
             ]);
 
-            return response()->view('payment-success');
+            // If we don't have an order, we should not show a "payment successful" screen.
+            return response()->view('payment-failed');
         }
+    }
+
+    /**
+     * Determine if payment is actually successful based on Noon redirect payload.
+     * This uses the same logic as the webhook handler to avoid false positives.
+     */
+    private function isPaymentSuccessful(array $payload): bool
+    {
+        $successValues = [
+            'success',
+            'succeeded',
+            'successful',
+            'paid',
+            'completed',
+            'captured',
+            'approved',
+            'authorized',
+        ];
+
+        $statusCandidates = [
+            data_get($payload, 'event'),
+            data_get($payload, 'eventType'),
+            data_get($payload, 'event.type'),
+            data_get($payload, 'status'),
+            data_get($payload, 'paymentStatus'),
+            data_get($payload, 'orderStatus'),
+            data_get($payload, 'transactionStatus'),
+            data_get($payload, 'result.status'),
+            data_get($payload, 'result.order.status'),
+        ];
+
+        foreach ($statusCandidates as $status) {
+            if (is_string($status) && in_array(strtolower($status), $successValues, true)) {
+                return true;
+            }
+        }
+
+        $resultCode = (string) data_get($payload, 'resultCode', data_get($payload, 'responseCode'));
+        if (in_array($resultCode, ['000', '0000', '00'], true)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function fail()
