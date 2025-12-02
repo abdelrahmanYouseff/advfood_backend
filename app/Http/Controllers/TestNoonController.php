@@ -225,16 +225,45 @@ class TestNoonController extends Controller
                     'callback_payload' => $payload,
                 ]);
 
-                // Optionally mark as failed/cancelled (only if still pending)
+                /**
+                 * 🔁 NEW BEHAVIOUR:
+                 * If the payment was NOT successful, we don't want to keep a cancelled/failed
+                 * order in the database for this checkout attempt – especially for /rest-link
+                 * and mobile flows.
+                 *
+                 * - If the order is still in "pending" payment state, we treat it as a
+                 *   temporary/pre-payment record and delete it completely (with its items).
+                 * - This way:
+                 *   • The order will NOT appear in Orders page.
+                 *   • There will be no rows with status "cancelled" just because payment failed.
+                 */
                 if ($order->payment_status === 'pending') {
-                    $order->payment_status = 'failed';
-                    if ($order->status !== 'cancelled') {
-                        $order->status = 'cancelled';
+                    $orderIdForLog = $order->id;
+                    $orderNumberForLog = $order->order_number;
+
+                    try {
+                        // Delete related order items first to be safe
+                        if (method_exists($order, 'orderItems')) {
+                            $order->orderItems()->delete();
+                        }
+
+                        $order->delete();
+
+                        \Illuminate\Support\Facades\Log::info('🗑️ Order deleted because payment failed in redirect callback (no cancelled record kept)', [
+                            'order_id' => $orderIdForLog,
+                            'order_number' => $orderNumberForLog,
+                        ]);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('❌ Failed to delete order after failed payment redirect', [
+                            'order_id' => $orderIdForLog,
+                            'order_number' => $orderNumberForLog,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
                     }
-                    $order->save();
                 }
 
-                // Show proper failure page to the customer
+                // Show proper failure page to the customer (order may already be deleted)
                 return response()->view('payment-failed', ['orderId' => $order->id]);
             }
 
