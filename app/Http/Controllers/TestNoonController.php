@@ -489,6 +489,43 @@ class TestNoonController extends Controller
             return true;
         }
 
+        /**
+         * 🔍 Heuristic for Noon "INITIATE" redirect (current integration):
+         *
+         * في سيناريو `/checkout` الحالي، Noon يرجّعنا على `payment-success` مع
+         * باراميترات بسيطة فقط مثل:
+         * - order_id
+         * - orderId
+         * - merchantReference
+         * - paymentType
+         *
+         * بدون أي حقل status أو resultCode في الـ query string.
+         *
+         * هذا يجعل كل عمليات الدفع تبدو "فاشلة" حسب التحقق التقليدي أعلاه.
+         *
+         * هنا نضيف قاعدة خاصة:
+         * - إذا كان عندنا `orderId` و `merchantReference`
+         * - ولا يوجد حقل status / paymentStatus / resultCode يعلن الفشل صراحة
+         * فنعتبر الـ redirect ناجح (وسنستخدم الـ Webhook/Logs للتأكد في الخلفية).
+         */
+        $hasAnyStatusField = false;
+        foreach ($statusCandidates as $status) {
+            if (!is_null($status) && $status !== '') {
+                $hasAnyStatusField = true;
+                break;
+            }
+        }
+
+        if (!$hasAnyStatusField) {
+            $orderIdFromCallback = data_get($payload, 'orderId') ?? data_get($payload, 'id');
+            $merchantReference = data_get($payload, 'merchantReference') ?? data_get($payload, 'orderReference');
+            $hasExplicitErrorCode = !empty(data_get($payload, 'resultCode')) || !empty(data_get($payload, 'responseCode')) || !empty(data_get($payload, 'errorCode'));
+
+            if ($orderIdFromCallback && $merchantReference && !$hasExplicitErrorCode) {
+                return true;
+            }
+        }
+
         return false;
     }
 
