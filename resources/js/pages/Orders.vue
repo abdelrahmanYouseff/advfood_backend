@@ -17,7 +17,7 @@ interface OrderData {
         id: number;
         order_number: string;
         status: string;
-        shipping_status: string;
+    shipping_status: string | null;
         total: number;
         source?: string | null;
         items_count?: number;
@@ -25,7 +25,9 @@ interface OrderData {
         sound: boolean;
         created_at: string;
     delivered_at?: string | null;
+    dsp_order_id?: string | null;
     driver_name?: string | null;
+    driver_phone?: string | null;
     user: OrderUser;
     restaurant: OrderRestaurant;
         order_items?: Array<{
@@ -35,6 +37,12 @@ interface OrderData {
             price: string;
             subtotal: string;
         }>;
+}
+
+interface DriverInfo {
+    status?: string | null;
+    driver_name?: string | null;
+    driver_phone?: string | null;
 }
 
 interface Props {
@@ -158,6 +166,7 @@ const getOrderStatusLabel = (status?: string | null) => {
 const shippingStatusLabels: Record<string, string> = {
     'new order': 'طلب جديد',
     'confirmed': 'تم التأكيد',
+    'order accept': 'تم قبول الطلب',
     'preparing': 'قيد التحضير',
     'ready': 'جاهز',
     'out for delivery': 'جاري التوصيل',
@@ -171,6 +180,24 @@ const getShippingStatusLabel = (status?: string | null) => {
     }
     const normalizedStatus = status.toLowerCase();
     return shippingStatusLabels[normalizedStatus] ?? status;
+};
+
+// Live driver info and driver/shipping status (fetched from shipping API)
+const driverInfoByOrderId = ref<Record<number, DriverInfo>>({});
+
+const getDriverStatusForOrder = (order: OrderData): string => {
+    const info = driverInfoByOrderId.value[order.id];
+    return (info?.status ?? order.shipping_status ?? '') || '';
+};
+
+const getDriverNameForOrder = (order: OrderData): string | null => {
+    const info = driverInfoByOrderId.value[order.id];
+    return info?.driver_name ?? order.driver_name ?? null;
+};
+
+const getDriverPhoneForOrder = (order: OrderData): string | null => {
+    const info = driverInfoByOrderId.value[order.id];
+    return info?.driver_phone ?? order.driver_phone ?? null;
 };
 
 const sourceLabels: Record<string, string> = {
@@ -215,6 +242,10 @@ onUnmounted(() => {
         clearInterval(elapsedTimer);
         elapsedTimer = null;
     }
+    if (driverStatusInterval !== null) {
+        clearInterval(driverStatusInterval);
+        driverStatusInterval = null;
+    }
 });
 
 const formatDate = (dateString: string) => {
@@ -255,6 +286,78 @@ const isNewOrder = (order: any) => {
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60));
     return diffInMinutes <= 5; // New if created within last 5 minutes
+};
+
+// Poll shipping API for each order that has dsp_order_id to keep driver info and status up to date
+const fetchDriverStatusForOrder = async (order: OrderData) => {
+    if (!order.dsp_order_id) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/shipping/status/${encodeURIComponent(order.dsp_order_id)}`);
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+        const api = payload.api ?? {};
+        const local = payload.local ?? {};
+
+        const apiStatus = api.status ?? api.data?.status ?? null;
+        const localStatus = local.shipping_status ?? null;
+        const status = apiStatus ?? localStatus ?? order.shipping_status ?? null;
+
+        const apiDriver = api.driver ?? api.data?.driver ?? null;
+        const driverName =
+            (apiDriver && typeof apiDriver === 'object' ? apiDriver.name : null) ??
+            local.driver_name ??
+            order.driver_name ??
+            null;
+        const driverPhone =
+            (apiDriver && typeof apiDriver === 'object' ? apiDriver.phone : null) ??
+            local.driver_phone ??
+            order.driver_phone ??
+            null;
+
+        driverInfoByOrderId.value[order.id] = {
+            status,
+            driver_name: driverName,
+            driver_phone: driverPhone,
+        };
+
+        // Also keep the order object in sync so existing UI bindings update
+        if (status) {
+            order.shipping_status = status;
+        }
+        if (driverName) {
+            order.driver_name = driverName;
+        }
+        if (driverPhone) {
+            order.driver_phone = driverPhone;
+        }
+    } catch (error) {
+        console.error('Failed to fetch driver status for order', order.id, error);
+    }
+};
+
+let driverStatusInterval: ReturnType<typeof setInterval> | null = null;
+
+const startDriverStatusPolling = () => {
+    const poll = () => {
+        // Only poll for open orders that have been sent to shipping (have dsp_order_id)
+        filteredOrders.value.forEach((order: OrderData) => {
+            if (order.dsp_order_id && !isDelivered(order)) {
+                fetchDriverStatusForOrder(order);
+            }
+        });
+    };
+
+    // Initial fetch
+    poll();
+
+    // Poll every 15 seconds
+    driverStatusInterval = setInterval(poll, 15000);
 };
 
 // Sound notification for new orders
@@ -864,6 +967,9 @@ onMounted(() => {
     // Start monitoring for orders with sound
     const stopMonitoring = monitorOrdersWithSound();
 
+    // Start polling driver / shipping status from shipping company
+    startDriverStatusPolling();
+
     // Set up polling for new orders every 10 seconds (faster monitoring)
     const interval = setInterval(() => {
         console.log('Reloading orders...');
@@ -916,6 +1022,11 @@ onMounted(() => {
 
         document.removeEventListener('click', enableSpeechOnInteraction);
         document.removeEventListener('touchstart', enableSpeechOnInteraction);
+
+        if (driverStatusInterval !== null) {
+            clearInterval(driverStatusInterval);
+            driverStatusInterval = null;
+        }
     });
 });
 </script>
@@ -1105,10 +1216,10 @@ onMounted(() => {
                                     <span
                                         :class="[
                                             'inline-flex items-center rounded-full px-2 py-0.5 font-semibold',
-                                            getStatusColor(order.shipping_status)
+                                            getStatusColor(order.shipping_status || 'New Order')
                                         ]"
                                     >
-                                        {{ getShippingStatusLabel(order.shipping_status) }}
+                                        {{ getShippingStatusLabel(order.shipping_status || 'New Order') }}
                                     </span>
                                 </div>
                             </div>
@@ -1171,23 +1282,54 @@ onMounted(() => {
                             </div>
 
                             <!-- Driver Info -->
-                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100">
-                                        <UserCircle2 class="h-4 w-4 text-orange-600" />
-                                    </div>
-                                    <div class="flex flex-col">
+                            <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100">
+                                    <UserCircle2 class="h-4 w-4 text-orange-600" />
+                                </div>
+                                <div class="flex flex-col space-y-0.5">
+                                    <!-- Driver Status -->
+                                    <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500">
-                                            {{ t('مندوب التوصيل', 'Driver') }}
+                                            {{ t('حالة المندوب', 'Driver status') }}:
                                         </span>
                                         <span
                                             :class="[
-                                                'font-medium truncate',
-                                    order.driver_name ? 'text-gray-900' : 'text-gray-400 italic'
+                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+                                                getStatusColor(getDriverStatusForOrder(order) || 'New Order')
                                             ]"
                                         >
-                                            {{ order.driver_name || t('لم يتم التعيين بعد', 'Not assigned yet') }}
-                                </span>
-                            </div>
+                                            {{ getShippingStatusLabel(getDriverStatusForOrder(order) || 'New Order') }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Driver Name -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('اسم المندوب', 'Driver name') }}:
+                                        </span>
+                                        <span
+                                            :class="[
+                                                'text-xs font-medium truncate',
+                                                getDriverNameForOrder(order) ? 'text-gray-900' : 'text-gray-400 italic'
+                                            ]"
+                                        >
+                                            {{ getDriverNameForOrder(order) || t('لم يتم التعيين بعد', 'Not assigned yet') }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Driver Phone -->
+                                    <div class="flex items-center gap-2" v-if="getDriverPhoneForOrder(order)">
+                                        <span class="text-xs text-gray-500">
+                                            {{ t('رقم الجوال', 'Phone') }}:
+                                        </span>
+                                        <a
+                                            class="text-xs font-medium text-blue-600 hover:underline"
+                                            :href="`tel:${getDriverPhoneForOrder(order)}`"
+                                        >
+                                            {{ getDriverPhoneForOrder(order) }}
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
 
                                 <!-- Order Status -->
@@ -1334,10 +1476,10 @@ onMounted(() => {
                                     <span
                                         :class="[
                                             'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                                            getStatusColor(order.shipping_status)
+                                            getStatusColor(order.shipping_status || 'New Order')
                                         ]"
                                     >
-                                        {{ getShippingStatusLabel(order.shipping_status) }}
+                                        {{ getShippingStatusLabel(order.shipping_status || 'New Order') }}
                                     </span>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
@@ -1504,10 +1646,10 @@ onMounted(() => {
                                         <span
                                             :class="[
                                                 'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                                                getStatusColor(order.shipping_status)
+                                                getStatusColor(order.shipping_status || 'New Order')
                                             ]"
                                         >
-                                            {{ getShippingStatusLabel(order.shipping_status) }}
+                                            {{ getShippingStatusLabel(order.shipping_status || 'New Order') }}
                                         </span>
                                     </td>
                                     <td class="px-3 py-2 align-middle">
