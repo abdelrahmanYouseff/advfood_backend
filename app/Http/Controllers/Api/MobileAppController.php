@@ -204,9 +204,11 @@ class MobileAppController extends Controller
             );
 
             // Calculate subtotal (total without delivery fee and tax for now)
+            // Mobile app also gets a fixed delivery fee of 18 SAR
             $subtotal = $request->total;
-            $deliveryFee = 0;
+            $deliveryFee = 18.0;
             $tax = 0;
+            $finalTotal = $subtotal + $deliveryFee;
 
             // Generate unique order number
             $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
@@ -226,7 +228,7 @@ class MobileAppController extends Controller
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
                 'tax' => $tax,
-                'total' => $request->total,
+                'total' => $finalTotal,
                 'delivery_address' => $deliveryAddress,
                 'delivery_phone' => $request->phone_number,
                 'delivery_name' => $deliveryName,
@@ -253,7 +255,8 @@ class MobileAppController extends Controller
             $noonRequestData = [
                 "apiOperation" => "INITIATE",
                 "order" => [
-                    "amount" => $request->total,
+                    // Charge customer subtotal + fixed delivery fee
+                    "amount" => $finalTotal,
                     "currency" => "SAR",
                     "reference" => "ORDER-" . $order->id . "-" . now()->timestamp,
                     "name" => "Order #" . $order->id,
@@ -330,7 +333,7 @@ class MobileAppController extends Controller
                     'checkout_url' => $checkoutUrl,
                     'order_id' => $order->id,
                     'order_number' => $orderNumber,
-                    'total' => $request->total,
+                    'total' => $finalTotal,
                     'restaurant_name' => $restaurant->name
                 ]
             ]);

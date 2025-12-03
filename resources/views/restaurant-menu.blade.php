@@ -407,9 +407,23 @@
         </div>
 
         <div class="border-t border-gray-200 pt-3 md:pt-4 pb-4 sm:pb-0">
-            <div class="flex justify-between items-center mb-3 md:mb-4">
+            <div class="flex justify-between items-center mb-1.5 md:mb-2">
                 <span id="total-text" class="text-gray-700 text-base md:text-lg font-semibold">المجموع:</span>
                 <span id="cart-total" class="text-purple-600 text-lg md:text-xl font-bold">0.00 رس</span>
+            </div>
+            <div class="space-y-0.5 text-xs md:text-sm text-gray-500 mb-3 md:mb-4">
+                <div id="cart-subtotal-row" class="flex justify-between">
+                    <span>قيمة المنتجات</span>
+                    <span id="cart-subtotal">0.00 رس</span>
+                </div>
+                <div id="cart-delivery-row" class="flex justify-between">
+                    <span>رسوم التوصيل (ثابتة)</span>
+                    <span id="cart-delivery-fee">18.00 رس</span>
+                </div>
+                <div id="cart-grand-row" class="flex justify-between font-semibold text-gray-700">
+                    <span>الإجمالي (مع التوصيل)</span>
+                    <span id="cart-grand-total">0.00 رس</span>
+                </div>
             </div>
 
             <div class="space-y-2 md:space-y-3">
@@ -429,7 +443,8 @@
 
     <script>
         let cart = [];
-        let cartTotal = 0;
+        let cartTotal = 0; // إجمالي أصناف السلة بدون التوصيل
+        const DELIVERY_FEE_FIXED = 18; // رسوم توصيل ثابتة لكل طلب (رس)
 
         // Translations
         const translations = {
@@ -604,12 +619,28 @@
         function updateCartDisplay() {
             const cartItems = document.getElementById('cart-items');
             const cartTotalElement = document.getElementById('cart-total');
+            const cartSubtotalElement = document.getElementById('cart-subtotal');
+            const cartDeliveryFeeElement = document.getElementById('cart-delivery-fee');
+            const cartSubtotalRow = document.getElementById('cart-subtotal-row');
+            const cartDeliveryRow = document.getElementById('cart-delivery-row');
+            const cartGrandRow = document.getElementById('cart-grand-row');
+            const cartGrandTotalElement = document.getElementById('cart-grand-total');
 
+            // إجمالي قيمة المنتجات فقط
             cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+            // المجموع النهائي المعروض للمستخدم (منتجات + توصيل ثابت)
+            const grandTotal = cart.length > 0 ? (cartTotal + DELIVERY_FEE_FIXED) : 0;
 
             if (cart.length === 0) {
                 cartItems.innerHTML = '<p class="text-gray-500 text-center py-8">سلتك فارغة</p>';
-                cartTotalElement.textContent = '0.00 رس';
+                cartTotalElement.textContent = '0.00 رس'; // لا يوجد طلب بعد
+                if (cartSubtotalElement) cartSubtotalElement.textContent = '0.00 رس';
+                // نظهر رسوم التوصيل الثابتة 18 رس حتى مع عدم وجود أصناف (للتوضيح)
+                if (cartDeliveryFeeElement) cartDeliveryFeeElement.textContent = DELIVERY_FEE_FIXED.toFixed(2) + ' رس';
+                if (cartSubtotalRow) cartSubtotalRow.style.opacity = '0.6';
+                if (cartDeliveryRow) cartDeliveryRow.style.opacity = '0.6';
+                if (cartGrandTotalElement) cartGrandTotalElement.textContent = '0.00 رس';
+                if (cartGrandRow) cartGrandRow.style.opacity = '0.6';
             } else {
                 cartItems.innerHTML = cart.map(item => `
                     <div class="cart-item rounded-lg p-3 md:p-4">
@@ -635,7 +666,17 @@
                     </div>
                 `).join('');
 
-                cartTotalElement.textContent = cartTotal.toFixed(2) + ' رس';
+                // عرض "المجموع" = قيمة المنتجات + رسوم التوصيل الثابتة (18 رس)
+                cartTotalElement.textContent = grandTotal.toFixed(2) + ' رس';
+
+                // عرض قيمة المنتجات ورسوم التوصيل الثابتة
+                if (cartSubtotalElement) cartSubtotalElement.textContent = cartTotal.toFixed(2) + ' رس';
+                if (cartDeliveryFeeElement) cartDeliveryFeeElement.textContent = DELIVERY_FEE_FIXED.toFixed(2) + ' رس';
+                if (cartSubtotalRow) cartSubtotalRow.style.opacity = '1';
+                if (cartDeliveryRow) cartDeliveryRow.style.opacity = '1';
+                // عرض الإجمالي (مع التوصيل) في السطر الجديد
+                if (cartGrandTotalElement) cartGrandTotalElement.textContent = grandTotal.toFixed(2) + ' رس';
+                if (cartGrandRow) cartGrandRow.style.opacity = '1';
             }
         }
 
@@ -666,9 +707,11 @@
             const mobileOldPrice = document.getElementById('mobile-old-price');
             const mobileOldPriceValue = document.getElementById('mobile-old-price-value');
             const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+            const grandTotal = cartTotal + (cart.length > 0 ? DELIVERY_FEE_FIXED : 0);
 
             if (mobileCartTotal) {
-                mobileCartTotal.textContent = cartTotal.toFixed(2);
+                // إظهار الإجمالي شامل التوصيل في زر السلة للموبايل
+                mobileCartTotal.textContent = grandTotal.toFixed(2);
             }
 
             if (mobileCartCount) {
@@ -828,47 +871,20 @@
             updateCartDisplay();
         }
 
-        // Override updateCartDisplay to support translations
+        // Override updateCartDisplay to support translations (بدون تغيير منطق الحساب)
         const originalUpdateCartDisplay = updateCartDisplay;
         updateCartDisplay = function() {
+            // نفذ منطق الحساب والعرض الأساسي (يشمل رسوم التوصيل والإجمالي)
+            originalUpdateCartDisplay();
+
+            // لو السلة فاضية نطبق النص المترجم لرسالة "سلتك فارغة"
             const cartItems = document.getElementById('cart-items');
-            const cartTotalElement = document.getElementById('cart-total');
-
-            cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-
-            if (cart.length === 0) {
+            if (cartItems && cart.length === 0) {
                 const t = translations[currentLang];
                 cartItems.innerHTML = `<p class="text-gray-500 text-center py-8">${t.emptyCart}</p>`;
-                cartTotalElement.textContent = '0.00 رس';
-            } else {
-                cartItems.innerHTML = cart.map(item => `
-                    <div class="cart-item rounded-lg p-3 md:p-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-gray-800 font-semibold text-sm md:text-base line-clamp-2">${item.name}</h3>
-                            <button onclick="removeFromCart(${item.id})" class="text-gray-500 hover:text-red-500 transition-colors">
-                                <i class="fas fa-trash text-xs md:text-sm"></i>
-                            </button>
-                        </div>
-                        <p class="text-gray-600 text-xs md:text-sm mb-2 md:mb-3 line-clamp-2">${item.description}</p>
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center gap-1 md:gap-2">
-                                <button onclick="updateQuantity(${item.id}, -1)" class="bg-gray-200 hover:bg-gray-300 text-gray-700 w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-all">
-                                    <i class="fas fa-minus text-xs"></i>
-                                </button>
-                                <span class="text-gray-800 font-semibold px-2 md:px-3 text-sm md:text-base">${item.quantity}</span>
-                                <button onclick="updateQuantity(${item.id}, 1)" class="bg-purple-500 hover:bg-purple-600 text-white w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-all">
-                                    <i class="fas fa-plus text-xs"></i>
-                                </button>
-                            </div>
-                            <span class="text-purple-600 font-bold text-sm md:text-base">${(item.price * item.quantity).toFixed(2)} رس</span>
-                        </div>
-                    </div>
-                `).join('');
-
-                cartTotalElement.textContent = cartTotal.toFixed(2) + ' رس';
             }
 
-            // Update mobile cart button
+            // تحديث زر السلة في الموبايل
             updateMobileCartButton();
         };
 

@@ -223,9 +223,11 @@ class RestLinkController extends Controller
             );
 
             // Calculate subtotal (total without delivery fee and tax for now)
+            // Frontend sends items total in "total" – we add a fixed delivery fee of 18 SAR
             $subtotal = $request->total;
-            $deliveryFee = 0;
+            $deliveryFee = 18.0;
             $tax = 0;
+            $finalTotal = $subtotal + $deliveryFee;
 
             // Generate unique order number
             $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
@@ -252,7 +254,7 @@ class RestLinkController extends Controller
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
                 'tax' => $tax,
-                'total' => $request->total,
+                'total' => $finalTotal,
                 'delivery_address' => $deliveryAddress,
                 'delivery_phone' => $request->phone_number,
                 'delivery_name' => $request->full_name,
@@ -317,7 +319,8 @@ class RestLinkController extends Controller
             $noonRequestData = [
                 "apiOperation" => "INITIATE",
                 "order" => [
-                    "amount" => $request->total,
+                    // Charge customer subtotal + fixed delivery fee
+                    "amount" => $finalTotal,
                     "currency" => "SAR",
                     "reference" => "ORDER-" . $order->id . "-" . now()->timestamp,
                     "name" => "Order #" . $order->id,
@@ -338,7 +341,7 @@ class RestLinkController extends Controller
             Log::info('🌐 Sending Noon Payment Request', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
-                'amount' => $request->total,
+                'amount' => $finalTotal,
                 'api_url' => config('noon.api_url'),
             ]);
 
