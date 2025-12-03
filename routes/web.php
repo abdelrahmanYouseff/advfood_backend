@@ -23,6 +23,11 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+// Public landing page for mobile application download (iOS)
+Route::get('/mobile-application', function () {
+    return view('mobile-application');
+})->name('mobile-application');
+
 // Public restaurant links page (Linktree style)
 Route::get('/rest-link', [RestLinkController::class, 'index'])->name('rest-link');
 
