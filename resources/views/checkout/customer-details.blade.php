@@ -300,6 +300,35 @@
         </div>
     </div>
 
+    <!-- Out-of-Range Popup (خارج نطاق التوصيل) -->
+    <div id="distancePopup" class="fixed inset-0 bg-black/60 z-[9999] hidden items-center justify-center px-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-red-600 flex items-center gap-2">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>خارج نطاق التوصيل</span>
+                </h3>
+                <button type="button" onclick="closeDistancePopup()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            <p id="distancePopupMessage" class="text-gray-700 leading-relaxed mb-4">
+                عذراً، موقعك الحالي خارج نطاق التوصيل المسموح به.
+            </p>
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-sm text-gray-600">
+                <ul class="list-disc pr-5 space-y-1">
+                    <li>نطاق التوصيل الأقصى هو 14 كم من موقع المطعم.</li>
+                    <li>يمكنك اختيار موقع أقرب أو التواصل معنا للاستفسار.</li>
+                </ul>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeDistancePopup()" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold">
+                    حسنًا
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Map Popup -->
     <div id="mapPopup" class="map-popup" style="display: none;">
         <div class="map-container">
@@ -375,6 +404,21 @@
                 return;
             }
 
+            // ✅ تحقق من المسافة قبل المتابعة للدفع (حماية إضافية)
+            if (savedCustomerLatitude !== null && savedCustomerLongitude !== null) {
+                const distanceKm = calculateDistanceKm(
+                    savedCustomerLatitude,
+                    savedCustomerLongitude,
+                    DELIVERY_CENTER_LAT,
+                    DELIVERY_CENTER_LNG
+                );
+
+                if (distanceKm > MAX_DELIVERY_DISTANCE_KM) {
+                    showDistancePopup(distanceKm);
+                    return;
+                }
+            }
+
             // Show loading popup
             showLoadingPopup();
 
@@ -437,6 +481,12 @@
         let userCurrentLocation;
         let savedCustomerLatitude = null;
         let savedCustomerLongitude = null;
+
+        // مركز التوصيل (إحداثيات GatherUs من Google Maps)
+        // https://www.google.com/maps/place/GatherUs... -> lat: 24.7560922, lng: 46.6749848
+        const DELIVERY_CENTER_LAT = 24.7560922;
+        const DELIVERY_CENTER_LNG = 46.6749848;
+        const MAX_DELIVERY_DISTANCE_KM = 14;  // أقصى مسافة توصيل بالكيلومتر
 
         function getCurrentLocation() {
             // Show map popup
@@ -556,6 +606,19 @@
                 longitude: savedCustomerLongitude
             });
 
+            // تحقق من المسافة من مركز التوصيل قبل إكمال العملية
+            const distanceKm = calculateDistanceKm(
+                savedCustomerLatitude,
+                savedCustomerLongitude,
+                DELIVERY_CENTER_LAT,
+                DELIVERY_CENTER_LNG
+            );
+
+            if (distanceKm > MAX_DELIVERY_DISTANCE_KM) {
+                showDistancePopup(distanceKm);
+                return;
+            }
+
             // Get address from location
             reverseGeocode(locationToUse.lat, locationToUse.lng);
             closeMapPopup();
@@ -666,6 +729,48 @@
             setTimeout(() => {
                 successDiv.remove();
             }, 3000);
+        }
+
+        // دالة حساب المسافة بين نقطتين (Haversine formula) بالكيلومتر
+        function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+            const toRad = (value) => (value * Math.PI) / 180;
+            const R = 6371; // نصف قطر الأرض بالكيلومتر
+
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function showDistancePopup(distanceKm) {
+            const popup = document.getElementById('distancePopup');
+            const messageEl = document.getElementById('distancePopupMessage');
+
+            if (messageEl && typeof distanceKm === 'number' && !isNaN(distanceKm)) {
+                const rounded = distanceKm.toFixed(1);
+                messageEl.textContent = `عذراً، موقعك الحالي يبعد تقريباً ${rounded} كم عن المطعم، وهو خارج نطاق التوصيل المسموح به (${MAX_DELIVERY_DISTANCE_KM} كم كحد أقصى).`;
+            }
+
+            if (popup) {
+                popup.classList.remove('hidden');
+                popup.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeDistancePopup() {
+            const popup = document.getElementById('distancePopup');
+            if (popup) {
+                popup.classList.add('hidden');
+                popup.style.display = 'none';
+                document.body.style.overflow = '';
+            }
         }
 
         // Translations
