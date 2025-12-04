@@ -42,7 +42,7 @@ SESSION_COOKIES_FILE = os.path.join(
 INTERACTION_DELAY = 0.01  # Minimal delay for fastest execution
 
 EMAIL = "abdelrahman.yousef@hadaf-hq.com"
-PASSWORD = "ArIUXhwb20qCmY"
+PASSWORD = "ADVFood10203040"
 
 LOGIN_BUTTON_SELECTOR = "[data-testid='login-button'], button.login-button"
 EMAIL_INPUT_SELECTOR = (
