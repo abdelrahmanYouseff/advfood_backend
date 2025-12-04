@@ -69,6 +69,51 @@
                             <p class="mt-1 text-[11px] text-muted-foreground">القيمة ثابتة ولا يمكن تعديلها</p>
                         </div>
                     </div>
+
+                    <!-- Execution time: now or scheduled -->
+                    <div class="border-t border-gray-100 px-6 pb-6 pt-4 space-y-3">
+                        <h3 class="text-sm font-semibold text-gray-800">وقت تنفيذ الطلب</h3>
+                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div class="flex items-center gap-4">
+                                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                                    <input
+                                        type="radio"
+                                        value="now"
+                                        v-model="form.execution_type"
+                                        class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span>تنفيذ فوري</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                                    <input
+                                        type="radio"
+                                        value="scheduled"
+                                        v-model="form.execution_type"
+                                        class="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span>جدولة الطلب لوقت لاحق</span>
+                                </label>
+                            </div>
+                            <div
+                                v-if="form.execution_type === 'scheduled'"
+                                class="flex items-center gap-2"
+                            >
+                                <Label for="scheduled_for" class="mb-0 text-sm font-medium text-gray-700">
+                                    موعد التنفيذ
+                                </Label>
+                                <input
+                                    id="scheduled_for"
+                                    type="datetime-local"
+                                    v-model="form.scheduled_for"
+                                    class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            إذا اخترت "جدولة الطلب"، سيتم حفظ موعد التنفيذ في النظام لتستخدمه في تجهيز الطلب في الوقت المناسب.
+                        </p>
+                        <InputError :message="form.errors.scheduled_for" class="mt-1" />
+                    </div>
                 </section>
 
                 <!-- Section: Customer Information -->
@@ -115,6 +160,21 @@
                                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
                             <InputError :message="form.errors.special_instructions" class="mt-2" />
+                        </div>
+
+                        <!-- Optional Google Maps link to extract customer coordinates -->
+                        <div class="md:col-span-2">
+                            <Label for="location_link">رابط موقع العميل (Google Maps)</Label>
+                            <Input
+                                id="location_link"
+                                v-model="form.location_link"
+                                type="text"
+                                placeholder="الصق رابط جوجل ماب أو إحداثيات مثل: 24.7136,46.6753"
+                            />
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                اختياري: عند إدخال رابط خرائط، سيحاول النظام استخراج الإحداثيات وإرسالها لشركة الشحن.
+                            </p>
+                            <InputError :message="form.errors.location_link" class="mt-1" />
                         </div>
 
                         <div class="flex items-center gap-3 rounded-lg bg-gray-50 px-4 py-3 md:col-span-2">
@@ -377,11 +437,14 @@ const form = useForm({
     payment_status: 'paid',
     payment_method: 'online',
     subtotal: 0,
-    delivery_fee: 0,
+    delivery_fee: 18, // رسوم توصيل افتراضية ١٨ رس
     tax: 0,
     total: 0,
     special_instructions: '',
     sound: false,
+    location_link: '',
+    execution_type: 'now',
+    scheduled_for: '',
     items: [] as SelectedItemPayload[],
 });
 
@@ -548,6 +611,12 @@ const submit = () => {
             status: 'pending',
             payment_status: 'paid',
             payment_method: 'online',
+            location_link: data.location_link ?? null,
+            execution_type: data.execution_type ?? 'now',
+            scheduled_for:
+                data.execution_type === 'scheduled' && data.scheduled_for
+                    ? data.scheduled_for
+                    : null,
             items: data.items.map((item) => ({
                 ...item,
                 menu_item_id: Number(item.menu_item_id),

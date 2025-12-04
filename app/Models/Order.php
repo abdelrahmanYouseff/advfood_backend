@@ -41,6 +41,7 @@ class Order extends Model
         'sound',
         'estimated_delivery_time',
         'delivered_at',
+        'scheduled_for',
     ];
 
     protected $casts = [
@@ -51,6 +52,7 @@ class Order extends Model
         'sound' => 'boolean',
         'estimated_delivery_time' => 'datetime',
         'delivered_at' => 'datetime',
+        'scheduled_for' => 'datetime',
     ];
 
     public function user(): BelongsTo

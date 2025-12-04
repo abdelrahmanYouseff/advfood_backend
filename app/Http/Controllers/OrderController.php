@@ -24,8 +24,13 @@ class OrderController extends Controller
         ]);
 
         // Only show orders that have been successfully paid
+        // AND (either not scheduled OR scheduled_for <= now)
         $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem'])
             ->where('payment_status', 'paid')
+            ->where(function ($query) {
+                $query->whereNull('scheduled_for')
+                      ->orWhere('scheduled_for', '<=', now());
+            })
             ->latest()
             ->get();
 
@@ -54,6 +59,10 @@ class OrderController extends Controller
         // New orders: orders that haven't been accepted yet (status is pending OR shipping_status is New Order)
         $totalNewOrders = Order::where('payment_status', 'paid')
             ->where(function ($query) {
+                $query->whereNull('scheduled_for')
+                      ->orWhere('scheduled_for', '<=', now());
+            })
+            ->where(function ($query) {
                 $query->where('status', 'pending')
                     ->orWhere('shipping_status', 'New Order');
             })
@@ -67,6 +76,10 @@ class OrderController extends Controller
         // 2. shipping_status is 'Delivered' or 'Cancelled' (any case)
         // 3. delivered_at is not null (has delivery timestamp)
         $totalClosedOrders = Order::where('payment_status', 'paid')
+            ->where(function ($query) {
+                $query->whereNull('scheduled_for')
+                      ->orWhere('scheduled_for', '<=', now());
+            })
             ->where(function ($query) {
                 $query->where(function ($q) {
                     // Check status field (case insensitive)
@@ -84,6 +97,10 @@ class OrderController extends Controller
 
         // Debug: Get sample of closed orders to verify logic
         $sampleClosedOrders = Order::where('payment_status', 'paid')
+            ->where(function ($query) {
+                $query->whereNull('scheduled_for')
+                      ->orWhere('scheduled_for', '<=', now());
+            })
             ->where(function ($query) {
                 $query->where(function ($q) {
                     $q->whereRaw('LOWER(status) = ?', ['delivered'])
@@ -179,11 +196,16 @@ class OrderController extends Controller
             'tax' => 'nullable|numeric|min:0',
             'special_instructions' => 'nullable|string|max:1000',
             'sound' => 'nullable|boolean',
+            // Optional Google Maps / location link to extract coordinates for shipping
+            'location_link' => 'nullable|string|max:2048',
             'items' => 'required|array|min:1',
             'items.*.menu_item_id' => 'required|exists:menu_items,id',
             'items.*.item_name' => 'required|string|max:255',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            // Scheduling / execution time (اختياري)
+            'execution_type' => 'nullable|in:now,scheduled',
+            'scheduled_for' => 'nullable|required_if:execution_type,scheduled|date|after:now',
         ]);
 
         $restaurant = \App\Models\Restaurant::findOrFail($validated['restaurant_id']);
@@ -220,6 +242,23 @@ class OrderController extends Controller
             'cancelled' => 'Cancelled',
         ];
 
+        // Determine scheduled time (if any)
+        $scheduledFor = null;
+        if (($validated['execution_type'] ?? 'now') === 'scheduled' && !empty($validated['scheduled_for'] ?? null)) {
+            $scheduledFor = $validated['scheduled_for'];
+        }
+
+        // Extract coordinates from optional Google Maps / location link
+        $customerLatitude = null;
+        $customerLongitude = null;
+        if (!empty($validated['location_link'] ?? null)) {
+            $coords = $this->parseCoordinatesFromLocation($validated['location_link']);
+            if ($coords) {
+                $customerLatitude = $coords['latitude'];
+                $customerLongitude = $coords['longitude'];
+            }
+        }
+
         $order = Order::create([
             'order_number' => $this->generateOrderNumber(),
             'user_id' => $validated['user_id'],
@@ -235,10 +274,13 @@ class OrderController extends Controller
             'delivery_phone' => $validated['delivery_phone'],
             'delivery_name' => $validated['delivery_name'],
             'special_instructions' => $validated['special_instructions'] ?? null,
+            'customer_latitude' => $customerLatitude,
+            'customer_longitude' => $customerLongitude,
             'payment_method' => $paymentMethod,
             'payment_status' => $paymentStatus,
             'source' => 'internal',
             'sound' => (bool) ($validated['sound'] ?? false),
+            'scheduled_for' => $scheduledFor,
         ]);
 
         $order->orderItems()->createMany(
@@ -648,4 +690,69 @@ class OrderController extends Controller
         $count = Order::whereDate('created_at', today())->count() + 1;
         return 'ORD-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Parse a Google Maps (or any) location string to extract coordinates.
+     * Supports:
+     * - Full Google Maps URLs with q=lat,lng
+     * - URLs with @lat,lng in path
+     * - Plain "lat,lng" text
+     */
+    protected function parseCoordinatesFromLocation(?string $location): ?array
+    {
+        if (empty($location)) {
+            return null;
+        }
+
+        $trimmed = trim($location);
+
+        // 1) Try to match "lat,lng" anywhere in the string
+        if (preg_match('/([-+]?\\d+\\.?\\d*),\\s*([-+]?\\d+\\.?\\d*)/', $trimmed, $matches)) {
+            $lat = (float) $matches[1];
+            $lng = (float) $matches[2];
+            if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                return [
+                    'latitude' => $lat,
+                    'longitude' => $lng,
+                ];
+            }
+        }
+
+        // 2) If it's a URL, try to parse query params and @lat,lng in path
+        if (filter_var($trimmed, FILTER_VALIDATE_URL)) {
+            // From q=lat,lng
+            $query = parse_url($trimmed, PHP_URL_QUERY);
+            if ($query) {
+                parse_str($query, $params);
+                if (!empty($params['q']) && is_string($params['q'])) {
+                    if (preg_match('/([-+]?\\d+\\.?\\d*),\\s*([-+]?\\d+\\.?\\d*)/', $params['q'], $m)) {
+                        $lat = (float) $m[1];
+                        $lng = (float) $m[2];
+                        if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                            return [
+                                'latitude' => $lat,
+                                'longitude' => $lng,
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // From @lat,lng in path
+            if (preg_match('/@([-+]?\\d+\\.?\\d*),\\s*([-+]?\\d+\\.?\\d*)/', $trimmed, $m)) {
+                $lat = (float) $m[1];
+                $lng = (float) $m[2];
+                if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
+                    return [
+                        'latitude' => $lat,
+                        'longitude' => $lng,
+                    ];
+                }
+            }
+        }
+
+        // If nothing worked, return null (no valid coordinates)
+        return null;
+    }
 }
+
