@@ -25,7 +25,7 @@ class OrderController extends Controller
 
         // Only show orders that have been successfully paid
         // AND (either not scheduled OR scheduled_for <= now)
-        $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem'])
+        $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem', 'zydaOrder'])
             ->where('payment_status', 'paid')
             ->where(function ($query) {
                 $query->whereNull('scheduled_for')

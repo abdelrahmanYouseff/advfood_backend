@@ -14,16 +14,20 @@ interface OrderRestaurant {
 }
 
 interface OrderData {
-        id: number;
-        order_number: string;
-        status: string;
+    id: number;
+    order_number: string;
+    status: string;
     shipping_status: string | null;
-        total: number;
-        source?: string | null;
-        items_count?: number;
-        items_subtotal?: number;
-        sound: boolean;
-        created_at: string;
+    total: number;
+    source?: string | null;
+    items_count?: number;
+    items_subtotal?: number;
+    sound: boolean;
+    created_at: string;
+    // Zeada (Zyda) scraped order info – to show unique Zyda code if available
+    zyda_order?: {
+        zyda_order_key?: string | null;
+    } | null;
     delivered_at?: string | null;
     dsp_order_id?: string | null;
     driver_name?: string | null;
@@ -1186,7 +1190,11 @@ onMounted(() => {
             </div>
 
             <!-- Orders List: Cards View -->
-            <div v-if="viewMode === 'cards'" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <!-- نجعل الكروت أعرض عبر تقليل عدد الأعمدة في الشاشات الكبيرة -->
+            <div
+                v-if="viewMode === 'cards'"
+                class="grid gap-6 md:grid-cols-1 lg:grid-cols-2"
+            >
                 <div v-for="order in filteredOrders" :key="order.id" :class="[
                     'group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.02]',
                     isNewOrder(order) ? 'ring-2 ring-green-400 ring-opacity-50 animate-pulse' : ''
@@ -1277,9 +1285,28 @@ onMounted(() => {
                                         </span>
                                         <span class="font-medium text-gray-900">
                                             {{ getSourceLabel(order.source) }}
-                                </span>
+                                        </span>
                                     </div>
-                            </div>
+                                </div>
+
+                                <!-- Zyda unique code (منصة زيدا) -->
+                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
+                                        <span class="text-xs font-bold text-indigo-700">Z</span>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs text-gray-500">
+                                            كود زيدا
+                                        </span>
+                                        <span class="font-mono text-sm font-medium text-gray-900">
+                                            {{
+                                                order.zyda_order && order.zyda_order.zyda_order_key
+                                                    ? order.zyda_order.zyda_order_key
+                                                    : 'null'
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
 
                             <!-- Driver Info -->
                             <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
