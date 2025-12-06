@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\SimpleOrderController;
 use App\Http\Controllers\Api\ZydaOrderController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\WhatsappMsgController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\PaymentWebhookController;
@@ -38,6 +39,9 @@ Route::post('/webhook', [PaymentWebhookController::class, 'handleNoon']);
 
 // Generic webhook for receiving any type of data
 Route::post('/webhook/generic', [GenericWebhookController::class, 'handle']);
+
+// WhatsApp messages API (receive deliver_order + location)
+Route::post('/whatsapp/messages', [WhatsappMsgController::class, 'store']);
 
 // API endpoint to get webhooks as JSON
 Route::get('/webhooks/logs', [WebhookLogController::class, 'api']);
