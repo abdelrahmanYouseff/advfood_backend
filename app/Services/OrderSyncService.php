@@ -34,10 +34,24 @@ class OrderSyncService
             return false;
         }
 
+        // Try to get location from whatsapp_msg table using unique Zyda order key
+        // الفكرة: لما ييجي اوردر جديد من Zyda، ندور على نفس الكود الفريد في جدول whatsapp_msg
+        // ولو لقينا سطر مطابق، ناخد الـ location منه ونحطه في zyda_orders
+        $whatsappLocation = DB::table('whatsapp_msg')
+            ->whereNotNull('location')
+            ->where(function ($query) use ($zydaOrderKey) {
+                // Exact match or deliver_order text contains the key
+                $query->where('deliver_order', $zydaOrderKey)
+                      ->orWhere('deliver_order', 'like', '%' . $zydaOrderKey . '%');
+            })
+            ->orderByDesc('id')
+            ->value('location');
+
         $payload = [
             'name' => $orderData['name'] ?? null,
             'address' => $orderData['address'] ?? null,
-            'location' => $orderData['location'] ?? null,
+            // Prefer location from WhatsApp if available, otherwise use incoming location (if any)
+            'location' => $whatsappLocation ?? ($orderData['location'] ?? null),
             'total_amount' => isset($orderData['total_amount']) ? (float) $orderData['total_amount'] : 0,
             'items' => isset($orderData['items']) ? json_encode($orderData['items']) : json_encode([]),
             'zyda_order_key' => $zydaOrderKey,
@@ -51,20 +65,39 @@ class OrderSyncService
             ->first();
         
         $isNewRecord = !$existingOrder;
+        $zydaOrderId = $existingOrder->id ?? null;
         
         if ($isNewRecord) {
             // New order: add it to database
             $payload['phone'] = $orderData['phone'];
             $payload['created_at'] = Carbon::now();
-            $result = DB::table('zyda_orders')->insert($payload);
+            $zydaOrderId = DB::table('zyda_orders')->insertGetId($payload);
+            $result = $zydaOrderId > 0;
             
             Log::info('✅ New Zyda order added to database', [
                 'phone' => $orderData['phone'],
                 'name' => $orderData['name'] ?? null,
                 'zyda_order_key' => $zydaOrderKey,
                 'total_amount' => $payload['total_amount'],
+                'location_from_whatsapp' => $whatsappLocation,
             ]);
         } else {
+            // If order already exists and we now have location from WhatsApp, update it once
+            if (!empty($whatsappLocation) && empty($existingOrder->location ?? null)) {
+                DB::table('zyda_orders')
+                    ->where('id', $existingOrder->id)
+                    ->update([
+                        'location' => $whatsappLocation,
+                        'updated_at' => Carbon::now(),
+                    ]);
+
+                Log::info('✅ Zyda order location updated from whatsapp_msg', [
+                    'zyda_order_id' => $existingOrder->id,
+                    'zyda_order_key' => $zydaOrderKey,
+                    'location_from_whatsapp' => $whatsappLocation,
+                ]);
+            }
+
             // Order already exists: skip (don't add duplicate)
             $result = true; // Return true to indicate "processed" (skipped)
             Log::info('ℹ️ Zyda order already exists in database, skipping (no duplicate)', [
@@ -78,6 +111,35 @@ class OrderSyncService
         // After saving, try to fetch location from webhook
         if ($result) {
             $this->fetchLocationFromWebhook($orderData['phone']);
+        }
+
+        // If we have a location from WhatsApp and a zyda_orders row ID,
+        // trigger the existing API /zyda/orders/{id}/location
+        // so that it:
+        //  1) يحلل اللوكيشن ويستخرج الإحداثيات
+        //  2) ينشئ سجل في جدول orders (لو مفيش order_id)
+        if ($zydaOrderId && !empty($whatsappLocation)) {
+            try {
+                $baseUrl = config('app.url');
+                $endpoint = rtrim($baseUrl, '/') . '/api/zyda/orders/' . $zydaOrderId . '/location';
+
+                $response = Http::timeout(30)->patch($endpoint, [
+                    'location' => $whatsappLocation,
+                ]);
+
+                Log::info('📡 Called Zyda updateLocation API after whatsapp location', [
+                    'zyda_order_id' => $zydaOrderId,
+                    'zyda_order_key' => $zydaOrderKey,
+                    'endpoint' => $endpoint,
+                    'status' => $response->status(),
+                ]);
+            } catch (\Exception $e) {
+                Log::error('❌ Failed to call Zyda updateLocation API after whatsapp location', [
+                    'zyda_order_id' => $zydaOrderId,
+                    'zyda_order_key' => $zydaOrderKey,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $result;
