@@ -25,7 +25,11 @@ class OrderSyncService
         }
 
         // Check if zyda_order_key is provided (required for unique identification)
-        $zydaOrderKey = $orderData['zyda_order_key'] ?? null;
+        $rawZydaOrderKey = $orderData['zyda_order_key'] ?? null;
+        // Normalize: remove leading '#' and whitespace so it is stored without '#'
+        $zydaOrderKey = $rawZydaOrderKey !== null
+            ? ltrim((string) $rawZydaOrderKey, "# \t\n\r\0\x0B")
+            : null;
         
         if (empty($zydaOrderKey)) {
             Log::error('❌ Zyda order key is required', [
