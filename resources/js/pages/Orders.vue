@@ -727,11 +727,11 @@ const monitorOrdersWithSound = () => {
     // Check immediately
     checkForOrdersWithSound();
 
-    // Set up continuous monitoring every 5 seconds
+    // Set up continuous monitoring every 3 seconds (matching order polling)
     const monitorInterval = setInterval(() => {
         console.log('Monitoring orders for sound...');
         checkForOrdersWithSound();
-    }, 5000);
+    }, 3000);
 
     // Return cleanup function
     return () => {
@@ -974,38 +974,41 @@ onMounted(() => {
     // Start polling driver / shipping status from shipping company
     startDriverStatusPolling();
 
-    // Set up polling for new orders every 10 seconds (faster monitoring)
+    // Set up polling for new orders every 3 seconds (real-time monitoring)
     const interval = setInterval(() => {
-        console.log('Reloading orders...');
+        console.log('🔄 Polling for new orders...');
         const previousOrderIds = new Set(filteredOrders.value.map((o: any) => o.id));
         router.reload({
             only: ['orders'],
             // @ts-expect-error preserveScroll exists at runtime but is missing from TS types
             preserveScroll: true,
             onSuccess: (page: any) => {
-                console.log('Orders reloaded, checking for sound...');
+                console.log('✅ Orders reloaded, checking for new orders and sound...');
                 const currentOrderIds = new Set(page.props.orders.map((o: any) => o.id));
 
                 // Check for new orders (orders that weren't in previous list)
                 const newlyAddedOrders = page.props.orders.filter((order: any) => !previousOrderIds.has(order.id));
                 if (newlyAddedOrders.length > 0) {
-                    console.log(`🆕 Found ${newlyAddedOrders.length} new order(s)`);
+                    console.log(`🆕 Found ${newlyAddedOrders.length} new order(s) - Playing sound immediately!`);
+                    // Play sound IMMEDIATELY for ALL new orders (before checking status)
                     newlyAddedOrders.forEach((order: any) => {
-                        // Mark as new and play sound immediately (only if still unaccepted)
-                        if (isNewOrder(order) && isUnacceptedOrder(order)) {
-                            console.log(`🔔 Playing sound for new order: ${order.id}`);
+                        if (!notifiedNewOrders.value.has(order.id)) {
+                            console.log(`🔔 Playing sound immediately for new order: ${order.id} (${order.order_number})`);
                             playNotificationSound();
                             notifiedNewOrders.value.add(order.id);
                         }
                     });
+                    // Also check for orders with sound enabled
+                    checkForOrdersWithSound();
+                } else {
+                    // Check for orders with sound enabled (even if no new orders)
+                    checkForOrdersWithSound();
                 }
 
-                // Check for orders with sound enabled
-                checkForOrdersWithSound();
                 lastOrderCount.value = page.props.orders.length;
             }
         });
-    }, 10000); // 10 seconds for faster detection
+    }, 3000); // 3 seconds for real-time detection
 
     // Clean up interval when component unmounts
     onUnmounted(() => {

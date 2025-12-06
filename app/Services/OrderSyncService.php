@@ -90,6 +90,7 @@ class OrderSyncService
             ]);
         } else {
             // If order already exists and we now have location from WhatsApp, update it once
+            // ثم فوراً نستخدم هذا اللوكيشن لنقل الطلب إلى جدول Orders عبر updateLocation API
             if (!empty($whatsappLocation) && empty($existingOrder->location ?? null)) {
                 DB::table('zyda_orders')
                     ->where('id', $existingOrder->id)
@@ -103,6 +104,29 @@ class OrderSyncService
                     'zyda_order_key' => $zydaOrderKey,
                     'location_from_whatsapp' => $whatsappLocation,
                 ]);
+
+                // Call updateLocation API so that it ينقل الطلب تلقائياً إلى جدول Orders
+                try {
+                    $baseUrl = config('app.url');
+                    $endpoint = rtrim($baseUrl, '/') . '/api/zyda/orders/' . $existingOrder->id . '/location';
+
+                    $response = Http::timeout(30)->patch($endpoint, [
+                        'location' => $whatsappLocation,
+                    ]);
+
+                    Log::info('📡 Called Zyda updateLocation API after whatsapp location (existing record)', [
+                        'zyda_order_id' => $existingOrder->id,
+                        'zyda_order_key' => $zydaOrderKey,
+                        'endpoint' => $endpoint,
+                        'status' => $response->status(),
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('❌ Failed to call Zyda updateLocation API after whatsapp location (existing record)', [
+                        'zyda_order_id' => $existingOrder->id,
+                        'zyda_order_key' => $zydaOrderKey,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             // Order already exists: skip (don't add duplicate)
