@@ -493,14 +493,6 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
             if operation in order_stats:
                 order_stats[operation] += 1
 
-            # فقط بعد إرسال الطلب للداتابيز نحاول نعمل:
-            # 1) قبول الطلب
-            # 2) تعيين المندوب
-            # 3) الضغط على heading16_2tUu6
-            # ننفذ الخطوات دي لأي عملية ناجحة (created / updated / skipped) ونتجاهل failed
-            if operation and operation.lower() != "failed":
-                _accept_and_assign_order(driver, wait)
-
             # Save processed phones periodically (every order to ensure no data loss)
             save_processed_phones()
 
@@ -681,86 +673,6 @@ def _extract_order_details(driver, wait: WebDriverWait) -> dict:
         "total": total,
         "items": items,
     }
-
-
-def _click_element_by_class(
-    driver,
-    wait: WebDriverWait,
-    class_name: str,
-    description: str,
-    timeout: int = 5,
-) -> bool:
-    """
-    Helper to safely click an element by a CSS class name.
-    Returns True if click succeeded, False otherwise.
-    """
-    selector = f".{class_name}"
-    try:
-        local_wait = WebDriverWait(driver, timeout)
-        element = local_wait.until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
-        )
-        # Scroll into view then click
-        driver.execute_script(
-            "arguments[0].scrollIntoView({block: 'center', behavior: 'auto'});",
-            element,
-        )
-        time.sleep(INTERACTION_DELAY)
-        try:
-            element.click()
-        except (ElementClickInterceptedException, StaleElementReferenceException):
-            driver.execute_script("arguments[0].click();", element)
-
-        print(f"[INFO] Clicked {description} ({class_name})", flush=True)
-        time.sleep(0.3)  # small delay for UI to update
-        return True
-    except TimeoutException:
-        print(
-            f"[WARN] {description} button with class '{class_name}' not found/clickable within timeout",
-            flush=True,
-        )
-    except Exception as exc:  # pragma: no cover - defensive logging
-        print(
-            f"[WARN] Unexpected error clicking {description} ({class_name}): {exc}",
-            flush=True,
-        )
-    return False
-
-
-def _accept_and_assign_order(driver, wait: WebDriverWait) -> None:
-    """
-    After an order is successfully sent to the database, perform Zyda UI actions:
-    1) Click 'accept-order-button'
-    2) When it changes, click 'assign-delivery-button'
-    3) Finally click heading16_2tUu6 (usually confirms/close step)
-    All errors are swallowed so scraping continues even if these clicks fail.
-    """
-    try:
-        # 1) Accept order
-        _click_element_by_class(
-            driver,
-            wait,
-            class_name="accept-order-button",
-            description="Accept order",
-        )
-
-        # 2) Assign delivery (button usually appears after accept)
-        _click_element_by_class(
-            driver,
-            wait,
-            class_name="assign-delivery-button",
-            description="Assign delivery",
-        )
-
-        # 3) Click the heading (heading16_2tUu6) – often used as a confirm / back step
-        _click_element_by_class(
-            driver,
-            wait,
-            class_name="heading16_2tUu6",
-            description="Heading (heading16_2tUu6)",
-        )
-    except Exception as exc:  # pragma: no cover - defensive logging
-        print(f"[WARN] Error while performing Zyda accept/assign flow: {exc}", flush=True)
 
 
 def _collect_totals(driver) -> Optional[str]:
