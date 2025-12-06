@@ -51,11 +51,14 @@ class OrderSyncService
             ->orderByDesc('id')
             ->value('location');
 
+        // النهائي: لو في لوكيشن من الواتساب نستخدمه، لو لأ نستخدم اللي جاي من Zyda (لو موجود)
+        $finalLocation = $whatsappLocation ?? ($orderData['location'] ?? null);
+
         $payload = [
             'name' => $orderData['name'] ?? null,
             'address' => $orderData['address'] ?? null,
             // Prefer location from WhatsApp if available, otherwise use incoming location (if any)
-            'location' => $whatsappLocation ?? ($orderData['location'] ?? null),
+            'location' => $finalLocation,
             'total_amount' => isset($orderData['total_amount']) ? (float) $orderData['total_amount'] : 0,
             'items' => isset($orderData['items']) ? json_encode($orderData['items']) : json_encode([]),
             'zyda_order_key' => $zydaOrderKey,
@@ -117,27 +120,26 @@ class OrderSyncService
             // ما زلنا نحاول نجلب لوكيشن من الـ webhook القديم (للتوافق)
             $this->fetchLocationFromWebhook($orderData['phone']);
 
-            // فقط عند إنشاء سجل جديد في zyda_orders + وجود لوكيشن من whatsapp_msg:
-            // 1) نحدث zyda_orders.location
-            // 2) نستدعي API /api/zyda/orders/{id}/location
+            // فقط عند إنشاء سجل جديد في zyda_orders + وجود لوكيشن (من الواتساب أو من Zyda):
+            // 1) نمرر اللوكيشن النهائي إلى API /api/zyda/orders/{id}/location
             //    والذي بدوره ينقل الطلب من zyda_orders إلى جدول orders
-            if ($isNewRecord && $zydaOrderId && !empty($whatsappLocation)) {
+            if ($isNewRecord && $zydaOrderId && !empty($finalLocation)) {
                 try {
                     $baseUrl = config('app.url');
                     $endpoint = rtrim($baseUrl, '/') . '/api/zyda/orders/' . $zydaOrderId . '/location';
 
                     $response = Http::timeout(30)->patch($endpoint, [
-                        'location' => $whatsappLocation,
+                        'location' => $finalLocation,
                     ]);
 
-                    Log::info('📡 Called Zyda updateLocation API after whatsapp location (new record)', [
+                    Log::info('📡 Called Zyda updateLocation API after location saved (new record)', [
                         'zyda_order_id' => $zydaOrderId,
                         'zyda_order_key' => $zydaOrderKey,
                         'endpoint' => $endpoint,
                         'status' => $response->status(),
                     ]);
                 } catch (\Exception $e) {
-                    Log::error('❌ Failed to call Zyda updateLocation API after whatsapp location (new record)', [
+                    Log::error('❌ Failed to call Zyda updateLocation API after location saved (new record)', [
                         'zyda_order_id' => $zydaOrderId,
                         'zyda_order_key' => $zydaOrderKey,
                         'error' => $e->getMessage(),
