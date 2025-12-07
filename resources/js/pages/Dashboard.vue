@@ -319,6 +319,7 @@ const changeZydaFilter = (filter: 'pending' | 'received') => {
 const editingLocations = ref<Record<number, string>>({});
 const savingOrderId = ref<number | null>(null);
 const deletingOrderId = ref<number | null>(null);
+const autoSubmittingIds = ref<Set<number>>(new Set());
 
 // State for sync
 const syncLoading = ref(false);
@@ -342,6 +343,8 @@ const initializeEditingLocations = () => {
 // Watch for changes in zydaOrders and initialize editing locations
 watch(zydaOrders, () => {
     initializeEditingLocations();
+    // Auto-submit Zyda orders that already have location and no linked Order
+    autoSubmitZydaOrders();
 }, { immediate: true });
 
 // Update location function
@@ -401,6 +404,53 @@ const updateLocation = async (orderId: number) => {
         alert(error.message || 'حدث خطأ أثناء حفظ الموقع. حاول مرة أخرى.');
     } finally {
         savingOrderId.value = null;
+    }
+};
+
+// Auto-submit Zyda orders (no order_id yet) that already have a location
+const autoSubmitZydaOrders = async () => {
+    for (const order of zydaOrders.value) {
+        if (!order.order_id && order.location) {
+            if (autoSubmittingIds.value.has(order.id)) continue;
+            autoSubmittingIds.value.add(order.id);
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                    || getCookie('XSRF-TOKEN')
+                    || '';
+
+                const response = await fetch(`/api/zyda/orders/${order.id}/location`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        location: order.location,
+                    }),
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    console.error('❌ Auto submit location failed:', data);
+                } else {
+                    const orderCreated = data.order_id || (data.data && data.data.order_id);
+                    if (orderCreated) {
+                        // reflect locally
+                        order.order_id = orderCreated;
+                        // refresh Zyda tab to move it out of pending list
+                        changeZydaFilter(zydaFilter.value as 'pending' | 'received');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Auto submit location error:', error);
+            } finally {
+                autoSubmittingIds.value.delete(order.id);
+            }
+        }
     }
 };
 
