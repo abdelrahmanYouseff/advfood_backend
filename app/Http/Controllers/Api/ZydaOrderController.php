@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Restaurant;
 use App\Models\MenuItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -134,7 +135,8 @@ class ZydaOrderController extends Controller
         ]);
 
         $validated = $request->validate([
-            'location' => 'nullable|string|max:500',
+            // نسمح بروابط أطول (حتى 2048) لأن روابط جوجل ماب قد تكون طويلة
+            'location' => 'nullable|string|max:2048',
         ]);
 
         Log::info('✅ Validation passed', [
@@ -162,38 +164,44 @@ class ZydaOrderController extends Controller
 
         // Use curl to resolve short link to original URL
         // Save the original URL (not the short link) in database
+        $incomingLocation = isset($validated['location']) ? trim($validated['location']) : null;
+        // قصّ أي رابط طويل ليتماشى مع حد التخزين الآمن (نفس حد الفاليديشن)
+        if (!empty($incomingLocation) && Str::length($incomingLocation) > 2048) {
+            $incomingLocation = Str::limit($incomingLocation, 2048, '');
+        }
+
         Log::info('📥 Processing location update - resolving short link using curl', [
             'zyda_order_id' => $id,
-            'location' => $validated['location'],
+            'location' => $incomingLocation,
         ]);
         
         // Initialize coordinates variable
         $coordinates = null;
-        $originalUrl = $validated['location'];
+        $originalUrl = $incomingLocation;
 
         // Check if it's a URL (short link or regular)
-        if (!empty($validated['location']) && filter_var($validated['location'], FILTER_VALIDATE_URL)) {
+        if (!empty($incomingLocation) && filter_var($incomingLocation, FILTER_VALIDATE_URL)) {
             // Use curl to resolve short link to original URL
             Log::info('🔗 Resolving short link to original URL using curl', [
-                'short_link' => $validated['location'],
+                'short_link' => $incomingLocation,
             ]);
             
-            $resolvedUrl = $this->getFinalUrlFromRedirects($validated['location']);
+            $resolvedUrl = $this->getFinalUrlFromRedirects($incomingLocation);
             
-            if ($resolvedUrl && $resolvedUrl !== $validated['location']) {
+            if ($resolvedUrl && $resolvedUrl !== $incomingLocation) {
                 // Successfully resolved short link
                 $originalUrl = $resolvedUrl;
                 Log::info('✅ Short link resolved to original URL', [
-                    'short_link' => $validated['location'],
+                    'short_link' => $incomingLocation,
                     'original_url' => $originalUrl,
                 ]);
             } else {
                 // No redirect or same URL - use original
                 Log::info('ℹ️ No redirect found or URL is already original', [
-                    'url' => $validated['location'],
+                    'url' => $incomingLocation,
                     'resolved_url' => $resolvedUrl,
                 ]);
-                $originalUrl = $validated['location'];
+                $originalUrl = $incomingLocation;
             }
             
             // Try to extract coordinates from original URL
