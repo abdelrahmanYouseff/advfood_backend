@@ -4,8 +4,9 @@ namespace App\Services;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Api\ZydaOrderController;
 
 class OrderSyncService
 {
@@ -105,28 +106,8 @@ class OrderSyncService
                     'location_from_whatsapp' => $whatsappLocation,
                 ]);
 
-                // Call updateLocation API so that it ينقل الطلب تلقائياً إلى جدول Orders
-                try {
-                    $baseUrl = config('app.url');
-                    $endpoint = rtrim($baseUrl, '/') . '/api/zyda/orders/' . $existingOrder->id . '/location';
-
-                    $response = Http::timeout(30)->patch($endpoint, [
-                        'location' => $whatsappLocation,
-                    ]);
-
-                    Log::info('📡 Called Zyda updateLocation API after whatsapp location (existing record)', [
-                        'zyda_order_id' => $existingOrder->id,
-                        'zyda_order_key' => $zydaOrderKey,
-                        'endpoint' => $endpoint,
-                        'status' => $response->status(),
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('❌ Failed to call Zyda updateLocation API after whatsapp location (existing record)', [
-                        'zyda_order_id' => $existingOrder->id,
-                        'zyda_order_key' => $zydaOrderKey,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                // Push to Orders immediately using the same internal flow
+                $this->pushZydaOrderToOrders($existingOrder->id, $whatsappLocation, $zydaOrderKey, 'existing record');
             }
 
             // Order already exists: skip (don't add duplicate)
@@ -148,27 +129,7 @@ class OrderSyncService
             // 1) نمرر اللوكيشن النهائي إلى API /api/zyda/orders/{id}/location
             //    والذي بدوره ينقل الطلب من zyda_orders إلى جدول orders
             if ($isNewRecord && $zydaOrderId && !empty($finalLocation)) {
-                try {
-                    $baseUrl = config('app.url');
-                    $endpoint = rtrim($baseUrl, '/') . '/api/zyda/orders/' . $zydaOrderId . '/location';
-
-                    $response = Http::timeout(30)->patch($endpoint, [
-                        'location' => $finalLocation,
-                    ]);
-
-                    Log::info('📡 Called Zyda updateLocation API after location saved (new record)', [
-                        'zyda_order_id' => $zydaOrderId,
-                        'zyda_order_key' => $zydaOrderKey,
-                        'endpoint' => $endpoint,
-                        'status' => $response->status(),
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('❌ Failed to call Zyda updateLocation API after location saved (new record)', [
-                        'zyda_order_id' => $zydaOrderId,
-                        'zyda_order_key' => $zydaOrderKey,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                $this->pushZydaOrderToOrders($zydaOrderId, $finalLocation, $zydaOrderKey, 'new record');
             }
         }
 
@@ -376,6 +337,41 @@ class OrderSyncService
         $phone = ltrim($phone, '0');
         
         return $phone;
+    }
+
+    /**
+     * Call the existing ZydaOrderController@updateLocation internally (no HTTP needed)
+     * to:
+     *  1) تحديث zyda_orders.location
+     *  2) استخراج الإحداثيات
+     *  3) إنشاء سجل في جدول orders (لو مفيش order_id)
+     */
+    protected function pushZydaOrderToOrders(int $zydaOrderId, string $location, string $zydaOrderKey, string $context = 'auto'): void
+    {
+        try {
+            $controller = app(ZydaOrderController::class);
+            $request = Request::create(
+                uri: "/api/zyda/orders/{$zydaOrderId}/location",
+                method: 'PATCH',
+                parameters: ['location' => $location]
+            );
+
+            $controller->updateLocation($request, $zydaOrderId);
+
+            Log::info('✅ pushZydaOrderToOrders completed', [
+                'zyda_order_id' => $zydaOrderId,
+                'zyda_order_key' => $zydaOrderKey,
+                'context' => $context,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ pushZydaOrderToOrders failed', [
+                'zyda_order_id' => $zydaOrderId,
+                'zyda_order_key' => $zydaOrderKey,
+                'context' => $context,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
     }
 }
 
