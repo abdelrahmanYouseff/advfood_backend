@@ -3,23 +3,30 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Services\ShippingService;
+use App\Services\ShippingServiceFactory;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 
 class ShippingController extends Controller
 {
-    protected $shippingService;
-
-    public function __construct(ShippingService $shippingService)
-    {
-        $this->shippingService = $shippingService;
-    }
-
+    /**
+     * Handle webhook from Leajlak shipping provider
+     */
     public function handleWebhook(Request $request)
     {
-        $this->shippingService->handleWebhook($request);
+        $service = ShippingServiceFactory::getService('leajlak');
+        $service->handleWebhook($request);
         return response()->json(['message' => 'Webhook processed']);
+    }
+
+    /**
+     * Handle webhook from Shadda shipping provider
+     */
+    public function handleShaddaWebhook(Request $request)
+    {
+        $service = ShippingServiceFactory::getService('shadda');
+        $service->handleWebhook($request);
+        return response()->json(['message' => 'Shadda webhook processed']);
     }
 
     public function createOrder(Request $request)
@@ -38,15 +45,21 @@ class ShippingController extends Controller
             return response()->json(['error' => 'Order not found'], 404);
         }
 
+        // Get shipping provider from order or use default
+        $provider = $order->shipping_provider ?? \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
+        
         // Log attempt
         \Illuminate\Support\Facades\Log::info('🔄 Manual shipping order creation attempt', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
             'shop_id' => $order->shop_id,
+            'shipping_provider' => $provider,
             'current_dsp_order_id' => $order->dsp_order_id,
         ]);
 
-        $shippingOrder = $this->shippingService->createOrder($order);
+        // Get the appropriate shipping service
+        $shippingService = ShippingServiceFactory::getService($provider);
+        $shippingOrder = $shippingService->createOrder($order);
         if (!$shippingOrder) {
             return response()->json([
                 'success' => false,
@@ -85,14 +98,24 @@ class ShippingController extends Controller
 
     public function getStatus(string $dspOrderId)
     {
-        $api = $this->shippingService->getOrderStatus($dspOrderId);
+        // Try to find order to determine provider
+        $order = Order::where('dsp_order_id', $dspOrderId)->first();
+        $provider = $order ? ($order->shipping_provider ?? 'leajlak') : 'leajlak';
+        
+        $shippingService = ShippingServiceFactory::getService($provider);
+        $api = $shippingService->getOrderStatus($dspOrderId);
         $local = DB::table('shipping_orders')->where('dsp_order_id', $dspOrderId)->first();
-        return response()->json(['api' => $api, 'local' => $local]);
+        return response()->json(['api' => $api, 'local' => $local, 'provider' => $provider]);
     }
 
     public function cancel(string $dspOrderId)
     {
-        $result = $this->shippingService->cancelOrder($dspOrderId);
+        // Try to find order to determine provider
+        $order = Order::where('dsp_order_id', $dspOrderId)->first();
+        $provider = $order ? ($order->shipping_provider ?? 'leajlak') : 'leajlak';
+        
+        $shippingService = ShippingServiceFactory::getService($provider);
+        $result = $shippingService->cancelOrder($dspOrderId);
 
         if (is_array($result)) {
             // Provider returned error details

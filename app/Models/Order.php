@@ -21,6 +21,7 @@ class Order extends Model
         'shop_id',
         'dsp_order_id',
         'shipping_status',
+        'shipping_provider',
         'driver_name',
         'driver_phone',
         'driver_latitude',
@@ -115,6 +116,13 @@ class Order extends Model
                 $order->createInvoice();
             }
 
+            // Set shipping_provider if not already set
+            if (empty($order->shipping_provider)) {
+                $defaultProvider = \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
+                $order->shipping_provider = $defaultProvider;
+                $order->saveQuietly(); // Save without triggering events
+            }
+
             // 🔹 NEW RULE:
             // Do NOT contact shipping company on creation unless payment_status === 'paid'.
             // This is important for /rest-links (link orders) and any other pending/unpaid orders.
@@ -125,6 +133,7 @@ class Order extends Model
                     'payment_status' => $order->payment_status,
                     'status' => $order->status,
                     'shipping_status' => $order->shipping_status,
+                    'shipping_provider' => $order->shipping_provider ?? 'leajlak',
                     'source' => $order->source ?? 'NULL',
                     'shop_id' => $order->shop_id ?? 'NULL',
                     'step' => 'Order Model boot method - static::created hook (shipping skipped until payment confirmed)',
@@ -168,8 +177,11 @@ class Order extends Model
                         'step' => 'Calling ShippingService::createOrder()',
                     ]);
 
+                    // Get shipping provider from order or use default
+                    $provider = $order->shipping_provider ?? \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
+                    
                     // Contact shipping company API to create order and get dsp_order_id
-                    $shippingService = new \App\Services\ShippingService();
+                    $shippingService = \App\Services\ShippingServiceFactory::getService($provider);
                     $shippingResult = $shippingService->createOrder($order);
 
                     if ($shippingResult && isset($shippingResult['dsp_order_id'])) {
@@ -294,15 +306,25 @@ class Order extends Model
                 // 🔹 Always ensure an invoice exists once payment is confirmed (idempotent)
                 $order->createInvoice();
 
+                // Set shipping_provider if not already set
+                if (empty($order->shipping_provider)) {
+                    $defaultProvider = \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
+                    $order->shipping_provider = $defaultProvider;
+                    $order->saveQuietly(); // Save without triggering events
+                }
+
                 // Only send to shipping if not already sent (no dsp_order_id)
                 if (empty($order->dsp_order_id) && !empty($order->shop_id)) {
+                    $provider = $order->shipping_provider ?? \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
+                    
                     \Illuminate\Support\Facades\Log::info('🚀 CONDITIONS MET - Calling ShippingService::createOrder', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'shop_id' => $order->shop_id,
+                        'shipping_provider' => $provider,
                     ]);
                     try {
-                        $shippingService = new \App\Services\ShippingService();
+                        $shippingService = \App\Services\ShippingServiceFactory::getService($provider);
                         $shippingResult = $shippingService->createOrder($order);
 
                         if ($shippingResult) {

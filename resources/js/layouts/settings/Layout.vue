@@ -18,6 +18,10 @@ const sidebarNavItems: NavItem[] = [
         title: 'Appearance',
         href: '/settings/appearance',
     },
+    {
+        title: 'Shipping Settings',
+        href: '/settings/shipping',
+    },
 ];
 
 const page = usePage();

@@ -234,10 +234,54 @@ Route::post('/simple-orders', [SimpleOrderController::class, 'store']);
 Route::get('/simple-orders/{id}', [SimpleOrderController::class, 'show']);
 
 // Shipping routes
-Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']);
+Route::post('/shipping/webhook', [ShippingController::class, 'handleWebhook']); // Leajlak webhook
+Route::post('/shipping/shadda/webhook', [ShippingController::class, 'handleShaddaWebhook']); // Shadda webhook
 Route::post('/create-order', [ShippingController::class, 'createOrder']);
 Route::get('/shipping/status/{dspOrderId}', [ShippingController::class, 'getStatus']);
 Route::post('/shipping/cancel/{dspOrderId}', [ShippingController::class, 'cancel']);
+
+// Fines routes - Delete all fines
+Route::match(['GET', 'DELETE', 'POST'], '/fines', function() {
+    try {
+        // Check if table exists
+        if (!\Illuminate\Support\Facades\Schema::hasTable('fines')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'جدول الغرامات غير موجود في قاعدة البيانات'
+            ], 404);
+        }
+
+        // Get count before deletion
+        $count = \Illuminate\Support\Facades\DB::table('fines')->count();
+
+        if ($count === 0) {
+            return response()->json([
+                'success' => true,
+                'message' => 'جدول الغرامات فارغ بالفعل',
+                'deleted_count' => 0
+            ], 200);
+        }
+
+        // Delete all records
+        $deleted = \Illuminate\Support\Facades\DB::table('fines')->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "تم حذف {$deleted} سجل بنجاح من جدول الغرامات",
+            'deleted_count' => $deleted
+        ], 200);
+
+    } catch (\Exception $e) {
+        Log::error('Error deleting fines', [
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'حدث خطأ أثناء حذف البيانات: ' . $e->getMessage()
+        ], 500);
+    }
+});
 
 // Order tracking API for chatbot
 Route::get('/order/{id}', function($id) {

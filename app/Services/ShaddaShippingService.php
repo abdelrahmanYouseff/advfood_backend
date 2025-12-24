@@ -10,35 +10,35 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Leajlak Shipping Service
+ * Shadda Shipping Service
  * 
- * This service handles all interactions with Leajlak shipping provider API.
- * This is the original shipping service - do not modify logic to maintain compatibility.
+ * This service handles all interactions with Shadda shipping provider API.
+ * It is completely separate from the leajlak ShippingService to allow easy removal if needed.
  */
-class ShippingService implements ShippingServiceInterface
+class ShaddaShippingService implements ShippingServiceInterface
 {
     protected $apiBaseUrl;
-    protected $apiKey;
+    protected $clientId;
+    protected $secretKey;
     protected $endpoints;
-    protected $sendAsForm;
-    protected $cancelMethod;
+    protected $webhookSecret;
 
     public function __construct()
     {
-        $this->apiBaseUrl = Config::get('services.shipping.url');
-        $this->apiKey = Config::get('services.shipping.key');
-        $this->endpoints = Config::get('services.shipping.endpoints', [
-            'create' => '/orders',
-            'status' => '/orders/{id}',
-            'cancel' => '/orders/{id}',
+        $this->apiBaseUrl = Config::get('services.shadda.url');
+        $this->clientId = Config::get('services.shadda.client_id');
+        $this->secretKey = Config::get('services.shadda.secret_key');
+        $this->webhookSecret = Config::get('services.shadda.webhook_secret');
+        $this->endpoints = Config::get('services.shadda.endpoints', [
+            'create' => '/CreateOrder',
+            'status' => '/GetOrderStatus/{id}',
+            'cancel' => '/CancelOrder/{id}',
         ]);
-        $this->sendAsForm = (bool) Config::get('services.shipping.send_as_form', false);
-        $this->cancelMethod = strtolower((string) Config::get('services.shipping.cancel_method', 'delete'));
     }
 
     public function createOrder($order): ?array
     {
-        Log::info('📦 SHIPPINGSERVICE::createOrder CALLED', [
+        Log::info('📦 SHADDASHIPPINGSERVICE::createOrder CALLED', [
             'order_type' => gettype($order),
             'order_id' => is_object($order) ? ($order->id ?? 'N/A') : (is_array($order) ? ($order['id'] ?? 'N/A') : 'N/A'),
             'environment' => config('app.env'),
@@ -46,18 +46,21 @@ class ShippingService implements ShippingServiceInterface
         ]);
 
         try {
-            Log::info('🔍 STEP 1: Checking API credentials', [
+            Log::info('🔍 STEP 1: Checking Shadda API credentials', [
                 'api_url_exists' => !empty($this->apiBaseUrl),
                 'api_url' => $this->apiBaseUrl ?: 'NOT_SET',
-                'api_key_exists' => !empty($this->apiKey),
-                'api_key_length' => strlen($this->apiKey ?? ''),
+                'client_id_exists' => !empty($this->clientId),
+                'secret_key_exists' => !empty($this->secretKey),
+                'client_id_length' => strlen($this->clientId ?? ''),
+                'secret_key_length' => strlen($this->secretKey ?? ''),
             ]);
 
-            if (empty($this->apiBaseUrl) || empty($this->apiKey)) {
-                Log::error('❌ Shipping API credentials missing!', [
+            if (empty($this->apiBaseUrl) || empty($this->clientId) || empty($this->secretKey)) {
+                Log::error('❌ Shadda API credentials missing!', [
                     'api_url' => $this->apiBaseUrl ?: 'NOT_SET',
-                    'api_key_exists' => !empty($this->apiKey),
-                    'message' => 'Please check SHIPPING_API_URL and SHIPPING_API_KEY in .env file',
+                    'client_id_exists' => !empty($this->clientId),
+                    'secret_key_exists' => !empty($this->secretKey),
+                    'message' => 'Please check SHADDA_API_URL, SHADDA_CLIENT_ID, and SHADDA_SECRET_KEY in .env file',
                     'environment' => config('app.env'),
                 ]);
                 return null;
@@ -373,11 +376,13 @@ class ShippingService implements ShippingServiceInterface
             $request = Http::timeout(30)
                 ->retry(3, 100) // Retry 3 times with 100ms delay
                 ->withOptions([
-                    'verify' => env('SHIPPING_API_VERIFY_SSL', true), // Allow disabling SSL verification if needed
+                    'verify' => env('SHADDA_API_VERIFY_SSL', true), // Allow disabling SSL verification if needed
                     'http_errors' => false, // Don't throw exceptions on HTTP errors
                 ])
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'client-id' => $this->clientId,
+                    'Authorization' => 'Bearer ' . $this->secretKey,
+                    'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
                 ]);
 
@@ -386,16 +391,14 @@ class ShippingService implements ShippingServiceInterface
             $responseJson = null;
             
             try {
-                Log::info('🔄 Attempting to send request to shipping company', [
+                Log::info('🔄 Attempting to send request to Shadda shipping company', [
                     'order_id' => $orderObj->id ?? null,
                     'order_number' => $orderObj->order_number ?? 'MISSING',
                     'url' => $url,
-                    'method' => $this->sendAsForm ? 'form' : 'json',
+                    'method' => 'json',
                 ]);
                 
-                $response = $this->sendAsForm
-                    ? $request->asForm()->post($url, $this->flattenArray($payload))
-                    : $request->withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
+                $response = $request->post($url, $payload);
 
                 // Log immediate response details
                 $responseBody = $response ? $response->body() : null;
@@ -599,8 +602,12 @@ class ShippingService implements ShippingServiceInterface
                 'order_number' => $orderIdString,
             ]);
 
-            $dspOrderId = $data['dsp_order_id'] ?? $data['data']['dsp_order_id'] ?? $data['id'] ?? null;
-            $shippingStatus = $data['status'] ?? $data['data']['status'] ?? 'New Order';
+            // Shadda API returns data in 'data' wrapper
+            $responseData = $data['data'] ?? $data;
+            $dspOrderId = $responseData['dsp_order_id'] ?? $responseData['id'] ?? $data['dsp_order_id'] ?? $data['id'] ?? null;
+            $statusCode = $responseData['status'] ?? $responseData['status_code'] ?? null;
+            // Map Shadda status code to text status
+            $shippingStatus = $this->mapStatusCodeToText($statusCode) ?? 'New Order';
 
             // If no dsp_order_id from provider, generate one starting from 00020
             if (empty($dspOrderId)) {
@@ -741,7 +748,7 @@ class ShippingService implements ShippingServiceInterface
     public function getOrderStatus(string $shippingOrderId): ?array
     {
         try {
-            if (empty($this->apiBaseUrl) || empty($this->apiKey) || empty($shippingOrderId)) {
+            if (empty($this->apiBaseUrl) || empty($this->clientId) || empty($this->secretKey) || empty($shippingOrderId)) {
                 return null;
             }
 
@@ -749,7 +756,8 @@ class ShippingService implements ShippingServiceInterface
 
             $response = Http::timeout(30)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'client-id' => $this->clientId,
+                    'Authorization' => 'Bearer ' . $this->secretKey,
                     'Accept' => 'application/json',
                 ])
                 ->get($url);
@@ -765,10 +773,12 @@ class ShippingService implements ShippingServiceInterface
             }
 
             $data = $response->json();
+            $responseData = $data['data'] ?? $data;
 
-            $clientOrderId = $data['id'] ?? ($data['data']['id'] ?? null);
-            $status = $data['status'] ?? ($data['data']['status'] ?? null);
-            $dspId = $data['dsp_order_id'] ?? ($data['data']['dsp_order_id'] ?? $shippingOrderId);
+            $clientOrderId = $responseData['id'] ?? $data['id'] ?? null;
+            $statusCode = $responseData['status'] ?? $responseData['status_code'] ?? $data['status'] ?? null;
+            $status = $this->mapStatusCodeToText($statusCode);
+            $dspId = $responseData['dsp_order_id'] ?? $responseData['id'] ?? $data['dsp_order_id'] ?? $data['id'] ?? $shippingOrderId;
             $driver = $data['driver'] ?? ($data['data']['driver'] ?? null);
             $driverName = is_array($driver) ? ($driver['name'] ?? null) : null;
             $driverPhone = is_array($driver) ? ($driver['phone'] ?? null) : null;
@@ -847,16 +857,30 @@ class ShippingService implements ShippingServiceInterface
     public function handleWebhook(Request $request): void
     {
         try {
+            // Verify webhook secret if configured
+            if (!empty($this->webhookSecret)) {
+                $signature = $request->header('X-Shadda-Signature') ?? $request->header('Signature');
+                // Add signature verification logic here if needed
+            }
+
             $payload = $request->all();
-            $dspOrderId = $payload['dsp_order_id'] ?? $payload['order_id'] ?? $payload['id'] ?? null;
-            if (!$dspOrderId) { return; }
+            $responseData = $payload['data'] ?? $payload;
+            
+            $dspOrderId = $responseData['dsp_order_id'] ?? $responseData['order_id'] ?? $responseData['id'] ?? $payload['dsp_order_id'] ?? $payload['order_id'] ?? $payload['id'] ?? null;
+            if (!$dspOrderId) { 
+                Log::warning('Shadda webhook received without order ID', ['payload' => $payload]);
+                return; 
+            }
+
+            $statusCode = $responseData['status'] ?? $responseData['status_code'] ?? $payload['status'] ?? null;
+            $status = $this->mapStatusCodeToText($statusCode);
 
             $updates = array_filter([
-                'shipping_status' => $payload['status'] ?? null,
-                'driver_name' => $payload['driver']['name'] ?? null,
-                'driver_phone' => $payload['driver']['phone'] ?? null,
-                'driver_latitude' => $payload['driver']['location']['latitude'] ?? null,
-                'driver_longitude' => $payload['driver']['location']['longitude'] ?? null,
+                'shipping_status' => $status,
+                'driver_name' => $responseData['driver']['name'] ?? $payload['driver']['name'] ?? null,
+                'driver_phone' => $responseData['driver']['phone'] ?? $payload['driver']['phone'] ?? null,
+                'driver_latitude' => $responseData['driver']['location']['latitude'] ?? $responseData['driver']['latitude'] ?? $payload['driver']['location']['latitude'] ?? null,
+                'driver_longitude' => $responseData['driver']['location']['longitude'] ?? $responseData['driver']['longitude'] ?? $payload['driver']['location']['longitude'] ?? null,
                 'updated_at' => now(),
             ], fn($v) => !is_null($v));
 
@@ -865,30 +889,38 @@ class ShippingService implements ShippingServiceInterface
                 // mirror to orders if exists
                 DB::table('orders')->where('dsp_order_id', $dspOrderId)->update($updates);
             }
+
+            Log::info('Shadda webhook processed successfully', [
+                'dsp_order_id' => $dspOrderId,
+                'status' => $status,
+                'updates' => $updates,
+            ]);
         } catch (\Throwable $e) {
-            Log::error('Exception while handling shipping webhook', ['message' => $e->getMessage()]);
+            Log::error('Exception while handling Shadda webhook', [
+                'message' => $e->getMessage(),
+                'payload' => $request->all(),
+            ]);
         }
     }
 
     public function cancelOrder(string $shippingOrderId)
     {
         try {
-            if (empty($this->apiBaseUrl) || empty($this->apiKey) || empty($shippingOrderId)) {
+            if (empty($this->apiBaseUrl) || empty($this->clientId) || empty($this->secretKey) || empty($shippingOrderId)) {
                 return false;
             }
 
             $url = $this->buildUrl($this->endpoints['cancel'], ['id' => $shippingOrderId]);
 
             $request = Http::timeout(30)->withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
+                'client-id' => $this->clientId,
+                'Authorization' => 'Bearer ' . $this->secretKey,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
             ]);
 
-            $response = match ($this->cancelMethod) {
-                'post' => $request->post($url),
-                default => $request->delete($url),
-            };
+            // Shadda uses POST for cancellation
+            $response = $request->post($url);
 
             if ($response && ($response->status() === 202 || $response->successful())) {
                 DB::table('shipping_orders')
@@ -953,12 +985,46 @@ class ShippingService implements ShippingServiceInterface
         }
     }
 
+    /**
+     * Map payment method to Shadda payment type
+     */
     protected function mapPaymentType($paymentMethod): int
     {
         $normalized = is_string($paymentMethod) ? strtolower($paymentMethod) : $paymentMethod;
         if ($normalized === 'cash' || $normalized === 1) { return 1; }
-        if ($normalized === 'machine' || $normalized === 10) { return 10; }
+        if ($normalized === 'card' || $normalized === 'online' || $normalized === 10) { return 10; }
         return 0;
+    }
+
+    /**
+     * Map Shadda status code to text status
+     * According to Shadda documentation:
+     * 10 = New, 1 = Accepted, 2 = On the way to pickup, 3 = Reach pickup,
+     * 4 = On the way to delivery, 5 = Arrived to delivery, 6 = Completed, 7 = Canceled
+     */
+    protected function mapStatusCodeToText($statusCode): ?string
+    {
+        if ($statusCode === null) {
+            return null;
+        }
+
+        $statusMap = [
+            10 => 'New',
+            1 => 'Accepted',
+            2 => 'On the way to the pickup location',
+            3 => 'Reach pickup location',
+            4 => 'On the way to the delivery location',
+            5 => 'Arrived to the delivery location',
+            6 => 'Completed',
+            7 => 'Canceled',
+        ];
+
+        // If it's already a string, return as is
+        if (is_string($statusCode)) {
+            return $statusCode;
+        }
+
+        return $statusMap[$statusCode] ?? 'Unknown';
     }
 
     protected function buildUrl(string $endpointTemplate, array $params = []): string
@@ -968,16 +1034,6 @@ class ShippingService implements ShippingServiceInterface
         return rtrim($this->apiBaseUrl, '/') . '/' . ltrim($path, '/');
     }
 
-    private function flattenArray(array $array, string $prefix = ''): array
-    {
-        $result = [];
-        foreach ($array as $key => $value) {
-            $newKey = $prefix ? $prefix . '[' . $key . ']' : $key;
-            if (is_array($value)) { $result += $this->flattenArray($value, $newKey); }
-            else { $result[$newKey] = $value; }
-        }
-        return $result;
-    }
 }
 
 

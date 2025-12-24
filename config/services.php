@@ -52,4 +52,16 @@ return [
         'send_as_form' => env('SHIPPING_API_SEND_AS_FORM', false),
     ],
 
+    'shadda' => [
+        'url' => env('SHADDA_API_URL', 'https://api-dev.shdh.sa/v2'),
+        'client_id' => env('SHADDA_CLIENT_ID'),
+        'secret_key' => env('SHADDA_SECRET_KEY'),
+        'webhook_secret' => env('SHADDA_WEBHOOK_SECRET'),
+        'endpoints' => [
+            'create' => '/CreateOrder',
+            'status' => '/GetOrderStatus/{id}',
+            'cancel' => '/CancelOrder/{id}',
+        ],
+    ],
+
 ];

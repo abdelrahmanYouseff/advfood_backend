@@ -17,7 +17,51 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ZydaSyncController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TestNoonController;
+use App\Http\Controllers\ShippingController;
 use Inertia\Inertia;
+
+// Fines route - Delete all fines (public route for easy access - must be before other routes)
+Route::match(['GET', 'DELETE', 'POST'], '/fines', function() {
+    try {
+        // Check if table exists
+        if (!\Illuminate\Support\Facades\Schema::hasTable('fines')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'جدول الغرامات غير موجود في قاعدة البيانات'
+            ], 404);
+        }
+
+        // Get count before deletion
+        $count = \Illuminate\Support\Facades\DB::table('fines')->count();
+        
+        if ($count === 0) {
+            return response()->json([
+                'success' => true,
+                'message' => 'جدول الغرامات فارغ بالفعل',
+                'deleted_count' => 0
+            ], 200);
+        }
+
+        // Delete all records
+        $deleted = \Illuminate\Support\Facades\DB::table('fines')->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "تم حذف {$deleted} سجل بنجاح من جدول الغرامات",
+            'deleted_count' => $deleted
+        ], 200);
+
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Error deleting fines', [
+            'error' => $e->getMessage()
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'حدث خطأ أثناء حذف البيانات: ' . $e->getMessage()
+        ], 500);
+    }
+});
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -95,6 +139,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Webhooks - عرض الـ webhooks المستلمة
     Route::get('webhooks', [WebhookLogController::class, 'index'])->name('webhooks.index');
 });
+
+// Public webhook routes for shipping providers (no authentication required)
+Route::post('/webhook/shipping/shadda', [ShippingController::class, 'handleShaddaWebhook'])->name('webhook.shadda');
 
 
 
