@@ -353,11 +353,77 @@ def _wait_for_login_success(driver, wait: WebDriverWait) -> None:
         wait.until(EC.url_contains("/orders/current"))
         print("[SUCCESS] Orders page URL confirmed", flush=True)
 
+        # Wait a bit more for page to fully render
+        time.sleep(2)
+
+        # Try to close any modals or popups that might be blocking
+        try:
+            print("[INFO] Checking for modals or popups...", flush=True)
+            # Common modal close selectors
+            modal_selectors = [
+                "button[aria-label='Close']",
+                ".ant-modal-close",
+                "[data-testid='close-button']",
+                "button.close",
+            ]
+            for selector in modal_selectors:
+                try:
+                    close_btn = driver.find_element(By.CSS_SELECTOR, selector)
+                    if close_btn.is_displayed():
+                        close_btn.click()
+                        print(f"[INFO] Closed modal using selector: {selector}", flush=True)
+                        time.sleep(0.5)
+                        break
+                except:
+                    pass
+        except Exception as e:
+            print(f"[INFO] No modals found or error closing: {e}", flush=True)
+
         print("[INFO] Waiting for order cards container to appear...", flush=True)
-        wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ORDERS_CONTAINER_SELECTOR))
-        )
-        print("[SUCCESS] Order cards container found", flush=True)
+        # Try multiple selectors with longer timeout
+        container_found = False
+        selectors_to_try = [
+            ORDERS_CONTAINER_SELECTOR,
+            ".mb-4.rounded-md",  # More flexible selector
+            "[class*='mb-4'][class*='rounded']",  # Even more flexible
+            ".order-card",  # Alternative selector
+        ]
+
+        for selector in selectors_to_try:
+            try:
+                print(f"[INFO] Trying selector: {selector}", flush=True)
+                wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                )
+                print(f"[SUCCESS] Order cards container found using selector: {selector}", flush=True)
+                container_found = True
+                break
+            except TimeoutException:
+                print(f"[WARN] Selector {selector} did not find container, trying next...", flush=True)
+                continue
+
+        if not container_found:
+            # Last attempt: wait a bit more and try again
+            print("[INFO] Waiting additional 3 seconds for page to fully load...", flush=True)
+            time.sleep(3)
+            try:
+                wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, ORDERS_CONTAINER_SELECTOR))
+                )
+                print("[SUCCESS] Order cards container found after additional wait", flush=True)
+                container_found = True
+            except TimeoutException:
+                pass
+
+        if not container_found:
+            # Check if page has any content at all
+            try:
+                page_source = driver.page_source[:1000]
+                print(f"[DEBUG] Page source preview: {page_source}", flush=True)
+            except:
+                pass
+            raise TimeoutException("Could not find order cards container with any selector")
+
         print("[SUCCESS] Login successful and orders page ready!", flush=True)
     except TimeoutException as e:
         driver.save_screenshot("login_failure.png")
@@ -377,23 +443,109 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
         # Navigate to orders page first
         print("[STEP] Navigating to Zyda orders page...", flush=True)
         driver.get(ORDERS_URL)
-        time.sleep(0.5)  # Reduced from 2 to 0.5 seconds
+        time.sleep(2)  # Increased wait time for page to load
+
+        # Try to close any modals or popups
+        try:
+            print("[INFO] Checking for modals or popups...", flush=True)
+            modal_selectors = [
+                "button[aria-label='Close']",
+                ".ant-modal-close",
+                "[data-testid='close-button']",
+                "button.close",
+            ]
+            for selector in modal_selectors:
+                try:
+                    close_btn = driver.find_element(By.CSS_SELECTOR, selector)
+                    if close_btn.is_displayed():
+                        close_btn.click()
+                        print(f"[INFO] Closed modal using selector: {selector}", flush=True)
+                        time.sleep(0.5)
+                        break
+                except:
+                    pass
+        except Exception as e:
+            print(f"[INFO] No modals found or error closing: {e}", flush=True)
 
         print("[STEP] Fetching orders from Zyda dashboard...", flush=True)
         print("[INFO] Waiting for order cards to appear...", flush=True)
-        cards = wait.until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR, ORDERS_CONTAINER_SELECTOR)
-            )
-        )
-        print(f"[SUCCESS] Found {len(cards)} order card(s)", flush=True)
-    except TimeoutException:
+
+        # Try multiple selectors with longer timeout
+        cards = None
+        selectors_to_try = [
+            ORDERS_CONTAINER_SELECTOR,
+            ".mb-4.rounded-md",  # More flexible selector
+            "[class*='mb-4'][class*='rounded']",  # Even more flexible
+            ".order-card",  # Alternative selector
+        ]
+
+        for selector in selectors_to_try:
+            try:
+                print(f"[INFO] Trying selector: {selector}", flush=True)
+                cards = wait.until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, selector)
+                    )
+                )
+                print(f"[SUCCESS] Found {len(cards)} order card(s) using selector: {selector}", flush=True)
+                break
+            except TimeoutException:
+                print(f"[WARN] Selector {selector} did not find cards, trying next...", flush=True)
+                continue
+
+        if not cards or len(cards) == 0:
+            # Last attempt: wait more and try again
+            print("[INFO] Waiting additional 5 seconds for page to fully load...", flush=True)
+            time.sleep(5)
+            try:
+                cards = wait.until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, ORDERS_CONTAINER_SELECTOR)
+                    )
+                )
+                print(f"[SUCCESS] Found {len(cards)} order card(s) after additional wait", flush=True)
+            except TimeoutException:
+                # Check if there are no orders (empty state)
+                try:
+                    # Look for "no orders" message
+                    no_orders_selectors = [
+                        "text=No orders",
+                        "text=لا توجد طلبات",
+                        "[class*='empty']",
+                    ]
+                    for selector in no_orders_selectors:
+                        try:
+                            if "text=" in selector:
+                                text = selector.replace("text=", "")
+                                if text.lower() in driver.page_source.lower():
+                                    print(f"[INFO] No orders found on page (found '{text}' message)", flush=True)
+                                    return []
+                            else:
+                                element = driver.find_element(By.CSS_SELECTOR, selector)
+                                if element.is_displayed():
+                                    print(f"[INFO] No orders found (empty state detected)", flush=True)
+                                    return []
+                        except:
+                            pass
+                except:
+                    pass
+
+                driver.save_screenshot("orders_not_found.png")
+                error_msg = (
+                    "Could not find any order cards. "
+                    "Saved screenshot to orders_not_found.png for troubleshooting. "
+                    f"Current URL: {driver.current_url}"
+                )
+                print(f"[ERROR] Failed to fetch orders: {error_msg}", flush=True)
+                raise RuntimeError(error_msg) from None
+    except TimeoutException as e:
         driver.save_screenshot("orders_not_found.png")
         error_msg = (
-            "Could not find any order cards. "
-            "Saved screenshot to orders_not_found.png for troubleshooting."
+            f"Timeout waiting for order cards. "
+            f"Saved screenshot to orders_not_found.png for troubleshooting. "
+            f"Error: {str(e)}"
         )
-        print(f"[ERROR] Failed to fetch orders: {error_msg}")
+        print(f"[ERROR] Failed to fetch orders: {error_msg}", flush=True)
         raise RuntimeError(error_msg) from None
 
     scraped_orders: List[Dict[str, object]] = []
