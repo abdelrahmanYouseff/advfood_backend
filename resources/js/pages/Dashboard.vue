@@ -130,22 +130,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const getStatusColor = (status: string) => {
     const colors = {
-        // Original order statuses
-        pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-        confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-        preparing: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
-        ready: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
-        delivering: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400',
-        delivered: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-        cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
-        // Shipping statuses
-        'New Order': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-        'Confirmed': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-        'Preparing': 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
-        'Ready': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
-        'Out for Delivery': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400',
-        'Delivered': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-        'Cancelled': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+        // Original order statuses - Black and gray only
+        pending: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+        confirmed: 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-200',
+        preparing: 'bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-gray-100',
+        ready: 'bg-gray-400 text-gray-900 dark:bg-gray-500 dark:text-gray-100',
+        delivering: 'bg-gray-500 text-white dark:bg-gray-400 dark:text-gray-900',
+        delivered: 'bg-gray-600 text-white dark:bg-gray-300 dark:text-gray-900',
+        cancelled: 'bg-gray-700 text-white dark:bg-gray-200 dark:text-gray-900',
+        // Shipping statuses - Black and gray only
+        'New Order': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+        'Confirmed': 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-200',
+        'Preparing': 'bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-gray-100',
+        'Ready': 'bg-gray-400 text-gray-900 dark:bg-gray-500 dark:text-gray-100',
+        'Out for Delivery': 'bg-gray-500 text-white dark:bg-gray-400 dark:text-gray-900',
+        'Delivered': 'bg-gray-600 text-white dark:bg-gray-300 dark:text-gray-900',
+        'Cancelled': 'bg-gray-700 text-white dark:bg-gray-200 dark:text-gray-900',
     };
     return colors[status as keyof typeof colors] || colors['New Order'];
 };
@@ -175,6 +175,15 @@ const formatCurrency = (amount: number) => {
         style: 'currency',
         currency: 'SAR',
     }).format(amount);
+};
+
+// Format currency with SAR as superscript
+const formatCurrencyProfessional = (amount: number) => {
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+    return formatted;
 };
 
 const formatDate = (dateString: string) => {
@@ -274,6 +283,15 @@ const formatZydaTotal = (amount: number | string) => {
         style: 'currency',
         currency: 'SAR',
         minimumFractionDigits: 2,
+    }).format(numeric);
+};
+
+// Format Zyda total with SAR as superscript
+const formatZydaTotalProfessional = (amount: number | string) => {
+    const numeric = Number(amount ?? 0);
+    return new Intl.NumberFormat('ar-SA', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
     }).format(numeric);
 };
 
@@ -748,7 +766,7 @@ const getCookie = (name: string): string | null => {
                                 </p>
                                 <p class="text-2xl font-bold">{{ stats.total_restaurants }}</p>
                             </div>
-                            <div class="rounded-lg bg-[#ce4622] p-3">
+                            <div class="rounded-lg bg-gray-800 p-3">
                                 <Store class="h-6 w-6 text-white" />
                             </div>
                         </div>
@@ -762,7 +780,7 @@ const getCookie = (name: string): string | null => {
                                 </p>
                                 <p class="text-2xl font-bold">{{ stats.total_orders }}</p>
                             </div>
-                            <div class="rounded-lg bg-[#ce4622] p-3">
+                            <div class="rounded-lg bg-gray-800 p-3">
                                 <ShoppingCart class="h-6 w-6 text-white" />
                             </div>
                         </div>
@@ -774,9 +792,12 @@ const getCookie = (name: string): string | null => {
                                 <p class="text-sm font-medium text-muted-foreground">
                                     {{ t('إجمالي الإيرادات', 'Total Revenue') }}
                                 </p>
-                                <p class="text-2xl font-bold">{{ formatCurrency(stats.total_revenue) }}</p>
+                                <p class="text-2xl font-bold inline-flex items-baseline">
+                                    <sup class="text-[10px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-1">SAR</sup>
+                                    <span>{{ formatCurrencyProfessional(stats.total_revenue) }}</span>
+                                </p>
                             </div>
-                            <div class="rounded-lg bg-[#ce4622] p-3">
+                            <div class="rounded-lg bg-gray-800 p-3">
                                 <DollarSign class="h-6 w-6 text-white" />
                             </div>
                         </div>
@@ -791,9 +812,9 @@ const getCookie = (name: string): string | null => {
                                 <p class="text-sm font-medium text-muted-foreground">
                                     {{ t('الطلبات المعلقة', 'Pending Orders') }}
                                 </p>
-                                <p class="text-2xl font-bold text-yellow-600">{{ stats.pending_orders }}</p>
+                                <p class="text-2xl font-bold text-gray-700">{{ stats.pending_orders }}</p>
                             </div>
-                            <div class="rounded-lg bg-[#ce4622] p-3">
+                            <div class="rounded-lg bg-gray-800 p-3">
                                 <Clock class="h-6 w-6 text-white" />
                             </div>
                         </div>
@@ -807,7 +828,7 @@ const getCookie = (name: string): string | null => {
                                 </p>
                                 <p class="text-2xl font-bold">{{ stats.today_orders }}</p>
                             </div>
-                            <div class="rounded-lg bg-[#ce4622] p-3">
+                            <div class="rounded-lg bg-gray-800 p-3">
                                 <Calendar class="h-6 w-6 text-white" />
                             </div>
                         </div>
@@ -819,9 +840,12 @@ const getCookie = (name: string): string | null => {
                                 <p class="text-sm font-medium text-muted-foreground">
                                     {{ t('إيرادات اليوم', 'Today\'s Revenue') }}
                                 </p>
-                                <p class="text-2xl font-bold text-emerald-600">{{ formatCurrency(stats.today_revenue) }}</p>
+                                <p class="text-2xl font-bold text-gray-700 inline-flex items-baseline">
+                                    <sup class="text-[10px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-1">SAR</sup>
+                                    <span>{{ formatCurrencyProfessional(stats.today_revenue) }}</span>
+                                </p>
                             </div>
-                            <div class="rounded-lg bg-[#ce4622] p-3">
+                            <div class="rounded-lg bg-gray-800 p-3">
                                 <TrendingUp class="h-6 w-6 text-white" />
                             </div>
                         </div>
@@ -838,7 +862,7 @@ const getCookie = (name: string): string | null => {
                             </h3>
                             <Link
                                 :href="route('orders.index')"
-                                class="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                                class="text-sm text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
                             >
                                 {{ t('عرض الكل', 'View all') }}
                             </Link>
@@ -859,7 +883,7 @@ const getCookie = (name: string): string | null => {
                                 </div>
 
                                 <div class="flex items-center space-x-3">
-                                    <div class="rounded-lg bg-[#ce4622] p-2">
+                                    <div class="rounded-lg bg-gray-800 p-2">
                                         <Package class="h-4 w-4 text-white" />
                                     </div>
                                     <div>
@@ -869,7 +893,10 @@ const getCookie = (name: string): string | null => {
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="font-bold text-green-600">{{ formatCurrency(order.total) }}</p>
+                                    <p class="font-bold text-gray-700 inline-flex items-baseline">
+                                        <sup class="text-[9px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
+                                        <span>{{ formatCurrencyProfessional(order.total) }}</span>
+                                    </p>
                                     <span :class="['inline-flex rounded-full px-2 py-1 text-xs font-medium shadow-sm', getStatusColor(order.shipping_status)]">
                                         {{ getStatusText(order.shipping_status) }}
                                     </span>
@@ -886,7 +913,7 @@ const getCookie = (name: string): string | null => {
                             </h3>
                             <Link
                                 :href="route('restaurants.index')"
-                                class="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+                                class="text-sm text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-100"
                             >
                                 عرض الكل
                             </Link>
@@ -894,7 +921,7 @@ const getCookie = (name: string): string | null => {
                         <div class="space-y-4">
                             <div v-for="(restaurant, index) in top_restaurants" :key="restaurant.id" class="flex items-center justify-between rounded-lg border p-4">
                                 <div class="flex items-center space-x-3">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-800 dark:bg-gray-700 dark:text-gray-200">
                                         {{ index + 1 }}
                                     </div>
                                     <div>
@@ -905,7 +932,7 @@ const getCookie = (name: string): string | null => {
                                         </p>
                                     </div>
                                 </div>
-                                <div class="rounded-lg bg-[#ce4622] p-2">
+                                <div class="rounded-lg bg-gray-800 p-2">
                                     <Store class="h-4 w-4 text-white" />
                                 </div>
                             </div>
@@ -926,18 +953,18 @@ const getCookie = (name: string): string | null => {
                             </p>
                         </div>
                         <div class="flex items-center gap-3">
-                            <div class="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-[#ce4622]"></span>
+                            <div class="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-gray-800"></span>
                                 {{ t('إجمالي الطلبات', 'Total Orders') }}: {{ zydaOrdersCountLabel }}
                             </div>
-                            <div class="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                            <div class="flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                                <span class="inline-flex h-2.5 w-2.5 rounded-full bg-gray-600"></span>
                                 {{ t('إجمالي القيمة', 'Total Amount') }}: {{ zydaOrdersTotalLabel }}
                             </div>
                             <button
                                 @click="syncZydaOrders"
                                 :disabled="syncLoading"
-                                class="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 transition disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <RefreshCcw :class="['h-4 w-4', syncLoading ? 'animate-spin' : '']" />
                                 {{ t('مزامنة Zyda', 'Sync Zyda') }}
@@ -958,7 +985,7 @@ const getCookie = (name: string): string | null => {
                             :class="[
                                 'px-4 py-2 text-sm font-medium transition rounded-t-lg border-b-2',
                                 zydaFilter === 'pending'
-                                    ? 'border-blue-600 text-blue-600 bg-blue-50'
+                                    ? 'border-gray-800 text-gray-900 bg-gray-100'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             ]"
                         >
@@ -969,7 +996,7 @@ const getCookie = (name: string): string | null => {
                             :class="[
                                 'px-4 py-2 text-sm font-medium transition rounded-t-lg border-b-2',
                                 zydaFilter === 'received'
-                                    ? 'border-green-600 text-green-600 bg-green-50'
+                                    ? 'border-gray-800 text-gray-900 bg-gray-100'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             ]"
                         >
@@ -1052,7 +1079,7 @@ const getCookie = (name: string): string | null => {
                                             <button
                                                 @click="updateLocation(order.id)"
                                                 :disabled="savingOrderId === order.id"
-                                                class="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                class="inline-flex items-center gap-1 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 <Save class="h-3.5 w-3.5" />
                                                 <span v-if="savingOrderId !== order.id">
@@ -1065,8 +1092,9 @@ const getCookie = (name: string): string | null => {
 
                                     <!-- Total -->
                                     <td class="px-4 py-3 text-right">
-                                        <div class="text-xs font-bold text-emerald-600">
-                                            {{ formatZydaTotal(order.total_amount) }}
+                                        <div class="text-xs font-bold text-gray-700 inline-flex items-baseline">
+                                            <sup class="text-[7px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
+                                            <span>{{ formatZydaTotalProfessional(order.total_amount) }}</span>
                                         </div>
                                     </td>
 
@@ -1092,7 +1120,7 @@ const getCookie = (name: string): string | null => {
                                         <button
                                             @click="deleteZydaOrder(order.id)"
                                             :disabled="deletingOrderId === order.id"
-                                            class="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                            class="inline-flex items-center gap-1 rounded-md bg-gray-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                                             :title="t('حذف الطلب', 'Delete order')"
                                         >
                                             <Trash2 class="h-3.5 w-3.5" />
@@ -1129,14 +1157,14 @@ const getCookie = (name: string): string | null => {
                 <div class="bg-white rounded-2xl shadow-2xl p-6 max-h-[90vh] flex flex-col">
                     <!-- Header -->
                     <div class="text-center mb-4">
-                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-3">
-                            <RefreshCcw :class="['h-8 w-8 text-[#ce4622]', syncLoading ? 'animate-spin' : '']" />
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-3">
+                            <RefreshCcw :class="['h-8 w-8 text-gray-800', syncLoading ? 'animate-spin' : '']" />
                         </div>
                         <h3 class="text-2xl font-bold text-gray-900 mb-2">
                             {{ t('جاري المزامنة', 'Sync in progress') }}
                         </h3>
                         <div class="flex items-center justify-center gap-2 mt-2">
-                            <Clock class="h-4 w-4 text-[#ce4622]" />
+                            <Clock class="h-4 w-4 text-gray-800" />
                             <span class="text-sm font-mono text-gray-600 font-semibold">
                                 {{ t('الوقت المستغرق:', 'Elapsed time:') }} {{ formatTimer(syncTimer) }}
                             </span>
@@ -1147,7 +1175,7 @@ const getCookie = (name: string): string | null => {
                     <div class="mb-4">
                         <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                             <div
-                                class="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-300 ease-out"
+                                class="h-full bg-gradient-to-r from-gray-600 to-gray-800 rounded-full transition-all duration-300 ease-out"
                                 :style="{ width: syncProgress + '%' }"
                             >
                                 <div class="h-full bg-white bg-opacity-30 animate-pulse"></div>
@@ -1163,9 +1191,9 @@ const getCookie = (name: string): string | null => {
                         <div ref="logsContainer" class="bg-gray-900 rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
                             <div v-if="syncLogs.length === 0" class="text-gray-400">
                                 <div class="flex justify-center space-x-2 mb-2">
-                                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                                    <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                                    <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                                    <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                                    <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
                                 </div>
                                 <p class="text-center">
                                     {{ t('جاري تشغيل السكريبت...', 'Running sync script...') }}

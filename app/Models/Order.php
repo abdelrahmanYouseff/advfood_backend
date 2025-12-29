@@ -196,9 +196,10 @@ class Order extends Model
                         ]);
 
                         // CRITICAL: Update order in database with dsp_order_id from shipping company
-                            $order->dsp_order_id = $shippingResult['dsp_order_id'];
-                            $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
-                            $order->save();
+                        $order->dsp_order_id = $shippingResult['dsp_order_id'];
+                        $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
+                        $order->shipping_provider = $shippingResult['shipping_provider'] ?? $provider; // Update provider
+                        $order->save();
 
                         \Illuminate\Support\Facades\Log::info('✅✅ Order updated in database with dsp_order_id - Order can now be tracked by shipping company', [
                             'order_id' => $order->id,
@@ -344,6 +345,7 @@ class Order extends Model
                             if (isset($shippingResult['dsp_order_id'])) {
                                 $order->dsp_order_id = $shippingResult['dsp_order_id'];
                                 $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
+                                $order->shipping_provider = $shippingResult['shipping_provider'] ?? $provider; // Update provider
                                 $order->save();
                             }
                         } else {

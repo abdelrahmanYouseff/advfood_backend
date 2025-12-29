@@ -25,8 +25,8 @@ const page = usePage();
                         :class="[
                             'flex items-center justify-between w-full rounded-2xl px-2.5 py-2 text-sm font-medium transition-colors',
                             item.href === page.url
-                                ? 'bg-[#cf4823] text-white shadow-sm'
-                                : 'text-gray-500 hover:bg-gray-100'
+                                ? 'bg-gray-900 text-white shadow-sm dark:bg-gray-700'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                         ]"
                     >
                         <div class="flex items-center gap-3">
@@ -34,8 +34,8 @@ const page = usePage();
                                 :class="[
                                     'flex h-9 w-9 items-center justify-center rounded-xl transition-colors',
                                     item.href === page.url
-                                        ? 'bg-white text-[#ce4622] shadow-sm'
-                                        : 'bg-gray-100 text-[#ce4622]'
+                                        ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
+                                        : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                                 ]"
                             >
                                 <component :is="item.icon" class="h-4 w-4" />
@@ -47,7 +47,7 @@ const page = usePage();
 
                         <span
                             v-if="item.badge && item.badge > 0"
-                            class="inline-flex items-center justify-center rounded-full bg-purple-500 px-2 py-0.5 text-[10px] font-semibold text-white"
+                            class="inline-flex items-center justify-center rounded-full bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-white dark:bg-gray-700"
                         >
                             {{ item.badge }}
                         </span>

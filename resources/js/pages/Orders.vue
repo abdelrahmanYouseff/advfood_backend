@@ -18,6 +18,7 @@ interface OrderData {
     order_number: string;
     status: string;
     shipping_status: string | null;
+    shipping_provider?: string | null;
     total: number;
     source?: string | null;
     items_count?: number;
@@ -104,6 +105,26 @@ const filteredOrders = computed(() => {
 // Closed orders (delivered / cancelled)
 const closedOrders = computed<OrderData[]>(() => props.closed_orders ?? []);
 
+// Get restaurant image URL
+const getRestaurantImage = (restaurantName: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    const baseUrl = window.location.origin;
+    
+    // Map restaurant names to their logo files
+    const restaurantLogos: Record<string, string> = {
+        'Tant Bakiza': '/tant-bakiza-logo.png',
+        'Delawa': '/delawa-logo.png',
+        'Gather Us': '/gatherus-logo.png',
+    };
+    
+    const logoPath = restaurantLogos[restaurantName];
+    if (logoPath) {
+        return `${baseUrl}${logoPath}`;
+    }
+    
+    return null;
+};
+
 // Available status options
 const statusOptions = [
     { value: 'all', label: t('جميع الطلبات', 'All orders') },
@@ -129,22 +150,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const getStatusColor = (status: string) => {
     const colors = {
-        // Original order statuses
-        pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-        confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-        preparing: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
-        ready: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
-        delivering: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400',
-        delivered: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-        cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
-        // Shipping statuses
-        'New Order': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-        'Confirmed': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-        'Preparing': 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
-        'Ready': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
-        'Out for Delivery': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400',
-        'Delivered': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-        'Cancelled': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+        // Original order statuses - Black and Gray only
+        pending: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+        confirmed: 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
+        preparing: 'bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-gray-100',
+        ready: 'bg-gray-400 text-white dark:bg-gray-500 dark:text-white',
+        delivering: 'bg-gray-500 text-white dark:bg-gray-400 dark:text-white',
+        delivered: 'bg-gray-700 text-white dark:bg-gray-300 dark:text-gray-900',
+        cancelled: 'bg-gray-900 text-white dark:bg-gray-200 dark:text-gray-900',
+        // Shipping statuses - Black and Gray only
+        'New Order': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+        'Confirmed': 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
+        'Preparing': 'bg-gray-300 text-gray-900 dark:bg-gray-600 dark:text-gray-100',
+        'Ready': 'bg-gray-400 text-white dark:bg-gray-500 dark:text-white',
+        'Out for Delivery': 'bg-gray-500 text-white dark:bg-gray-400 dark:text-white',
+        'Delivered': 'bg-gray-700 text-white dark:bg-gray-300 dark:text-gray-900',
+        'Cancelled': 'bg-gray-900 text-white dark:bg-gray-200 dark:text-gray-900',
+        'Accepted': 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
     };
     return colors[status as keyof typeof colors] || colors['New Order'];
 };
@@ -219,6 +241,19 @@ const getSourceLabel = (source?: string | null) => {
     return sourceLabels[normalizedSource] ?? source;
 };
 
+const getShippingProviderLabel = (provider?: string | null) => {
+    if (!provider) {
+        return '—';
+    }
+    const normalizedProvider = provider.toLowerCase();
+    const providerLabels: Record<string, string> = {
+        'shadda': 'شدة',
+        'leajlak': 'لاجلك',
+        'shipping': 'لاجلك', // Legacy support
+    };
+    return providerLabels[normalizedProvider] ?? provider;
+};
+
 // Helper function to check if order is delivered
 const isDelivered = (order: any) => {
     return order.shipping_status === 'Delivered' ||
@@ -230,6 +265,15 @@ const formatCurrency = (amount: number) => {
         style: 'currency',
         currency: 'SAR',
     }).format(amount);
+};
+
+// Format currency with SAR as superscript
+const formatCurrencyProfessional = (amount: number) => {
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+    return formatted;
 };
 
 const currentTimestamp = ref(Date.now());
@@ -1054,7 +1098,7 @@ onMounted(() => {
                             {{ t('إدارة جميع طلبات العملاء', 'Manage all customer orders') }}
                         </p>
                         <div v-if="filteredOrders.filter((order: any) => order.sound === true).length > 0" class="mt-2">
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 animate-pulse">
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-800 text-white dark:bg-gray-700 dark:text-gray-200 animate-pulse">
                                 🔔
                                 <span v-if="ordersLang === 'ar'">
                                     {{ filteredOrders.filter((order: any) => order.sound === true).length }} طلب بصوت نشط
@@ -1073,7 +1117,7 @@ onMounted(() => {
                             @click="toggleSound"
                             :class="[
                                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                                soundEnabled ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'
+                                soundEnabled ? 'bg-gray-800 dark:bg-gray-600' : 'bg-gray-300 dark:bg-gray-700'
                             ]"
                         >
                             <span
@@ -1088,15 +1132,9 @@ onMounted(() => {
                         </span>
                         <button
                             @click="playBeepSound"
-                            class="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                            class="ml-2 px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
                         >
                             اختبار الصوت
-                        </button>
-                        <button
-                            @click="testAnnouncement"
-                            class="ml-2 px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
-                        >
-                            اختبار الإعلان الصوتي
                         </button>
                     </div>
 
@@ -1104,7 +1142,7 @@ onMounted(() => {
                     <div class="flex items-center gap-3">
                         <Link
                             :href="route('orders.create')"
-                            class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                            class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 transition"
                         >
                             <Plus class="h-4 w-4" />
                             {{ t('إنشاء طلب', 'Create order') }}
@@ -1116,36 +1154,36 @@ onMounted(() => {
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <!-- Total New Orders Card -->
-                <div class="rounded-xl border bg-card p-6 shadow-sm">
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">الطلبات الجديدة</p>
-                            <p class="text-3xl font-bold text-yellow-600">{{ props.statistics?.total_new_orders || 0 }}</p>
-                            <p class="text-xs text-muted-foreground mt-1">طلبات لم يتم قبولها بعد</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">الطلبات الجديدة</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ props.statistics?.total_new_orders || 0 }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">طلبات لم يتم قبولها بعد</p>
                         </div>
-                        <div class="rounded-lg bg-yellow-100 p-3 dark:bg-yellow-900/20">
-                            <AlertCircle class="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-700 p-3">
+                            <AlertCircle class="h-8 w-8 text-gray-700 dark:text-gray-300" />
                         </div>
                     </div>
                 </div>
 
                 <!-- Total Closed Orders Card -->
-                <div class="rounded-xl border bg-card p-6 shadow-sm">
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-muted-foreground">الطلبات المغلقة</p>
-                            <p class="text-3xl font-bold text-green-600">{{ props.statistics?.total_closed_orders || 0 }}</p>
-                            <p class="text-xs text-muted-foreground mt-1">طلبات تم تسليمها أو إلغاؤها</p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">الطلبات المغلقة</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ props.statistics?.total_closed_orders || 0 }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">طلبات تم تسليمها أو إلغاؤها</p>
                         </div>
-                        <div class="rounded-lg bg-green-100 p-3 dark:bg-green-900/20">
-                            <CheckCircle2 class="h-8 w-8 text-green-600 dark:text-green-400" />
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-700 p-3">
+                            <CheckCircle2 class="h-8 w-8 text-gray-700 dark:text-gray-300" />
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Filter & View Section -->
-            <div class="flex flex-col gap-3 bg-white p-4 rounded-lg border shadow-sm md:flex-row md:items-center md:justify-between">
+            <div class="flex flex-col gap-3 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div class="flex items-center flex-wrap gap-3">
                     <div class="flex items-center space-x-2">
                         <Filter class="h-5 w-5 text-gray-500" />
@@ -1193,40 +1231,38 @@ onMounted(() => {
             </div>
 
             <!-- Orders List: Cards View -->
-            <!-- نجعل الكروت أعرض عبر تقليل عدد الأعمدة في الشاشات الكبيرة -->
             <div
                 v-if="viewMode === 'cards'"
-                class="grid gap-6 md:grid-cols-1 lg:grid-cols-2"
+                class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
             >
                 <div v-for="order in filteredOrders" :key="order.id" :class="[
-                    'group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-all duration-200 hover:shadow-lg hover:scale-[1.02]',
-                    isNewOrder(order) ? 'ring-2 ring-green-400 ring-opacity-50 animate-pulse' : ''
+                    'group relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm transition-all duration-200 hover:shadow-md hover:scale-[1.01]',
+                    isNewOrder(order) ? 'ring-2 ring-gray-700 ring-opacity-50 animate-pulse' : ''
                 ]">
                     <!-- New Order Indicator -->
-                    <div v-if="isNewOrder(order)" class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-blue-500 z-10"></div>
+                    <div v-if="isNewOrder(order)" class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-gray-700 to-gray-900 z-10"></div>
 
                     <!-- New Order Badge -->
-                    <div v-if="isNewOrder(order)" class="absolute top-4 left-4 z-10">
-                        <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 animate-bounce">
+                    <div v-if="isNewOrder(order)" class="absolute top-2 left-2 z-10">
+                        <span class="inline-flex items-center rounded-full bg-gray-900 px-1.5 py-0.5 text-[10px] font-medium text-white animate-bounce">
                             🆕 NEW
                         </span>
                     </div>
 
                     <!-- Order Header -->
-                    <div class="p-6 pb-4">
-                        <div class="flex items-start space-x-3 mb-4">
-                            <div class="rounded-lg p-3 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20">
-                                <ShoppingCart class="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                    <div class="p-3 pb-2">
+                        <div class="flex items-start gap-2 mb-2">
+                            <div class="rounded-md p-1.5 bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                                <ShoppingCart class="h-4 w-4 text-gray-700 dark:text-gray-300" />
                             </div>
-                            <div class="flex-1">
-                                <h3 class="font-bold text-lg text-foreground">{{ order.order_number }}</h3>
-                                <p class="text-sm text-muted-foreground">{{ formatDate(order.created_at) }}</p>
-                                <!-- Shipping Status directly under order number -->
-                                <div class="mt-1 flex items-center space-x-2 text-xs">
-                                    <span class="text-gray-500">حالة الشحن:</span>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-bold text-sm text-foreground truncate">{{ order.order_number }}</h3>
+                                <p class="text-xs text-muted-foreground">{{ formatDate(order.created_at) }}</p>
+                                <!-- Shipping Status -->
+                                <div class="mt-1 flex items-center gap-1.5">
                                     <span
                                         :class="[
-                                            'inline-flex items-center rounded-full px-2 py-0.5 font-semibold',
+                                            'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
                                             getStatusColor(order.shipping_status || 'New Order')
                                         ]"
                                     >
@@ -1238,167 +1274,174 @@ onMounted(() => {
 
                         <div
                             v-if="!isDelivered(order)"
-                            class="mt-2 flex items-center justify-end space-x-2 text-sm font-semibold"
+                            class="mt-1.5 flex items-center justify-end gap-1.5 text-xs font-semibold"
                         >
-                            <Timer class="h-4 w-4 text-red-600" />
-                            <span class="text-xl font-bold text-red-600">{{ formatElapsedTime(order) }}</span>
+                            <Timer class="h-3 w-3 text-red-600 dark:text-red-400" />
+                            <span class="text-base font-bold text-red-600 dark:text-red-400">{{ formatElapsedTime(order) }}</span>
                         </div>
 
                         <!-- Order Details -->
-                        <div class="mt-4 space-y-4 border-t pt-4">
-                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div class="mt-2.5 space-y-2 border-t border-gray-200 dark:border-gray-700 pt-2.5">
+                            <div class="grid grid-cols-2 gap-2">
                                 <!-- Customer Info -->
-                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
-                                        <User class="h-4 w-4 text-blue-600" />
+                                <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                        <User class="h-3 w-3 text-gray-700 dark:text-gray-300" />
                                     </div>
-                                    <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="text-[10px] text-gray-500 truncate">
                                             {{ t('العميل', 'Customer') }}
                                         </span>
-                                        <span class="font-medium text-gray-900 truncate">
+                                        <span class="font-medium text-xs text-gray-900 dark:text-gray-100 truncate">
                                             {{ order.user.name }}
-                                </span>
+                                        </span>
                                     </div>
-                            </div>
+                                </div>
 
                                 <!-- Restaurant Info -->
-                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
-                                        <Store class="h-4 w-4 text-emerald-600" />
+                                <div v-if="getRestaurantImage(order.restaurant.name)" class="flex items-center justify-center rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
+                                        <img 
+                                            :src="getRestaurantImage(order.restaurant.name) || ''" 
+                                            :alt="order.restaurant.name"
+                                            class="h-full w-full object-cover rounded-full"
+                                            @error="(e) => { 
+                                                console.error('Failed to load restaurant image:', e.target.src);
+                                                e.target.style.display = 'none';
+                                            }"
+                                            @load="(e) => {
+                                                console.log('Restaurant image loaded successfully:', e.target.src);
+                                            }"
+                                        />
                                     </div>
-                                    <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">
+                                </div>
+                                <div v-else class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                        <Store class="h-3 w-3 text-gray-700 dark:text-gray-300" />
+                                    </div>
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="text-[10px] text-gray-500 truncate">
                                             {{ t('المطعم', 'Restaurant') }}
                                         </span>
-                                        <span class="font-medium text-gray-900 truncate">
+                                        <span class="font-medium text-xs text-gray-900 dark:text-gray-100 truncate">
                                             {{ order.restaurant.name }}
                                         </span>
                                     </div>
-                            </div>
+                                </div>
 
                                 <!-- Order Source -->
-                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
-                                        <Link2 class="h-4 w-4 text-indigo-600" />
+                                <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                        <Link2 class="h-3 w-3 text-gray-700 dark:text-gray-300" />
                                     </div>
-                                    <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">
-                                            {{ t('مصدر الطلب', 'Order source') }}
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="text-[10px] text-gray-500 truncate">
+                                            {{ t('مصدر', 'Source') }}
                                         </span>
-                                        <span class="font-medium text-gray-900">
+                                        <span class="font-medium text-xs text-gray-900 dark:text-gray-100 truncate">
                                             {{ getSourceLabel(order.source) }}
                                         </span>
                                     </div>
                                 </div>
 
-                                <!-- Zyda unique code (منصة زيدا) -->
-                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
-                                        <span class="text-xs font-bold text-indigo-700">Z</span>
+                                <!-- Shipping Provider -->
+                                <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                        <Truck class="h-3 w-3 text-gray-700 dark:text-gray-300" />
                                     </div>
-                                    <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">
-                                            كود زيدا
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="text-[10px] text-gray-500 truncate">
+                                            {{ t('الشحن', 'Shipping') }}
                                         </span>
-                                        <span class="font-mono text-sm font-medium text-gray-900">
-                                            {{
-                                                order.zyda_order && order.zyda_order.zyda_order_key
-                                                    ? order.zyda_order.zyda_order_key
-                                                    : 'null'
-                                            }}
+                                        <span class="font-medium text-xs text-gray-900 dark:text-gray-100 truncate">
+                                            {{ getShippingProviderLabel(order.shipping_provider) }}
                                         </span>
                                     </div>
                                 </div>
 
-                            <!-- Driver Info -->
-                            <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100">
-                                    <UserCircle2 class="h-4 w-4 text-orange-600" />
-                                </div>
-                                <div class="flex flex-col space-y-0.5">
-                                    <!-- Driver Status -->
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs text-gray-500">
-                                            {{ t('حالة المندوب', 'Driver status') }}:
-                                        </span>
-                                        <span
-                                            :class="[
-                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-                                                getStatusColor(getDriverStatusForOrder(order) || 'New Order')
-                                            ]"
-                                        >
-                                            {{ getShippingStatusLabel(getDriverStatusForOrder(order) || 'New Order') }}
-                                        </span>
+                                <!-- Driver Info -->
+                                <div class="col-span-2 flex items-start gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 mt-0.5">
+                                        <UserCircle2 class="h-3 w-3 text-gray-700 dark:text-gray-300" />
                                     </div>
+                                    <div class="flex flex-col min-w-0 flex-1 space-y-0.5">
+                                        <!-- Driver Status -->
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="text-[10px] text-gray-500">
+                                                {{ t('حالة', 'Status') }}:
+                                            </span>
+                                            <span
+                                                :class="[
+                                                    'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                                                    getStatusColor(getDriverStatusForOrder(order) || 'New Order')
+                                                ]"
+                                            >
+                                                {{ getShippingStatusLabel(getDriverStatusForOrder(order) || 'New Order') }}
+                                            </span>
+                                        </div>
 
-                                    <!-- Driver Name -->
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs text-gray-500">
-                                            {{ t('اسم المندوب', 'Driver name') }}:
-                                        </span>
-                                        <span
-                                            :class="[
-                                                'text-xs font-medium truncate',
-                                                getDriverNameForOrder(order) ? 'text-gray-900' : 'text-gray-400 italic'
-                                            ]"
-                                        >
-                                            {{ getDriverNameForOrder(order) || t('لم يتم التعيين بعد', 'Not assigned yet') }}
-                                        </span>
-                                    </div>
+                                        <!-- Driver Name -->
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-[10px] text-gray-500">
+                                                {{ t('المندوب', 'Driver') }}:
+                                            </span>
+                                            <span
+                                                :class="[
+                                                    'text-[10px] font-medium truncate',
+                                                    getDriverNameForOrder(order) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 italic'
+                                                ]"
+                                            >
+                                                {{ getDriverNameForOrder(order) || t('غير معين', 'N/A') }}
+                                            </span>
+                                        </div>
 
-                                    <!-- Driver Phone -->
-                                    <div class="flex items-center gap-2" v-if="getDriverPhoneForOrder(order)">
-                                        <span class="text-xs text-gray-500">
-                                            {{ t('رقم الجوال', 'Phone') }}:
-                                        </span>
-                                        <a
-                                            class="text-xs font-medium text-blue-600 hover:underline"
-                                            :href="`tel:${getDriverPhoneForOrder(order)}`"
-                                        >
-                                            {{ getDriverPhoneForOrder(order) }}
-                                        </a>
+                                        <!-- Driver Phone -->
+                                        <div class="flex items-center gap-1.5" v-if="getDriverPhoneForOrder(order)">
+                                            <span class="text-[10px] text-gray-500">
+                                                {{ t('هاتف', 'Phone') }}:
+                                            </span>
+                                            <a
+                                                class="text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:underline truncate"
+                                                :href="`tel:${getDriverPhoneForOrder(order)}`"
+                                            >
+                                                {{ getDriverPhoneForOrder(order) }}
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
                                 <!-- Order Status -->
-                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100">
-                                        <AlertCircle class="h-4 w-4 text-yellow-600" />
+                                <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                        <AlertCircle class="h-3 w-3 text-gray-700 dark:text-gray-300" />
                                     </div>
-                                    <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">
-                                            {{ t('حالة الطلب', 'Order status') }}
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="text-[10px] text-gray-500">
+                                            {{ t('الحالة', 'Status') }}
                                         </span>
                                         <span
                                             :class="[
-                                                'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold mt-0.5 self-start',
+                                                'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold mt-0.5 self-start',
                                                 getStatusColor(order.status)
                                             ]"
                                         >
                                             {{ getOrderStatusLabel(order.status) }}
                                         </span>
                                     </div>
-                            </div>
+                                </div>
 
-                            <!-- Items Count -->
-                                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100">
-                                        <ShoppingCart class="h-4 w-4 text-purple-600" />
+                                <!-- Items Count -->
+                                <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                                        <ShoppingCart class="h-3 w-3 text-gray-700 dark:text-gray-300" />
                                     </div>
-                                    <div class="flex flex-col">
-                                        <span class="text-xs text-gray-500">
-                                            {{ t('عدد الأصناف', 'Items count') }}
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="text-[10px] text-gray-500">
+                                            {{ t('العناصر', 'Items') }}
                                         </span>
-                                        <div class="flex items-center gap-1">
-                                            <span class="font-medium text-gray-900">
-                                                {{ order.items_count || 0 }} items
-                                            </span>
-                                            <span v-if="order.items_subtotal" class="text-xs text-muted-foreground">
-                                    ({{ formatCurrency(order.items_subtotal) }})
-                                </span>
-                                        </div>
+                                        <span class="font-medium text-xs text-gray-900 dark:text-gray-100">
+                                            {{ order.items_count || 0 }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -1406,30 +1449,27 @@ onMounted(() => {
                     </div>
 
                     <!-- Order Footer -->
-                    <div class="px-6 py-4 border-t bg-gray-50 dark:bg-gray-800/50">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-xl font-bold text-green-600">{{ formatCurrency(order.total) }}</span>
+                    <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-baseline">
+                                <span class="text-base font-bold text-gray-900 dark:text-gray-100 inline-flex items-baseline">
+                                    <sup class="text-[9px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
+                                    <span>{{ formatCurrencyProfessional(order.total) }}</span>
+                                </span>
                             </div>
-                            <div class="flex space-x-2">
+                            <div class="flex gap-1.5">
                                 <button
                                     v-if="order.shipping_status === 'New Order'"
                                     @click="acceptOrder(order.id)"
-                                    class="rounded-lg px-4 py-2 text-xs font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
+                                    class="rounded-md px-2 py-1 text-[10px] font-medium transition-colors bg-gray-800 text-white hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600"
                                 >
                                     قبول
                                 </button>
                                 <Link
                                     :href="route('orders.show', order.id)"
-                                    class="rounded-lg px-4 py-2 text-xs font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
+                                    class="rounded-md px-2 py-1 text-[10px] font-medium transition-colors bg-gray-700 text-white hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
                                 >
                                     عرض
-                                </Link>
-                                <Link
-                                    :href="route('orders.edit', order.id)"
-                                    class="rounded-lg border px-4 py-2 text-xs font-medium transition-colors border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                                >
-                                    تعديل
                                 </Link>
                             </div>
                         </div>
@@ -1439,11 +1479,11 @@ onMounted(() => {
             </div>
 
             <!-- Orders List: Table View -->
-            <div v-else class="rounded-lg border bg-card mt-4">
+            <div v-else class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mt-4 shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[1000px] text-sm">
                         <thead>
-                            <tr class="border-b bg-muted/50 text-xs text-gray-500">
+                            <tr class="border-b bg-gray-50 dark:bg-gray-800 text-xs text-gray-500">
                                 <th class="h-10 px-3 text-right font-semibold">
                                     {{ t('رقم الطلب', 'Order #') }}
                                 </th>
@@ -1458,6 +1498,9 @@ onMounted(() => {
                                 </th>
                                 <th class="h-10 px-3 text-right font-semibold">
                                     {{ t('حالة الشحن', 'Shipping status') }}
+                                </th>
+                                <th class="h-10 px-3 text-right font-semibold">
+                                    {{ t('شركة الشحن', 'Shipping Company') }}
                                 </th>
                                 <th class="h-10 px-3 text-right font-semibold">
                                     {{ t('حالة الطلب', 'Order status') }}
@@ -1477,7 +1520,7 @@ onMounted(() => {
                             <tr
                                 v-for="order in filteredOrders"
                                 :key="order.id"
-                                class="border-b hover:bg-muted/40"
+                                class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/50"
                             >
                                 <td class="px-3 py-2 align-middle">
                                     <span class="font-semibold text-sm">
@@ -1513,6 +1556,11 @@ onMounted(() => {
                                     </span>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
+                                    <span class="text-xs font-medium text-gray-700">
+                                        {{ getShippingProviderLabel(order.shipping_provider) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 align-middle">
                                     <span
                                         :class="[
                                             'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
@@ -1523,8 +1571,9 @@ onMounted(() => {
                                     </span>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
-                                    <div class="text-sm font-bold text-emerald-600">
-                                        {{ formatCurrency(order.total) }}
+                                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100 inline-flex items-baseline">
+                                        <sup class="text-[8px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
+                                        <span>{{ formatCurrencyProfessional(order.total) }}</span>
                                     </div>
                                     <div v-if="order.items_count" class="text-[11px] text-muted-foreground">
                                         {{ order.items_count }} items
@@ -1540,13 +1589,13 @@ onMounted(() => {
                                         <button
                                             v-if="order.shipping_status === 'New Order'"
                                             @click="acceptOrder(order.id)"
-                                            class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-green-600 text-white hover:bg-green-700"
+                                            class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-gray-800 text-white hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600"
                                         >
                                             {{ t('قبول', 'Accept') }}
                                         </button>
                                         <Link
                                             :href="route('orders.show', order.id)"
-                                            class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-blue-600 text-white hover:bg-blue-700"
+                                            class="rounded-lg px-3 py-1.5 text-[11px] font-medium bg-gray-700 text-white hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
                                         >
                                             {{ t('عرض', 'View') }}
                                         </Link>
@@ -1575,7 +1624,7 @@ onMounted(() => {
                 </p>
                 <Link
                     :href="route('orders.create')"
-                    class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    class="mt-4 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                     <Plus class="h-4 w-4" />
                     {{ t('إنشاء طلب', 'Create order') }}
@@ -1621,7 +1670,7 @@ onMounted(() => {
                     <div class="overflow-x-auto">
                         <table class="w-full min-w-[1000px] text-sm">
                             <thead>
-                                <tr class="border-b bg-muted/50 text-xs text-gray-500">
+                                <tr class="border-b bg-gray-50 dark:bg-gray-800 text-xs text-gray-500">
                                     <th class="h-10 px-3 text-right font-semibold">
                                         {{ t('رقم الطلب', 'Order #') }}
                                     </th>
@@ -1652,7 +1701,7 @@ onMounted(() => {
                                 <tr
                                     v-for="order in closedOrders"
                                     :key="order.id"
-                                    class="border-b hover:bg-muted/40"
+                                    class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/50"
                                 >
                                     <td class="px-3 py-2 align-middle">
                                         <span class="font-semibold text-sm">
@@ -1693,8 +1742,9 @@ onMounted(() => {
                                         </span>
                                     </td>
                                     <td class="px-3 py-2 align-middle">
-                                        <div class="text-sm font-bold text-emerald-600">
-                                            {{ formatCurrency(order.total) }}
+                                        <div class="text-sm font-bold text-gray-700 dark:text-gray-300 inline-flex items-baseline">
+                                            <sup class="text-[8px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
+                                            <span>{{ formatCurrencyProfessional(order.total) }}</span>
                                         </div>
                                     </td>
                                     <td class="px-3 py-2 align-middle">

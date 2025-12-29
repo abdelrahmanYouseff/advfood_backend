@@ -59,7 +59,7 @@ return [
         'webhook_secret' => env('SHADDA_WEBHOOK_SECRET'),
         'endpoints' => [
             'create' => '/CreateOrder',
-            'status' => '/GetOrderStatus/{id}',
+            'status' => '/GetOrder/{orderId}',
             'cancel' => '/CancelOrder/{id}',
         ],
     ],

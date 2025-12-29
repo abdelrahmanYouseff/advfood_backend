@@ -140,6 +140,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('webhooks', [WebhookLogController::class, 'index'])->name('webhooks.index');
 });
 
+// Route to serve Tant Bakiza restaurant image (must be before other routes)
+Route::get('/images/tant-bakiza-logo.png', function() {
+    // Try multiple possible paths
+    $paths = [
+        public_path('images/Screenshot 1447-06-12 at 4.33.48 PM.png'),
+        base_path('public/images/Screenshot 1447-06-12 at 4.33.48 PM.png'),
+        storage_path('app/public/tant-bakiza-logo.png'),
+    ];
+    
+    foreach ($paths as $path) {
+        if (file_exists($path)) {
+            \Log::info('Tant Bakiza image found at: ' . $path);
+            return response()->file($path, ['Content-Type' => 'image/png']);
+        }
+    }
+    
+    \Log::error('Tant Bakiza image not found. Tried paths: ' . implode(', ', $paths));
+    abort(404, 'Image not found');
+})->name('images.tant-bakiza');
+
 // Public webhook routes for shipping providers (no authentication required)
 Route::post('/webhook/shipping/shadda', [ShippingController::class, 'handleShaddaWebhook'])->name('webhook.shadda');
 

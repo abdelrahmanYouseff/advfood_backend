@@ -140,10 +140,19 @@ const getStatusColor = (status: string) => {
 };
 
 const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-SA', {
+    return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'SAR',
     }).format(amount);
+};
+
+// Format currency with SAR as superscript (English numbers)
+const formatCurrencyProfessional = (amount: number) => {
+    const formatted = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(amount);
+    return formatted;
 };
 
 const formatDate = (date: string) => {
@@ -219,7 +228,10 @@ const getStatusText = (status: string) => {
                             <p class="text-sm font-medium text-muted-foreground">
                                 {{ t('إجمالي المبلغ', 'Total amount') }}
                             </p>
-                            <p class="text-2xl font-bold">{{ formatCurrency(totalAmount) }}</p>
+                            <p class="text-2xl font-bold inline-flex items-baseline">
+                                <sup class="text-[10px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-1">SAR</sup>
+                                <span>{{ formatCurrencyProfessional(totalAmount) }}</span>
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -420,10 +432,15 @@ const getStatusText = (status: string) => {
                                 </td>
                                 <td class="p-3">
                                     <div class="text-right">
-                                        <div class="font-bold text-sm text-green-600">{{ formatCurrency(invoice.total) }}</div>
-                                        <div v-if="invoice.subtotal" class="text-[10px] text-muted-foreground">
-                                            {{ t('فرعي:', 'Subtotal:') }} {{ formatCurrency(invoice.subtotal) }}
-                                </div>
+                                        <div class="font-bold text-sm text-gray-700 dark:text-gray-300 inline-flex items-baseline">
+                                            <sup class="text-[8px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
+                                            <span>{{ formatCurrencyProfessional(invoice.total) }}</span>
+                                        </div>
+                                        <div v-if="invoice.subtotal" class="text-[10px] text-muted-foreground inline-flex items-baseline">
+                                            {{ t('فرعي:', 'Subtotal:') }} 
+                                            <sup class="text-[7px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
+                                            <span>{{ formatCurrencyProfessional(invoice.subtotal) }}</span>
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="p-3">

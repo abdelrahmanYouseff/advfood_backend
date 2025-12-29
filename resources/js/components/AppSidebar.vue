@@ -275,13 +275,13 @@ const footerNavItems = computed(() => {
 
         <SidebarFooter>
             <!-- Language Toggle -->
-            <div class="mb-3 flex items-center justify-center gap-1 rounded-full bg-gray-100 px-1 py-1 text-xs font-medium text-gray-700">
+            <div class="mb-3 flex items-center justify-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-1 py-1 text-xs font-medium text-gray-700 dark:text-gray-300">
                 <button
                     type="button"
                     @click="sidebarLang = 'ar'"
                     :class="[
                         'rounded-full px-3 py-1 transition',
-                        sidebarLang === 'ar' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:bg-white/60'
+                        sidebarLang === 'ar' ? 'bg-gray-900 dark:bg-gray-700 shadow-sm text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     ]"
                 >
                     العربية
@@ -291,7 +291,7 @@ const footerNavItems = computed(() => {
                     @click="sidebarLang = 'en'"
                     :class="[
                         'rounded-full px-3 py-1 transition',
-                        sidebarLang === 'en' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:bg-white/60'
+                        sidebarLang === 'en' ? 'bg-gray-900 dark:bg-gray-700 shadow-sm text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     ]"
                 >
                     English

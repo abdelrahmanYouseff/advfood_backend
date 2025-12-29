@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Shadda Shipping Service
- * 
+ *
  * This service handles all interactions with Shadda shipping provider API.
  * It is completely separate from the leajlak ShippingService to allow easy removal if needed.
  */
@@ -31,8 +31,9 @@ class ShaddaShippingService implements ShippingServiceInterface
         $this->webhookSecret = Config::get('services.shadda.webhook_secret');
         $this->endpoints = Config::get('services.shadda.endpoints', [
             'create' => '/CreateOrder',
-            'status' => '/GetOrderStatus/{id}',
-            'cancel' => '/CancelOrder/{id}',
+            'status' => '/GetOrder/{orderId}',
+            'cancel' => '/CancelOrder',
+            'branches' => '/GetIntegratedBranches', // Get list of integrated branches
         ]);
     }
 
@@ -92,68 +93,38 @@ class ShaddaShippingService implements ShippingServiceInterface
                 'confirmation' => 'Using order_number (NOT id) for shipping company',
             ]);
 
-            // Get shop_id - PRIORITY: Use shop_id from order first (especially for Zyda orders with fixed shop_id = 11185)
-            // Only fallback to restaurant.shop_id if order doesn't have shop_id
-            $shopIdString = null;
-            $shopIdSource = 'unknown';
-
-            // PRIORITY 1: Use shop_id from order (this is correct for Zyda orders with fixed shop_id = 11185)
-            if (!empty($orderObj->shop_id)) {
-                $shopIdString = (string) $orderObj->shop_id;
-                $shopIdSource = 'order.shop_id';
-                Log::info('✅ Using shop_id from order (PRIORITY)', [
-                    'order_id' => $orderObj->id ?? null,
-                    'order_shop_id' => $shopIdString,
-                    'source' => $orderObj->source ?? 'unknown',
-                    'note' => 'Using order.shop_id (especially important for Zyda orders with fixed shop_id = 11185)',
-                ]);
-            }
-            // PRIORITY 2: Fallback to restaurant.shop_id only if order doesn't have shop_id
-            elseif (isset($orderObj->restaurant_id)) {
-                try {
-                    $restaurant = \App\Models\Restaurant::find($orderObj->restaurant_id);
-                    if ($restaurant) {
-                        if (!empty($restaurant->shop_id)) {
-                            $shopIdString = (string) $restaurant->shop_id;
-                            $shopIdSource = 'restaurant.shop_id (fallback)';
-                            Log::info('✅ Using shop_id from restaurant (fallback)', [
-                                'restaurant_id' => $orderObj->restaurant_id,
-                                'restaurant_name' => $restaurant->name ?? 'N/A',
-                                'shop_id' => $shopIdString,
-                                'shop_id_type' => gettype($shopIdString),
-                            ]);
-                        } else {
-                            Log::warning('⚠️ Restaurant exists but shop_id is empty', [
-                                'restaurant_id' => $orderObj->restaurant_id,
-                                'restaurant_name' => $restaurant->name ?? 'N/A',
-                                'order_shop_id' => $orderObj->shop_id ?? 'MISSING',
-                            ]);
-                        }
-                    } else {
-                        Log::warning('⚠️ Restaurant not found', [
-                            'restaurant_id' => $orderObj->restaurant_id,
-                        ]);
-                    }
-                } catch (\Exception $e) {
-                    Log::error('❌ Error fetching restaurant for shop_id', [
-                        'restaurant_id' => $orderObj->restaurant_id ?? null,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
-
-            // Final fallback to default shop_id (should not happen if data is correct)
+            // For Shadda, use shop_id from order as branchId
+            // Get shop_id from order, or from restaurant if not set in order
+            $shopIdString = $orderObj->shop_id ?? null;
             if (empty($shopIdString)) {
-                $shopIdString = '11183'; // Default fallback
+                // Fallback: get shop_id from restaurant
+                $restaurant = is_object($orderObj) && isset($orderObj->restaurant_id)
+                    ? \App\Models\Restaurant::find($orderObj->restaurant_id)
+                    : null;
+                $shopIdString = $restaurant?->shop_id ?? null;
+                $shopIdSource = 'restaurant_shop_id';
+            } else {
+                $shopIdSource = 'order_shop_id';
+            }
+
+            // If still empty, use default 116 (fallback)
+            if (empty($shopIdString)) {
+                $shopIdString = '116';
                 $shopIdSource = 'default_fallback';
-                Log::error('❌ CRITICAL: Using default shop_id (restaurant and order shop_id not found)', [
-                    'shop_id' => $shopIdString,
+                Log::warning('⚠️ Using default branchId 116 (shop_id not found in order or restaurant)', [
                     'order_id' => $orderObj->id ?? null,
-                    'restaurant_id' => $orderObj->restaurant_id ?? null,
-                    'order_shop_id' => $orderObj->shop_id ?? 'MISSING',
-                    'message' => 'This should not happen! Please ensure restaurant has shop_id set in database.',
+                    'order_number' => $orderIdString,
                 ]);
             }
+
+            Log::info('✅ Using shop_id as Shadda branchId', [
+                'order_id' => $orderObj->id ?? null,
+                'branchId' => $shopIdString,
+                'source' => $shopIdSource,
+                'order_shop_id' => $orderObj->shop_id ?? 'NULL',
+                'restaurant_id' => $orderObj->restaurant_id ?? 'NULL',
+                'note' => 'shop_id from order/restaurant is used as branchId for Shadda API',
+            ]);
 
             Log::info('🚀 Starting shipping order creation', [
                 'order_id' => $orderObj->id ?? null,
@@ -219,11 +190,11 @@ class ShaddaShippingService implements ShippingServiceInterface
 
             // Use customer_latitude and customer_longitude from order
             // These are the coordinates set by the customer when they select their location
-            $latitude = isset($orderObj->customer_latitude) && !empty($orderObj->customer_latitude) 
-                ? (float) $orderObj->customer_latitude 
+            $latitude = isset($orderObj->customer_latitude) && !empty($orderObj->customer_latitude)
+                ? (float) $orderObj->customer_latitude
                 : null;
-            $longitude = isset($orderObj->customer_longitude) && !empty($orderObj->customer_longitude) 
-                ? (float) $orderObj->customer_longitude 
+            $longitude = isset($orderObj->customer_longitude) && !empty($orderObj->customer_longitude)
+                ? (float) $orderObj->customer_longitude
                 : null;
 
             Log::info('📍 Customer location coordinates', [
@@ -262,7 +233,7 @@ class ShaddaShippingService implements ShippingServiceInterface
                     'customer_latitude' => $orderObj->customer_latitude ?? 'MISSING',
                     'customer_longitude' => $orderObj->customer_longitude ?? 'MISSING',
                 ]);
-                
+
                 // Still try to send, but log the warning
             }
 
@@ -283,12 +254,12 @@ class ShaddaShippingService implements ShippingServiceInterface
             // IMPORTANT: The 'id' field MUST contain order_number (e.g., ORD-20251104-D80175)
             // We NEVER use the internal database id - only order_number
             // This is the same order_number that appears in the system and is tracked everywhere
-            
+
             // Build coordinate object - only include if both lat and lng are available
             // IMPORTANT: Some shipping APIs require coordinates, so we need to ensure they're valid
             $coordinate = null;
-            if (!is_null($latitude) && !is_null($longitude) && 
-                $latitude >= -90 && $latitude <= 90 && 
+            if (!is_null($latitude) && !is_null($longitude) &&
+                $latitude >= -90 && $latitude <= 90 &&
                 $longitude >= -180 && $longitude <= 180) {
                 $coordinate = [
                     'latitude' => (float) $latitude,
@@ -296,114 +267,110 @@ class ShaddaShippingService implements ShippingServiceInterface
                 ];
             }
 
-            // Build delivery_details - ensure all required fields are present
-            $deliveryDetails = [
-                'name' => $orderObj->delivery_name ?? '',
-                'phone' => $uniquePhone ?? '',
-                    'email' => $uniqueEmail,
-            ];
+            // Build payload according to Shadda API documentation
+            // Required fields: branchId, orderId, deliveryPhone, paymentMethod, paymentAmount
+            // Optional but recommended: deliveryAddress, deliveryLatitude, deliveryLongitude, pickupDatetime
 
-            // Only add coordinate if it's valid
-            if (!is_null($coordinate)) {
-                $deliveryDetails['coordinate'] = $coordinate;
-            }
+            // Map payment method to Shadda format (cash, card, swipemachine)
+            $paymentMethod = $this->mapPaymentMethodToShadda($orderObj->payment_method ?? null);
 
-            // Add address if available
-            if (!empty($orderObj->delivery_address)) {
-                $deliveryDetails['address'] = $orderObj->delivery_address;
-            }
-
-            // Build order details
-            $orderDetails = [
-                    'payment_type' => $this->mapPaymentType($orderObj->payment_method ?? null),
-                    'total' => (float) ($orderObj->total ?? 0),
-            ];
-
-            // Add notes if available
-            if (!empty($orderObj->special_instructions)) {
-                $orderDetails['notes'] = $orderObj->special_instructions;
-            }
-
+            // Build payload in Shadda format (flat structure, not nested)
             $payload = [
-                'id' => $orderIdString, // This is the order_number (e.g., ORD-20251104-D80175) - NOT the database id
-                'shop_id' => $shopIdForApi,
-                'delivery_details' => $deliveryDetails,
-                'order' => $orderDetails,
+                'branchId' => (int) $shopIdForApi, // Must be number
+                'orderId' => $orderIdString, // This is the order_number
+                'deliveryPhone' => $uniquePhone ?? $orderObj->delivery_phone ?? '',
+                'paymentMethod' => $paymentMethod, // Must be 'cash', 'card', or 'swipemachine'
+                'paymentAmount' => round((float) ($orderObj->total ?? 0), 2), // Must have max 2 decimals
             ];
+
+            // Add delivery address if available (required if no coordinates)
+            if (!empty($orderObj->delivery_address)) {
+                $payload['deliveryAddress'] = $orderObj->delivery_address;
+            }
+
+            // Add coordinates if available (as strings per Shadda API - required if no address)
+            if (!is_null($latitude) && !is_null($longitude)) {
+                $payload['deliveryLatitude'] = (string) $latitude;
+                $payload['deliveryLongitude'] = (string) $longitude;
+            }
+
+            // Add pickup datetime if scheduled (format: YYYY-MM-DD HH:MM:SS)
+            if (!empty($orderObj->scheduled_for)) {
+                $payload['pickupDatetime'] = date('Y-m-d H:i:s', strtotime($orderObj->scheduled_for));
+            }
 
             // Log payload before sending to help debug
-            Log::info('📋 Final payload being sent to shipping company', [
+            Log::info('📋 Final payload being sent to Shadda API', [
                 'payload' => $payload,
-                'has_coordinate' => !is_null($coordinate),
-                'coordinate' => $coordinate,
-                'delivery_name' => $deliveryDetails['name'],
-                'delivery_phone' => $deliveryDetails['phone'],
-                'delivery_address' => $deliveryDetails['address'] ?? 'NOT SET',
+                'has_coordinates' => isset($payload['deliveryLatitude']) && isset($payload['deliveryLongitude']),
+                'has_address' => isset($payload['deliveryAddress']),
+                'delivery_phone' => $payload['deliveryPhone'],
+                'payment_method' => $payload['paymentMethod'],
+                'payment_amount' => $payload['paymentAmount'],
             ]);
 
-            Log::info('📋 Shipping payload prepared with order_number (NOT id)', [
+            Log::info('📋 Shadda payload prepared', [
                 'order_id' => $orderObj->id ?? null,
                 'order_number' => $orderObj->order_number ?? 'MISSING',
-                'payload_id_field' => $payload['id'], // This is the order_number (e.g., ORD-20251104-D80175)
-                'payload_id_type' => gettype($payload['id']),
-                'confirmation' => 'Payload uses order_number, NOT database id',
-                'shop_id' => $shopIdForApi,
-                'customer_name' => $orderObj->delivery_name ?? null,
-                'total' => $payload['order']['total'],
+                'orderId' => $payload['orderId'],
+                'branchId' => $payload['branchId'],
+                'shop_id_source' => $shopIdSource,
             ]);
 
             $url = $this->buildUrl($this->endpoints['create']);
 
-            // Log the request details with emphasis on order_number (NOT id)
-            Log::info('📤 Sending order to shipping company (using order_number ONLY)', [
-                'order_id' => $orderObj->id ?? null, // Internal database id (for reference only, NOT sent)
-                'order_number' => $orderObj->order_number ?? 'MISSING', // This is what we send
-                'order_number_sent_in_payload' => $payload['id'], // This is order_number (e.g., ORD-20251104-D80175)
-                'confirmation' => 'Shipping company will receive order_number, NOT database id',
-                'shop_id' => $shopIdForApi,
-                'shop_id_original' => $shopIdString,
+            // Log the request details
+            Log::info('📤 Sending order to Shadda API', [
+                'order_id' => $orderObj->id ?? null,
+                'order_number' => $orderObj->order_number ?? 'MISSING',
+                'orderId_in_payload' => $payload['orderId'],
+                'branchId' => $payload['branchId'],
                 'url' => $url,
                 'api_base_url' => $this->apiBaseUrl,
-                'api_key_exists' => !empty($this->apiKey),
-                'api_key_length' => strlen($this->apiKey ?? ''),
-                'api_key_prefix' => substr($this->apiKey ?? '', 0, 10) . '...',
-                'payload' => $payload,
-                'payload_id_field_value' => $payload['id'], // This is order_number (ORD-20251104-D80175)
-                'environment' => config('app.env'),
-                'server_ip' => request()->server('SERVER_ADDR') ?? 'unknown',
             ]);
-
-            $request = Http::timeout(30)
-                ->retry(3, 100) // Retry 3 times with 100ms delay
-                ->withOptions([
-                    'verify' => env('SHADDA_API_VERIFY_SSL', true), // Allow disabling SSL verification if needed
-                    'http_errors' => false, // Don't throw exceptions on HTTP errors
-                ])
-                ->withHeaders([
-                    'client-id' => $this->clientId,
-                    'Authorization' => 'Bearer ' . $this->secretKey,
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                ]);
 
             $response = null;
             $responseBody = null;
             $responseJson = null;
-            
+
             try {
                 Log::info('🔄 Attempting to send request to Shadda shipping company', [
                     'order_id' => $orderObj->id ?? null,
                     'order_number' => $orderObj->order_number ?? 'MISSING',
                     'url' => $url,
                     'method' => 'json',
+                    'payload_size' => strlen(json_encode($payload)),
+                    'payload_keys' => array_keys($payload),
+                    'payload_json' => json_encode($payload),
                 ]);
-                
-                $response = $request->post($url, $payload);
+
+                // Build request with proper JSON encoding
+                // Use withBody() to explicitly set JSON body
+                $jsonPayload = json_encode($payload);
+                Log::info('📤 JSON Payload to send', [
+                    'payload_length' => strlen($jsonPayload),
+                    'payload_preview' => substr($jsonPayload, 0, 200),
+                ]);
+
+                $response = Http::timeout(30)
+                    ->retry(3, 100)
+                    ->withOptions([
+                        'verify' => env('SHADDA_API_VERIFY_SSL', true),
+                        'http_errors' => false,
+                    ])
+                    ->withHeaders([
+                        'client-id' => $this->clientId,
+                        'Authorization' => 'Bearer ' . $this->secretKey,
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                    ])
+                    ->withBody($jsonPayload, 'application/json')
+                    ->post($url);
 
                 // Log immediate response details
                 $responseBody = $response ? $response->body() : null;
                 $responseJson = $response ? $response->json() : null;
-                
+
                 Log::info('📡 Shipping API Response Received (immediate)', [
                     'order_id' => $orderObj->id ?? null,
                     'order_number' => $orderObj->order_number ?? 'MISSING',
@@ -554,14 +521,13 @@ class ShaddaShippingService implements ShippingServiceInterface
                         'full_response' => $responseJson,
                         'payload_sent' => $payload,
                         'check_fields' => [
-                            'shop_id' => $shopIdForApi,
-                            'delivery_name' => $payload['delivery_details']['name'] ?? 'MISSING',
-                            'delivery_phone' => $payload['delivery_details']['phone'] ?? 'MISSING',
-                            'delivery_address' => $payload['delivery_details']['address'] ?? 'MISSING',
-                            'has_coordinate' => isset($payload['delivery_details']['coordinate']),
-                            'coordinate' => $payload['delivery_details']['coordinate'] ?? 'MISSING',
-                            'total' => $payload['order']['total'] ?? 'MISSING',
-                            'payment_type' => $payload['order']['payment_type'] ?? 'MISSING',
+                            'branchId' => $payload['branchId'] ?? 'MISSING',
+                            'orderId' => $payload['orderId'] ?? 'MISSING',
+                            'deliveryPhone' => $payload['deliveryPhone'] ?? 'MISSING',
+                            'deliveryAddress' => $payload['deliveryAddress'] ?? 'MISSING',
+                            'has_coordinates' => isset($payload['deliveryLatitude']) && isset($payload['deliveryLongitude']),
+                            'paymentMethod' => $payload['paymentMethod'] ?? 'MISSING',
+                            'paymentAmount' => $payload['paymentAmount'] ?? 'MISSING',
                         ],
                         'diagnosis' => 'Check the errors array above to see which fields are invalid',
                     ]);
@@ -602,29 +568,27 @@ class ShaddaShippingService implements ShippingServiceInterface
                 'order_number' => $orderIdString,
             ]);
 
-            // Shadda API returns data in 'data' wrapper
+            // Shadda API returns: {"data": "The operation completed successfully"}
+            // We use the orderId we sent as the dsp_order_id
             $responseData = $data['data'] ?? $data;
-            $dspOrderId = $responseData['dsp_order_id'] ?? $responseData['id'] ?? $data['dsp_order_id'] ?? $data['id'] ?? null;
-            $statusCode = $responseData['status'] ?? $responseData['status_code'] ?? null;
-            // Map Shadda status code to text status
-            $shippingStatus = $this->mapStatusCodeToText($statusCode) ?? 'New Order';
+            $dspOrderId = $payload['orderId']; // Use the orderId we sent to Shadda
+            $shippingStatus = 'New Order'; // Default status (10 = New per Shadda docs)
 
-            // If no dsp_order_id from provider, generate one starting from 00020
-            if (empty($dspOrderId)) {
-                $today = date('Ymd');
-                $latestShipping = DB::table('shipping_orders')
-                    ->where('dsp_order_id', 'like', "ORD-{$today}-%")
-                    ->orderBy('dsp_order_id', 'desc')
-                    ->first();
-
-                if ($latestShipping) {
-                    $lastNumber = (int) substr($latestShipping->dsp_order_id, -5);
-                    $nextNumber = $lastNumber + 1;
-                } else {
-                    $nextNumber = 20; // Start from 00020
-                }
-
-                $dspOrderId = 'ORD-' . $today . '-' . str_pad($nextNumber, 5, '0', STR_PAD_LEFT);
+            // After successful order creation, call Get Order Status to get initial driver info
+            // This ensures we have the latest status and driver information
+            try {
+                Log::info('🔄 Calling Get Order Status after order creation', [
+                    'dsp_order_id' => $dspOrderId,
+                ]);
+                // Call after a short delay to allow Shadda to process the order
+                sleep(1);
+                $this->getOrderStatus($dspOrderId);
+            } catch (\Exception $e) {
+                Log::warning('⚠️ Failed to call Get Order Status after order creation', [
+                    'dsp_order_id' => $dspOrderId,
+                    'error' => $e->getMessage(),
+                    'note' => 'This is not critical - webhook will update driver info when available',
+                ]);
             }
 
             // Only insert into shipping_orders table if order_id exists (Order is already in database)
@@ -752,7 +716,13 @@ class ShaddaShippingService implements ShippingServiceInterface
                 return null;
             }
 
-            $url = $this->buildUrl($this->endpoints['status'], ['id' => $shippingOrderId]);
+            // Use GetOrder endpoint with orderId parameter
+            $url = $this->buildUrl($this->endpoints['status'], ['orderId' => $shippingOrderId]);
+
+            Log::info('📡 Calling Shadda GetOrder API', [
+                'dsp_order_id' => $shippingOrderId,
+                'url' => $url,
+            ]);
 
             $response = Http::timeout(30)
                 ->withHeaders([
@@ -773,17 +743,44 @@ class ShaddaShippingService implements ShippingServiceInterface
             }
 
             $data = $response->json();
+
+            // Log full response for debugging
+            Log::info('📡 Shadda GetOrder API Response', [
+                'dsp_order_id' => $shippingOrderId,
+                'full_response' => $data,
+                'response_structure' => [
+                    'has_data_key' => isset($data['data']),
+                    'data_type' => isset($data['data']) ? gettype($data['data']) : 'N/A',
+                    'top_level_keys' => array_keys($data),
+                ],
+            ]);
+
             $responseData = $data['data'] ?? $data;
 
-            $clientOrderId = $responseData['id'] ?? $data['id'] ?? null;
-            $statusCode = $responseData['status'] ?? $responseData['status_code'] ?? $data['status'] ?? null;
-            $status = $this->mapStatusCodeToText($statusCode);
-            $dspId = $responseData['dsp_order_id'] ?? $responseData['id'] ?? $data['dsp_order_id'] ?? $data['id'] ?? $shippingOrderId;
-            $driver = $data['driver'] ?? ($data['data']['driver'] ?? null);
-            $driverName = is_array($driver) ? ($driver['name'] ?? null) : null;
-            $driverPhone = is_array($driver) ? ($driver['phone'] ?? null) : null;
-            $driverLat = is_array($driver) ? ($driver['location']['latitude'] ?? null) : null;
-            $driverLng = is_array($driver) ? ($driver['location']['longitude'] ?? null) : null;
+            // Extract order ID - Shadda returns the orderId we sent
+            $clientOrderId = $shippingOrderId; // The orderId we sent is what we get back
+            $statusCode = $responseData['statusId'] ?? null; // statusId is the numeric status
+            $statusDesc = $responseData['statusDesc'] ?? null; // statusDesc is the text description
+            $status = $statusDesc ?? $this->mapStatusCodeToText($statusCode);
+            $dspId = $shippingOrderId; // Use the orderId we sent
+
+            // Extract driver information from Shadda API response format
+            // According to docs: driverName, driverMobile, driverLatitude, driverLongitude
+            $driverName = $responseData['driverName'] ?? null;
+            $driverPhone = $responseData['driverMobile'] ?? null;
+            $driverLat = $responseData['driverLatitude'] ?? null;
+            $driverLng = $responseData['driverLongitude'] ?? null;
+
+            // Log driver extraction
+            Log::info('🔍 Extracting driver information from GetOrder response', [
+                'dsp_order_id' => $shippingOrderId,
+                'driverName' => $driverName,
+                'driverMobile' => $driverPhone,
+                'driverLatitude' => $driverLat,
+                'driverLongitude' => $driverLng,
+                'statusId' => $statusCode,
+                'statusDesc' => $statusDesc,
+            ]);
 
             // Upsert into shipping_orders
             $existing = DB::table('shipping_orders')->where('dsp_order_id', $dspId)->first();
@@ -807,8 +804,8 @@ class ShaddaShippingService implements ShippingServiceInterface
                     'longitude' => $orderRow->longitude ?? null,
                     'driver_name' => $driverName,
                     'driver_phone' => $driverPhone,
-                    'driver_latitude' => $driverLat,
-                    'driver_longitude' => $driverLng,
+                    'driver_latitude' => $driverLat ? (float) $driverLat : null,
+                    'driver_longitude' => $driverLng ? (float) $driverLng : null,
                     'total' => (float) ($orderRow->total ?? 0),
                     'payment_type' => $this->mapPaymentType($orderRow->payment_method ?? null),
                     'notes' => $orderRow->special_instructions ?? null,
@@ -822,8 +819,8 @@ class ShaddaShippingService implements ShippingServiceInterface
                         'shipping_status' => $status,
                         'driver_name' => $driverName,
                         'driver_phone' => $driverPhone,
-                        'driver_latitude' => $driverLat,
-                        'driver_longitude' => $driverLng,
+                        'driver_latitude' => $driverLat ? (float) $driverLat : null,
+                        'driver_longitude' => $driverLng ? (float) $driverLng : null,
                         'updated_at' => now(),
                     ], fn($v) => !is_null($v)));
             }
@@ -834,15 +831,23 @@ class ShaddaShippingService implements ShippingServiceInterface
                 'shipping_status' => $status,
                 'driver_name' => $driverName,
                 'driver_phone' => $driverPhone,
-                'driver_latitude' => $driverLat,
-                'driver_longitude' => $driverLng,
+                'driver_latitude' => $driverLat ? (float) $driverLat : null,
+                'driver_longitude' => $driverLng ? (float) $driverLng : null,
                 'updated_at' => now(),
+                'shipping_provider' => 'shadda',
             ], fn($v) => !is_null($v));
 
             if (!empty($clientOrderId)) {
                 DB::table('orders')->where('order_number', $clientOrderId)->update($orderUpdate);
             }
             DB::table('orders')->where('dsp_order_id', (string) $dspId)->update($orderUpdate);
+
+            Log::info('✅ Order and driver information updated from GetOrder API', [
+                'dsp_order_id' => $dspId,
+                'status' => $status,
+                'driver_name' => $driverName,
+                'driver_phone' => $driverPhone,
+            ]);
 
             return $data;
         } catch (\Throwable $e) {
@@ -864,23 +869,56 @@ class ShaddaShippingService implements ShippingServiceInterface
             }
 
             $payload = $request->all();
+
+            // Log full webhook payload for debugging
+            Log::info('📥 Shadda Webhook Received', [
+                'full_payload' => $payload,
+                'payload_structure' => [
+                    'has_data_key' => isset($payload['data']),
+                    'top_level_keys' => array_keys($payload),
+                ],
+            ]);
+
             $responseData = $payload['data'] ?? $payload;
-            
-            $dspOrderId = $responseData['dsp_order_id'] ?? $responseData['order_id'] ?? $responseData['id'] ?? $payload['dsp_order_id'] ?? $payload['order_id'] ?? $payload['id'] ?? null;
-            if (!$dspOrderId) { 
+
+            // Extract order ID - Shadda may send orderId (the one we sent) or a different ID
+            $dspOrderId = $responseData['orderId'] ?? $responseData['order_id'] ?? $responseData['id'] ?? $payload['orderId'] ?? $payload['order_id'] ?? $payload['id'] ?? null;
+            if (!$dspOrderId) {
                 Log::warning('Shadda webhook received without order ID', ['payload' => $payload]);
-                return; 
+                return;
             }
 
-            $statusCode = $responseData['status'] ?? $responseData['status_code'] ?? $payload['status'] ?? null;
+            $statusCode = $responseData['status'] ?? $responseData['statusCode'] ?? $payload['status'] ?? null;
             $status = $this->mapStatusCodeToText($statusCode);
+
+            // Extract driver information - try multiple possible formats
+            $driver = $responseData['driver'] ?? $payload['driver'] ?? null;
+
+            Log::info('🔍 Extracting driver from webhook', [
+                'dsp_order_id' => $dspOrderId,
+                'driver_found' => !is_null($driver),
+                'driver_type' => gettype($driver),
+                'driver_keys' => is_array($driver) ? array_keys($driver) : 'N/A',
+            ]);
+
+            $driverName = null;
+            $driverPhone = null;
+            $driverLat = null;
+            $driverLng = null;
+
+            if (is_array($driver)) {
+                $driverName = $driver['name'] ?? $driver['driverName'] ?? null;
+                $driverPhone = $driver['phone'] ?? $driver['driverPhone'] ?? $driver['mobile'] ?? null;
+                $driverLat = $driver['latitude'] ?? $driver['location']['latitude'] ?? $driver['lat'] ?? null;
+                $driverLng = $driver['longitude'] ?? $driver['location']['longitude'] ?? $driver['lng'] ?? $driver['lon'] ?? null;
+            }
 
             $updates = array_filter([
                 'shipping_status' => $status,
-                'driver_name' => $responseData['driver']['name'] ?? $payload['driver']['name'] ?? null,
-                'driver_phone' => $responseData['driver']['phone'] ?? $payload['driver']['phone'] ?? null,
-                'driver_latitude' => $responseData['driver']['location']['latitude'] ?? $responseData['driver']['latitude'] ?? $payload['driver']['location']['latitude'] ?? null,
-                'driver_longitude' => $responseData['driver']['location']['longitude'] ?? $responseData['driver']['longitude'] ?? $payload['driver']['location']['longitude'] ?? null,
+                'driver_name' => $driverName,
+                'driver_phone' => $driverPhone,
+                'driver_latitude' => $driverLat,
+                'driver_longitude' => $driverLng,
                 'updated_at' => now(),
             ], fn($v) => !is_null($v));
 
@@ -888,11 +926,41 @@ class ShaddaShippingService implements ShippingServiceInterface
                 DB::table('shipping_orders')->where('dsp_order_id', $dspOrderId)->update($updates);
                 // mirror to orders if exists
                 DB::table('orders')->where('dsp_order_id', $dspOrderId)->update($updates);
+
+                Log::info('✅ Shadda webhook updates applied', [
+                    'dsp_order_id' => $dspOrderId,
+                    'updates_count' => count($updates),
+                    'updates' => $updates,
+                ]);
+            } else {
+                Log::warning('⚠️ Shadda webhook received but no updates to apply', [
+                    'dsp_order_id' => $dspOrderId,
+                    'status_code' => $statusCode,
+                    'driver_found' => !is_null($driver),
+                ]);
             }
 
-            Log::info('Shadda webhook processed successfully', [
+            // Also call Get Order Status API to get latest information (including driver)
+            // This ensures we have the most up-to-date data even if webhook format is different
+            try {
+                Log::info('🔄 Calling Get Order Status API after webhook', [
+                    'dsp_order_id' => $dspOrderId,
+                ]);
+                $this->getOrderStatus($dspOrderId);
+            } catch (\Exception $e) {
+                Log::warning('⚠️ Failed to call Get Order Status after webhook', [
+                    'dsp_order_id' => $dspOrderId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            Log::info('✅ Shadda webhook processed successfully', [
                 'dsp_order_id' => $dspOrderId,
                 'status' => $status,
+                'status_code' => $statusCode,
+                'updates_applied' => !empty($updates),
+                'driver_name' => $driverName,
+                'driver_phone' => $driverPhone,
                 'updates' => $updates,
             ]);
         } catch (\Throwable $e) {
@@ -994,6 +1062,18 @@ class ShaddaShippingService implements ShippingServiceInterface
         if ($normalized === 'cash' || $normalized === 1) { return 1; }
         if ($normalized === 'card' || $normalized === 'online' || $normalized === 10) { return 10; }
         return 0;
+    }
+
+    /**
+     * Map payment method to Shadda format
+     * Shadda accepts: 'cash', 'card', or 'swipemachine'
+     *
+     * NOTE: Always returns 'card' as per user requirement
+     */
+    protected function mapPaymentMethodToShadda($paymentMethod): string
+    {
+        // Always return 'card' for all orders sent to Shadda (as per user requirement)
+        return 'card';
     }
 
     /**
