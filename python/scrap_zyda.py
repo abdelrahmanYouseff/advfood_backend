@@ -177,14 +177,28 @@ def scrape_orders() -> List[Dict[str, object]]:
 
     try:
         print("[INFO] Downloading/Updating ChromeDriver...", flush=True)
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options,
-        )
-        print("[SUCCESS] Browser initialized successfully", flush=True)
+        try:
+            driver = webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()),
+                options=options,
+            )
+            print("[SUCCESS] Browser initialized successfully", flush=True)
+        except Exception as chrome_exc:
+            # Try alternative: use system ChromeDriver if available
+            print(f"[WARN] ChromeDriverManager failed: {chrome_exc}", flush=True)
+            print("[INFO] Trying to use system ChromeDriver...", flush=True)
+            try:
+                driver = webdriver.Chrome(options=options)
+                print("[SUCCESS] Browser initialized using system ChromeDriver", flush=True)
+            except Exception as system_exc:
+                error_msg = f"Failed to initialize browser with both methods. ChromeDriverManager: {chrome_exc}, System: {system_exc}"
+                print(f"[ERROR] {error_msg}", flush=True)
+                raise RuntimeError(error_msg) from system_exc
     except Exception as exc:
         error_msg = f"Failed to initialize browser: {exc}"
         print(f"[ERROR] {error_msg}", flush=True)
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}", flush=True)
         raise RuntimeError(error_msg) from exc
 
     wait = WebDriverWait(driver, 10)  # Reduced to 10 seconds for faster execution
@@ -246,7 +260,9 @@ def scrape_orders() -> List[Dict[str, object]]:
             save_session_cookies(driver)
 
         # Now scrape orders (session is ready)
+        print("[STEP] Starting to scrape order cards from dashboard...", flush=True)
         orders = _scrape_order_cards(driver, wait)
+        print(f"[SUCCESS] Successfully scraped {len(orders)} order(s)", flush=True)
 
         return orders
     except Exception as exc:
@@ -254,10 +270,21 @@ def scrape_orders() -> List[Dict[str, object]]:
         print(f"[ERROR] {error_msg}", flush=True)
         import traceback
         print(f"[ERROR] Traceback: {traceback.format_exc()}", flush=True)
+        # Try to save screenshot for debugging
+        try:
+            if 'driver' in locals():
+                driver.save_screenshot("scraping_error.png")
+                print("[INFO] Saved screenshot to scraping_error.png for debugging", flush=True)
+        except:
+            pass
         raise
     finally:
-        driver.quit()
-        print("[INFO] Browser closed", flush=True)
+        try:
+            if 'driver' in locals():
+                driver.quit()
+                print("[INFO] Browser closed", flush=True)
+        except:
+            print("[WARN] Error closing browser (non-critical)", flush=True)
 
 
 def _wait_for_inputs(wait: WebDriverWait):
@@ -956,12 +983,21 @@ def _send_order_to_api(order: Dict[str, object], order_num: int, total_orders: i
     print(f"[STEP] Sending order #{order_num}/{total_orders} to API: Key={zyda_order_key}, Phone={phone}", flush=True)
 
     try:
+        print(f"[DEBUG] Sending POST request to: {API_ENDPOINT}", flush=True)
         response = requests.post(API_ENDPOINT, json=payload, timeout=30)
         print(f"[INFO] Response Status: {response.status_code}", flush=True)
+        
+        # Log response content for debugging
+        try:
+            response_text = response.text[:500]  # First 500 chars
+            print(f"[DEBUG] Response text preview: {response_text}", flush=True)
+        except:
+            pass
 
         response.raise_for_status()
         data = response.json()
         operation = (data.get("operation") or data.get("message", "created")).lower()
+        print(f"[DEBUG] Operation from API: {operation}", flush=True)
 
         if operation == "created" or "created" in operation or "نجاح" in str(data.get("message", "")):
             print(f"[SUCCESS] Order #{order_num} created: {zyda_order_key}", flush=True)
@@ -985,6 +1021,18 @@ def _send_order_to_api(order: Dict[str, object], order_num: int, total_orders: i
         return "failed"
     except requests.exceptions.ConnectionError as exc:
         error_msg = f"Connection error while syncing order {phone} (Key: {zyda_order_key}): {exc}"
+        print(f"[ERROR] {error_msg}", flush=True)
+        return "failed"
+    except requests.exceptions.HTTPError as exc:
+        error_msg = f"HTTP error while syncing order {phone} (Key: {zyda_order_key}): {exc}"
+        if hasattr(exc, 'response') and exc.response is not None:
+            try:
+                error_text = exc.response.text[:500]
+                error_msg += f" (HTTP {exc.response.status_code}: {error_text})"
+                print(f"[ERROR] Response text: {error_text}", flush=True)
+                print(f"[ERROR] Response headers: {dict(exc.response.headers)}", flush=True)
+            except:
+                pass
         print(f"[ERROR] {error_msg}", flush=True)
         return "failed"
     except requests.exceptions.RequestException as exc:
@@ -1050,9 +1098,13 @@ def sync_orders(orders: List[Dict[str, object]]) -> Dict[str, int]:
         print(f"[DEBUG] Payload for order #{idx}: Key={zyda_order_key}, Phone={phone}, Total={payload['total_amount']}, Items={len(payload['items'])}", flush=True)
 
         print(f"[STEP] Sending order #{idx}/{len(orders)}: Key={zyda_order_key}, Phone={phone}", flush=True)
+        print(f"[DEBUG] API Endpoint: {API_ENDPOINT}", flush=True)
+        print(f"[DEBUG] Payload keys: {list(payload.keys())}", flush=True)
 
         try:
+            print(f"[INFO] Making POST request to {API_ENDPOINT}...", flush=True)
             response = requests.post(API_ENDPOINT, json=payload, timeout=30)  # Reduced from 60 to 30 seconds
+            print(f"[INFO] Response received: Status {response.status_code}", flush=True)
 
             print(f"[INFO] Response Status: {response.status_code}", flush=True)
 
@@ -1091,6 +1143,18 @@ def sync_orders(orders: List[Dict[str, object]]) -> Dict[str, int]:
         except requests.exceptions.ConnectionError as exc:
             stats["failed"] += 1
             error_msg = f"Connection error while syncing order {phone} (Key: {zyda_order_key}): {exc}"
+            print(f"[ERROR] {error_msg}", flush=True)
+        except requests.exceptions.HTTPError as exc:
+            stats["failed"] += 1
+            error_msg = f"HTTP error while syncing order {phone} (Key: {zyda_order_key}): {exc}"
+            if hasattr(exc, 'response') and exc.response is not None:
+                try:
+                    error_text = exc.response.text[:500]
+                    error_msg += f" (HTTP {exc.response.status_code}: {error_text})"
+                    print(f"[ERROR] Response text: {error_text}", flush=True)
+                    print(f"[ERROR] Response headers: {dict(exc.response.headers)}", flush=True)
+                except:
+                    pass
             print(f"[ERROR] {error_msg}", flush=True)
         except requests.exceptions.RequestException as exc:
             stats["failed"] += 1
@@ -1175,12 +1239,36 @@ def main_loop() -> None:
 def run_once() -> Dict[str, int]:
     global processed_phones
     print("[INFO] Starting Zyda scraper (single run)...", flush=True)
+    print(f"[INFO] API Endpoint: {API_ENDPOINT}", flush=True)
+    print(f"[INFO] Python version: {sys.version}", flush=True)
+    
+    # Check if required modules are available
+    try:
+        import selenium
+        print(f"[INFO] Selenium version: {selenium.__version__}", flush=True)
+    except ImportError:
+        print("[ERROR] Selenium module not found. Please install: pip install selenium", flush=True)
+        print("SUMMARY created=0 updated=0 skipped=0 failed=1", flush=True)
+        return {"total": 0, "created": 0, "updated": 0, "skipped": 0, "failed": 1}
+    
+    try:
+        import requests
+        print(f"[INFO] Requests version: {requests.__version__}", flush=True)
+    except ImportError:
+        print("[ERROR] Requests module not found. Please install: pip install requests", flush=True)
+        print("SUMMARY created=0 updated=0 skipped=0 failed=1", flush=True)
+        return {"total": 0, "created": 0, "updated": 0, "skipped": 0, "failed": 1}
+    
     processed_phones = load_processed_phones()
     print(f"[INFO] Loaded {len(processed_phones)} processed phone(s).", flush=True)
 
     try:
+        print("[STEP] Starting to scrape orders from Zyda dashboard...", flush=True)
         orders = scrape_orders()
+        print(f"[INFO] Scraped {len(orders) if orders else 0} order(s) from Zyda", flush=True)
+        
         if orders:
+            print("[STEP] Starting to sync orders to Laravel API...", flush=True)
             return sync_orders(orders)
         else:
             print("[WARN] No orders found in this run.", flush=True)
