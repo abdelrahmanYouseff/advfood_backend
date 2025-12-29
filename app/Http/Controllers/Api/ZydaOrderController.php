@@ -402,36 +402,64 @@ class ZydaOrderController extends Controller
      */
     protected function createOrderFromZydaOrder(ZydaOrder $zydaOrder): Order
     {
-        // IMPORTANT: Use same values as successful orders (order_id: 133)
+        // IMPORTANT: Use first available user and restaurant to ensure compatibility
         // This ensures Zyda orders are accepted by shipping company
-        $userId = 36; // Same user_id as successful order
-        $restaurantId = 821017372; // Same restaurant_id as successful order
-        
-        // Verify user exists
-        $user = User::find($userId);
+        $user = User::first();
         if (!$user) {
-            throw new \Exception("User with ID {$userId} not found. This user is required for Zyda orders.");
+            throw new \Exception("No users found in database. At least one user is required for Zyda orders.");
         }
+        $userId = $user->id;
 
-        // Verify restaurant exists
-        $restaurant = Restaurant::find($restaurantId);
+        // Use first available restaurant (preferably one with shop_id set for Shadda compatibility)
+        $restaurant = Restaurant::whereNotNull('shop_id')->first() ?? Restaurant::first();
         if (!$restaurant) {
-            throw new \Exception("Restaurant with ID {$restaurantId} not found. This restaurant is required for Zyda orders.");
+            throw new \Exception("No restaurants found in database. At least one restaurant is required for Zyda orders.");
         }
+        $restaurantId = $restaurant->id;
+        
+        Log::info('✅ Using available user and restaurant for Zyda order', [
+            'user_id' => $userId,
+            'user_name' => $user->name,
+            'restaurant_id' => $restaurantId,
+            'restaurant_name' => $restaurant->name,
+            'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
+        ]);
 
         // Parse location to get coordinates
         $locationData = $this->parseLocationAndExtractUrl($zydaOrder->location);
         $coordinates = $locationData['coordinates'] ?? null;
         
-        // IMPORTANT: All Zyda orders must use shop_id = 11185 (fixed constant)
-        // This is required by the shipping company for Zyda orders
-        $shopId = '11185';
+        // IMPORTANT: Use shop_id from restaurant to ensure compatibility with shipping company (Shadda/Leajlak)
+        // This ensures Zyda orders use the correct branchId for the active shipping provider
+        $shopId = $restaurant->shop_id ?? null;
+        
+        // Fallback: If restaurant doesn't have shop_id, use default based on shipping provider
+        if (empty($shopId)) {
+            $defaultProvider = \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
+            if ($defaultProvider === 'shadda') {
+                // For Shadda, use a default shop_id (you may need to adjust this based on your Shadda setup)
+                $shopId = '116'; // Default Shadda branchId
+                Log::warning('⚠️ Restaurant shop_id not found, using default Shadda shop_id', [
+                    'restaurant_id' => $restaurantId,
+                    'default_shop_id' => $shopId,
+                ]);
+            } else {
+                // For Leajlak, use legacy default
+                $shopId = '11185';
+                Log::warning('⚠️ Restaurant shop_id not found, using default Leajlak shop_id', [
+                    'restaurant_id' => $restaurantId,
+                    'default_shop_id' => $shopId,
+                ]);
+            }
+        }
 
-        Log::info('🔍 Zyda Order Creation - Using same configuration as successful orders', [
+        Log::info('🔍 Zyda Order Creation - Using restaurant shop_id for shipping compatibility', [
             'user_id' => $userId,
             'restaurant_id' => $restaurantId,
             'shop_id' => $shopId,
-            'note' => 'Using fixed values to match successful order configuration',
+            'shop_id_source' => $restaurant->shop_id ? 'restaurant.shop_id' : 'default_fallback',
+            'default_shipping_provider' => \App\Models\AppSetting::get('default_shipping_provider', 'leajlak'),
+            'note' => 'Using shop_id from restaurant to ensure compatibility with active shipping provider',
         ]);
 
         // Generate unique order number (similar to rest-links but with ZYDA prefix)
@@ -505,15 +533,19 @@ class ZydaOrderController extends Controller
             'step' => 'Calling Order::create() - Order::boot will handle shipping',
         ]);
 
+        // Get default shipping provider from settings
+        $defaultShippingProvider = \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
+        
         // Create Order WITHOUT calling ShippingService manually
         // Order::boot (static::created) سيتكفل بإرسال الطلب لشركة الشحن وتوليد dsp_order_id
         $order = Order::create([
             'order_number' => $orderNumber,
             'user_id' => $userId, // ثابت: 36
             'restaurant_id' => $restaurantId, // ثابت: 821017372
-            'shop_id' => $shopId, // ثابت: 11185 (مطلوب لطلبات Zyda)
+            'shop_id' => $shopId, // من Restaurant أو default حسب shipping provider
             'status' => 'confirmed',
             'shipping_status' => 'New Order',
+            'shipping_provider' => $defaultShippingProvider, // استخدام shipping provider الحالي من الإعدادات
             'source' => 'zyda',
             'subtotal' => $totalAmount,
             'delivery_fee' => 0,

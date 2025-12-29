@@ -47,7 +47,7 @@ class ShippingController extends Controller
 
         // Get shipping provider from order or use default
         $provider = $order->shipping_provider ?? \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
-        
+
         // Log attempt
         \Illuminate\Support\Facades\Log::info('🔄 Manual shipping order creation attempt', [
             'order_id' => $order->id,
