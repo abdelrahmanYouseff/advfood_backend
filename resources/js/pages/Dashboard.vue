@@ -13,7 +13,9 @@ import {
     Calendar,
     Save,
     Trash2,
-    RefreshCcw
+    RefreshCcw,
+    Copy,
+    Check
 } from 'lucide-vue-next';
 
 interface Props {
@@ -60,6 +62,13 @@ interface Props {
         received_total: number;
         current_filter: string;
     };
+    whatsapp_messages: Array<{
+        id: number;
+        deliver_order: string | null;
+        location: string | null;
+        created_at: string;
+        updated_at: string;
+    }>;
 }
 
 interface ZydaOrder {
@@ -721,6 +730,53 @@ const getCookie = (name: string): string | null => {
     }
     return null;
 };
+
+// WhatsApp Messages - Copy location function
+const copiedLocationId = ref<number | null>(null);
+
+const copyLocation = async (location: string | null, messageId: number) => {
+    if (!location) {
+        alert(t('لا يوجد موقع للنسخ', 'No location to copy'));
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(location);
+        copiedLocationId.value = messageId;
+        setTimeout(() => {
+            copiedLocationId.value = null;
+        }, 2000);
+    } catch (error) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = location;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            copiedLocationId.value = messageId;
+            setTimeout(() => {
+                copiedLocationId.value = null;
+            }, 2000);
+        } catch (err) {
+            alert(t('فشل نسخ الموقع', 'Failed to copy location'));
+        }
+        document.body.removeChild(textArea);
+    }
+};
+
+const formatDateFull = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ar-SA', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
 </script>
 
 <template>
@@ -1146,6 +1202,110 @@ const getCookie = (name: string): string | null => {
                                 v-html="link.label"
                             />
                         </nav>
+                    </div>
+
+                    <!-- WhatsApp Messages Table -->
+                    <div class="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-900">
+                                    {{ t('رسائل الواتساب', 'WhatsApp Messages') }}
+                                </h2>
+                                <p class="mt-1 text-sm text-muted-foreground">
+                                    {{ t('عرض أحدث الرسائل المستلمة من الواتساب.', 'View the latest messages received from WhatsApp.') }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 overflow-x-auto">
+                            <table class="min-w-[800px] w-full divide-y divide-gray-200 text-right text-sm table-auto">
+                                <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                                    <tr>
+                                        <th class="px-4 py-3 text-right">
+                                            {{ t('ID', 'ID') }}
+                                        </th>
+                                        <th class="px-4 py-3 text-right">
+                                            {{ t('رسالة التسليم', 'Deliver Order') }}
+                                        </th>
+                                        <th class="px-4 py-3 text-right">
+                                            {{ t('الموقع', 'Location') }}
+                                        </th>
+                                        <th class="px-4 py-3 text-right">
+                                            {{ t('التاريخ', 'Date') }}
+                                        </th>
+                                        <th class="px-4 py-3 text-right">
+                                            {{ t('إجراءات', 'Actions') }}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white">
+                                    <tr v-if="props.whatsapp_messages?.length === 0">
+                                        <td colspan="5" class="px-6 py-8 text-center text-sm text-muted-foreground">
+                                            {{ t('لا توجد رسائل واتساب مسجلة حتى الآن.', 'No WhatsApp messages recorded yet.') }}
+                                        </td>
+                                    </tr>
+                                    <tr v-for="message in props.whatsapp_messages" :key="message.id" class="hover:bg-gray-50">
+                                        <!-- ID -->
+                                        <td class="px-4 py-3">
+                                            <span class="text-xs font-mono text-gray-600">
+                                                #{{ message.id }}
+                                            </span>
+                                        </td>
+
+                                        <!-- Deliver Order -->
+                                        <td class="px-4 py-3 text-gray-700 max-w-xs">
+                                            <div class="text-xs leading-snug line-clamp-3">
+                                                {{ message.deliver_order ?? '—' }}
+                                            </div>
+                                        </td>
+
+                                        <!-- Location -->
+                                        <td class="px-4 py-3 text-gray-700 max-w-md">
+                                            <div v-if="message.location" class="text-xs leading-snug line-clamp-2 break-all">
+                                                <a
+                                                    :href="message.location"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="text-blue-600 hover:text-blue-800 hover:underline"
+                                                >
+                                                    {{ message.location }}
+                                                </a>
+                                            </div>
+                                            <span v-else class="text-gray-400">—</span>
+                                        </td>
+
+                                        <!-- Date -->
+                                        <td class="px-4 py-3 text-gray-600">
+                                            <div class="text-xs">
+                                                {{ formatDateFull(message.created_at) }}
+                                            </div>
+                                        </td>
+
+                                        <!-- Actions -->
+                                        <td class="px-4 py-3">
+                                            <button
+                                                v-if="message.location"
+                                                @click="copyLocation(message.location, message.id)"
+                                                class="inline-flex items-center gap-1 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900"
+                                                :title="t('نسخ الموقع', 'Copy location')"
+                                            >
+                                                <Check v-if="copiedLocationId === message.id" class="h-3.5 w-3.5" />
+                                                <Copy v-else class="h-3.5 w-3.5" />
+                                                <span v-if="copiedLocationId === message.id">
+                                                    {{ t('تم النسخ', 'Copied') }}
+                                                </span>
+                                                <span v-else>
+                                                    {{ t('نسخ', 'Copy') }}
+                                                </span>
+                                            </button>
+                                            <span v-else class="text-gray-400 text-xs">
+                                                {{ t('لا يوجد موقع', 'No location') }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

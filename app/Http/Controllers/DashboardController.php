@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\Invoice;
 use App\Models\ZydaOrder;
+use App\Models\WhatsappMsg;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -71,12 +72,18 @@ class DashboardController extends Controller
             'current_filter' => $filter,
         ];
 
+        // Get WhatsApp messages (latest 50)
+        $whatsapp_messages = WhatsappMsg::orderByDesc('created_at')
+            ->take(50)
+            ->get();
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'recent_orders' => $recent_orders,
             'top_restaurants' => $top_restaurants,
             'zyda_orders' => $zyda_orders,
             'zyda_summary' => $zyda_summary,
+            'whatsapp_messages' => $whatsapp_messages,
         ]);
     }
 }
