@@ -42,7 +42,7 @@ SESSION_COOKIES_FILE = os.path.join(
 INTERACTION_DELAY = 0.01  # Minimal delay for fastest execution
 
 EMAIL = "abdelrahman.yousef@hadaf-hq.com"
-PASSWORD = "ADVFood10203040"
+PASSWORD = "V@ntom2121992"
 
 LOGIN_BUTTON_SELECTOR = "[data-testid='login-button'], button.login-button"
 EMAIL_INPUT_SELECTOR = (
@@ -986,7 +986,7 @@ def _send_order_to_api(order: Dict[str, object], order_num: int, total_orders: i
         print(f"[DEBUG] Sending POST request to: {API_ENDPOINT}", flush=True)
         response = requests.post(API_ENDPOINT, json=payload, timeout=30)
         print(f"[INFO] Response Status: {response.status_code}", flush=True)
-        
+
         # Log response content for debugging
         try:
             response_text = response.text[:500]  # First 500 chars
@@ -1241,7 +1241,7 @@ def run_once() -> Dict[str, int]:
     print("[INFO] Starting Zyda scraper (single run)...", flush=True)
     print(f"[INFO] API Endpoint: {API_ENDPOINT}", flush=True)
     print(f"[INFO] Python version: {sys.version}", flush=True)
-    
+
     # Check if required modules are available
     try:
         import selenium
@@ -1250,7 +1250,7 @@ def run_once() -> Dict[str, int]:
         print("[ERROR] Selenium module not found. Please install: pip install selenium", flush=True)
         print("SUMMARY created=0 updated=0 skipped=0 failed=1", flush=True)
         return {"total": 0, "created": 0, "updated": 0, "skipped": 0, "failed": 1}
-    
+
     try:
         import requests
         print(f"[INFO] Requests version: {requests.__version__}", flush=True)
@@ -1258,7 +1258,7 @@ def run_once() -> Dict[str, int]:
         print("[ERROR] Requests module not found. Please install: pip install requests", flush=True)
         print("SUMMARY created=0 updated=0 skipped=0 failed=1", flush=True)
         return {"total": 0, "created": 0, "updated": 0, "skipped": 0, "failed": 1}
-    
+
     processed_phones = load_processed_phones()
     print(f"[INFO] Loaded {len(processed_phones)} processed phone(s).", flush=True)
 
@@ -1266,7 +1266,7 @@ def run_once() -> Dict[str, int]:
         print("[STEP] Starting to scrape orders from Zyda dashboard...", flush=True)
         orders = scrape_orders()
         print(f"[INFO] Scraped {len(orders) if orders else 0} order(s) from Zyda", flush=True)
-        
+
         if orders:
             print("[STEP] Starting to sync orders to Laravel API...", flush=True)
             return sync_orders(orders)
