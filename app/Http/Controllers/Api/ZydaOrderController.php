@@ -410,12 +410,12 @@ class ZydaOrderController extends Controller
         }
         $userId = $user->id;
 
-        // IMPORTANT: All Zyda orders must use Gather Us restaurant (shop_id = 118)
+        // IMPORTANT: All Zyda orders must use Gather Us restaurant (shop_id = 210)
         // This ensures all Zyda orders are linked to the correct restaurant
         $restaurant = Restaurant::where('name', 'Gather Us')->first();
         if (!$restaurant) {
-            // Fallback: Try to find by shop_id = 118
-            $restaurant = Restaurant::where('shop_id', '118')->first();
+            // Fallback: Try to find by shop_id = 210
+            $restaurant = Restaurant::where('shop_id', '210')->first();
         }
         if (!$restaurant) {
             // Last fallback: Use first available restaurant
@@ -432,30 +432,30 @@ class ZydaOrderController extends Controller
             'restaurant_id' => $restaurantId,
             'restaurant_name' => $restaurant->name,
             'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
-            'note' => 'All Zyda orders are linked to Gather Us restaurant (shop_id = 118)',
+            'note' => 'All Zyda orders are linked to Gather Us restaurant (shop_id = 210)',
         ]);
 
         // Parse location to get coordinates
         $locationData = $this->parseLocationAndExtractUrl($zydaOrder->location);
         $coordinates = $locationData['coordinates'] ?? null;
         
-        // IMPORTANT: All Zyda orders must use shop_id = 118 (Gather Us)
+        // IMPORTANT: All Zyda orders must use shop_id = 210 (Gather Us)
         // This ensures all Zyda orders are sent to the correct branch in shipping company
-        $shopId = $restaurant->shop_id ?? '118';
+        $shopId = $restaurant->shop_id ?? '210';
         
-        // Force shop_id = 118 for Gather Us (even if restaurant has different shop_id)
-        if ($restaurant->name === 'Gather Us' || $restaurant->shop_id === '118') {
-            $shopId = '118';
-            Log::info('✅ Using shop_id = 118 for Gather Us (Zyda orders)', [
+        // Force shop_id = 210 for Gather Us (even if restaurant has different shop_id)
+        if ($restaurant->name === 'Gather Us' || $restaurant->shop_id === '210') {
+            $shopId = '210';
+            Log::info('✅ Using shop_id = 210 for Gather Us (Zyda orders)', [
                 'restaurant_id' => $restaurantId,
                 'restaurant_name' => $restaurant->name,
                 'shop_id' => $shopId,
             ]);
         } else {
-            // Fallback: If restaurant doesn't have shop_id, use 118 (Gather Us)
-            if (empty($shopId) || $shopId !== '118') {
-                $shopId = '118';
-                Log::warning('⚠️ Restaurant shop_id not 118, forcing shop_id = 118 for Zyda orders', [
+            // Fallback: If restaurant doesn't have shop_id, use 210 (Gather Us)
+            if (empty($shopId) || $shopId !== '210') {
+                $shopId = '210';
+                Log::warning('⚠️ Restaurant shop_id not 210, forcing shop_id = 210 for Zyda orders', [
                     'restaurant_id' => $restaurantId,
                     'restaurant_name' => $restaurant->name,
                     'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',

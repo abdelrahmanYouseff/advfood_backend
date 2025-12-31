@@ -209,7 +209,7 @@ class OrderController extends Controller
         ]);
 
         $restaurant = \App\Models\Restaurant::findOrFail($validated['restaurant_id']);
-        $shopId = $restaurant->shop_id ?? '11183';
+        $shopId = $restaurant->shop_id ?? '210'; // Default: Gather Us
 
         $itemsCollection = collect($validated['items'])->map(function ($item) {
             $quantity = (int) $item['quantity'];

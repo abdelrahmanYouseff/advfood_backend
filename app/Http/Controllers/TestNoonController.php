@@ -294,12 +294,12 @@ class TestNoonController extends Controller
                             'shop_id' => $restaurant->shop_id,
                         ]);
                     } else {
-                        // Fallback to default shop_id
-                        $order->shop_id = '11183';
+                        // Fallback to default shop_id (Gather Us)
+                        $order->shop_id = '210';
                         \Illuminate\Support\Facades\Log::warning('⚠️ Using default shop_id for order', [
                             'order_id' => $order->id,
                             'restaurant_id' => $order->restaurant_id,
-                            'shop_id' => '11183',
+                            'shop_id' => '210',
                         ]);
                     }
                 }

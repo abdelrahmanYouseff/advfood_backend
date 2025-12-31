@@ -103,15 +103,15 @@ class ShaddaShippingService implements ShippingServiceInterface
                     : null;
                 $shopIdString = $restaurant?->shop_id ?? null;
                 $shopIdSource = 'restaurant_shop_id';
-            } else {
+                        } else {
                 $shopIdSource = 'order_shop_id';
             }
 
-            // If still empty, use default 116 (fallback)
+            // If still empty, use default 210 (Gather Us) as fallback
             if (empty($shopIdString)) {
-                $shopIdString = '116';
+                $shopIdString = '210';
                 $shopIdSource = 'default_fallback';
-                Log::warning('⚠️ Using default branchId 116 (shop_id not found in order or restaurant)', [
+                Log::warning('⚠️ Using default branchId 210 (Gather Us) - shop_id not found in order or restaurant', [
                     'order_id' => $orderObj->id ?? null,
                     'order_number' => $orderIdString,
                 ]);
@@ -327,7 +327,7 @@ class ShaddaShippingService implements ShippingServiceInterface
                 'branchId' => $payload['branchId'],
                 'url' => $url,
                 'api_base_url' => $this->apiBaseUrl,
-            ]);
+                ]);
 
             $response = null;
             $responseBody = null;
@@ -463,7 +463,7 @@ class ShaddaShippingService implements ShippingServiceInterface
                             'action_required' => [
                                 '1' => 'Verify shop_id in restaurant table matches shipping company records',
                                 '2' => 'Check if shop_id is registered in shipping company dashboard',
-                                '3' => 'Ensure shop_id format is correct (should be string like "11183", "11184", "11185")',
+                                '3' => 'Ensure shop_id format is correct (should be string like "210", "211", "212")',
                                 '4' => 'Verify restaurant name and shop_id mapping in shipping company system',
                             ],
                             'current_shop_id_source' => $shopIdSource,

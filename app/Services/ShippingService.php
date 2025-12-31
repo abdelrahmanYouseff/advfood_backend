@@ -89,12 +89,12 @@ class ShippingService implements ShippingServiceInterface
                 'confirmation' => 'Using order_number (NOT id) for shipping company',
             ]);
 
-            // Get shop_id - PRIORITY: Use shop_id from order first (especially for Zyda orders with fixed shop_id = 11185)
+            // Get shop_id - PRIORITY: Use shop_id from order first (especially for Zyda orders with fixed shop_id = 210)
             // Only fallback to restaurant.shop_id if order doesn't have shop_id
             $shopIdString = null;
             $shopIdSource = 'unknown';
 
-            // PRIORITY 1: Use shop_id from order (this is correct for Zyda orders with fixed shop_id = 11185)
+            // PRIORITY 1: Use shop_id from order (this is correct for Zyda orders with fixed shop_id = 210)
             if (!empty($orderObj->shop_id)) {
                 $shopIdString = (string) $orderObj->shop_id;
                 $shopIdSource = 'order.shop_id';
@@ -102,7 +102,7 @@ class ShippingService implements ShippingServiceInterface
                     'order_id' => $orderObj->id ?? null,
                     'order_shop_id' => $shopIdString,
                     'source' => $orderObj->source ?? 'unknown',
-                    'note' => 'Using order.shop_id (especially important for Zyda orders with fixed shop_id = 11185)',
+                    'note' => 'Using order.shop_id (especially important for Zyda orders with fixed shop_id = 210)',
                 ]);
             }
             // PRIORITY 2: Fallback to restaurant.shop_id only if order doesn't have shop_id
@@ -141,7 +141,7 @@ class ShippingService implements ShippingServiceInterface
 
             // Final fallback to default shop_id (should not happen if data is correct)
             if (empty($shopIdString)) {
-                $shopIdString = '11183'; // Default fallback
+                $shopIdString = '210'; // Default fallback (Gather Us)
                 $shopIdSource = 'default_fallback';
                 Log::error('❌ CRITICAL: Using default shop_id (restaurant and order shop_id not found)', [
                     'shop_id' => $shopIdString,
@@ -493,7 +493,7 @@ class ShippingService implements ShippingServiceInterface
                             'action_required' => [
                                 '1' => 'Verify shop_id in restaurant table matches shipping company records',
                                 '2' => 'Check if shop_id is registered in shipping company dashboard',
-                                '3' => 'Ensure shop_id format is correct (should be string like "11183", "11184", "11185")',
+                                '3' => 'Ensure shop_id format is correct (should be string like "210", "211", "212")',
                                 '4' => 'Verify restaurant name and shop_id mapping in shipping company system',
                             ],
                             'current_shop_id_source' => $shopIdSource,

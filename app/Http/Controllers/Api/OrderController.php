@@ -116,7 +116,7 @@ class OrderController extends Controller
             // Set shop_id for shipping integration - get from restaurant or use default
             if (!isset($orderData['shop_id']) || empty($orderData['shop_id'])) {
                 $restaurant = \App\Models\Restaurant::find($orderData['restaurant_id'] ?? null);
-                $orderData['shop_id'] = $restaurant?->shop_id ?? '11183';
+                $orderData['shop_id'] = $restaurant?->shop_id ?? '210'; // Default: Gather Us
             }
 
             // Set source default if not provided
