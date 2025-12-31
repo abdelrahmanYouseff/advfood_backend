@@ -410,45 +410,56 @@ class ZydaOrderController extends Controller
         }
         $userId = $user->id;
 
-        // Use first available restaurant (preferably one with shop_id set for Shadda compatibility)
-        $restaurant = Restaurant::whereNotNull('shop_id')->first() ?? Restaurant::first();
+        // IMPORTANT: All Zyda orders must use Gather Us restaurant (shop_id = 118)
+        // This ensures all Zyda orders are linked to the correct restaurant
+        $restaurant = Restaurant::where('name', 'Gather Us')->first();
+        if (!$restaurant) {
+            // Fallback: Try to find by shop_id = 118
+            $restaurant = Restaurant::where('shop_id', '118')->first();
+        }
+        if (!$restaurant) {
+            // Last fallback: Use first available restaurant
+            $restaurant = Restaurant::whereNotNull('shop_id')->first() ?? Restaurant::first();
+        }
         if (!$restaurant) {
             throw new \Exception("No restaurants found in database. At least one restaurant is required for Zyda orders.");
         }
         $restaurantId = $restaurant->id;
         
-        Log::info('✅ Using available user and restaurant for Zyda order', [
+        Log::info('✅ Using Gather Us restaurant for Zyda order', [
             'user_id' => $userId,
             'user_name' => $user->name,
             'restaurant_id' => $restaurantId,
             'restaurant_name' => $restaurant->name,
             'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
+            'note' => 'All Zyda orders are linked to Gather Us restaurant (shop_id = 118)',
         ]);
 
         // Parse location to get coordinates
         $locationData = $this->parseLocationAndExtractUrl($zydaOrder->location);
         $coordinates = $locationData['coordinates'] ?? null;
         
-        // IMPORTANT: Use shop_id from restaurant to ensure compatibility with shipping company (Shadda/Leajlak)
-        // This ensures Zyda orders use the correct branchId for the active shipping provider
-        $shopId = $restaurant->shop_id ?? null;
+        // IMPORTANT: All Zyda orders must use shop_id = 118 (Gather Us)
+        // This ensures all Zyda orders are sent to the correct branch in shipping company
+        $shopId = $restaurant->shop_id ?? '118';
         
-        // Fallback: If restaurant doesn't have shop_id, use default based on shipping provider
-        if (empty($shopId)) {
-            $defaultProvider = \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
-            if ($defaultProvider === 'shadda') {
-                // For Shadda, use a default shop_id (you may need to adjust this based on your Shadda setup)
-                $shopId = '116'; // Default Shadda branchId
-                Log::warning('⚠️ Restaurant shop_id not found, using default Shadda shop_id', [
+        // Force shop_id = 118 for Gather Us (even if restaurant has different shop_id)
+        if ($restaurant->name === 'Gather Us' || $restaurant->shop_id === '118') {
+            $shopId = '118';
+            Log::info('✅ Using shop_id = 118 for Gather Us (Zyda orders)', [
+                'restaurant_id' => $restaurantId,
+                'restaurant_name' => $restaurant->name,
+                'shop_id' => $shopId,
+            ]);
+        } else {
+            // Fallback: If restaurant doesn't have shop_id, use 118 (Gather Us)
+            if (empty($shopId) || $shopId !== '118') {
+                $shopId = '118';
+                Log::warning('⚠️ Restaurant shop_id not 118, forcing shop_id = 118 for Zyda orders', [
                     'restaurant_id' => $restaurantId,
-                    'default_shop_id' => $shopId,
-                ]);
-            } else {
-                // For Leajlak, use legacy default
-                $shopId = '11185';
-                Log::warning('⚠️ Restaurant shop_id not found, using default Leajlak shop_id', [
-                    'restaurant_id' => $restaurantId,
-                    'default_shop_id' => $shopId,
+                    'restaurant_name' => $restaurant->name,
+                    'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
+                    'forced_shop_id' => $shopId,
                 ]);
             }
         }

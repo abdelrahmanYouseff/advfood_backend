@@ -733,6 +733,7 @@ const getCookie = (name: string): string | null => {
 
 // WhatsApp Messages - Copy location function
 const copiedLocationId = ref<number | null>(null);
+const deletingWhatsappMsgId = ref<number | null>(null);
 
 const copyLocation = async (location: string | null, messageId: number) => {
     if (!location) {
@@ -776,6 +777,53 @@ const formatDateFull = (dateString: string) => {
         hour: '2-digit',
         minute: '2-digit',
     });
+};
+
+// Delete WhatsApp message function
+const deleteWhatsappMessage = async (messageId: number) => {
+    if (!confirm(t('هل أنت متأكد من حذف هذه الرسالة؟', 'Are you sure you want to delete this message?'))) {
+        return;
+    }
+
+    deletingWhatsappMsgId.value = messageId;
+
+    try {
+        // Get CSRF token from meta tag or cookie
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            || getCookie('XSRF-TOKEN')
+            || '';
+
+        const response = await fetch(`/api/whatsapp/messages/${messageId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken || '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to delete message');
+        }
+
+        // Reload to get updated data from server
+        router.reload({
+            only: ['whatsapp_messages'],
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('✅ WhatsApp message deleted successfully!');
+            },
+        });
+    } catch (error: any) {
+        console.error('❌ Failed to delete WhatsApp message:', error);
+        alert(error.message || t('حدث خطأ أثناء حذف الرسالة. حاول مرة أخرى.', 'An error occurred while deleting the message. Please try again.'));
+    } finally {
+        deletingWhatsappMsgId.value = null;
+    }
 };
 </script>
 
@@ -1283,24 +1331,35 @@ const formatDateFull = (dateString: string) => {
 
                                         <!-- Actions -->
                                         <td class="px-4 py-3">
-                                            <button
-                                                v-if="message.location"
-                                                @click="copyLocation(message.location, message.id)"
-                                                class="inline-flex items-center gap-1 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900"
-                                                :title="t('نسخ الموقع', 'Copy location')"
-                                            >
-                                                <Check v-if="copiedLocationId === message.id" class="h-3.5 w-3.5" />
-                                                <Copy v-else class="h-3.5 w-3.5" />
-                                                <span v-if="copiedLocationId === message.id">
-                                                    {{ t('تم النسخ', 'Copied') }}
-                                                </span>
-                                                <span v-else>
-                                                    {{ t('نسخ', 'Copy') }}
-                                                </span>
-                                            </button>
-                                            <span v-else class="text-gray-400 text-xs">
-                                                {{ t('لا يوجد موقع', 'No location') }}
-                                            </span>
+                                            <div class="flex items-center gap-2">
+                                                <button
+                                                    v-if="message.location"
+                                                    @click="copyLocation(message.location, message.id)"
+                                                    class="inline-flex items-center gap-1 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900"
+                                                    :title="t('نسخ الموقع', 'Copy location')"
+                                                >
+                                                    <Check v-if="copiedLocationId === message.id" class="h-3.5 w-3.5" />
+                                                    <Copy v-else class="h-3.5 w-3.5" />
+                                                    <span v-if="copiedLocationId === message.id">
+                                                        {{ t('تم النسخ', 'Copied') }}
+                                                    </span>
+                                                    <span v-else>
+                                                        {{ t('نسخ', 'Copy') }}
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    @click="deleteWhatsappMessage(message.id)"
+                                                    :disabled="deletingWhatsappMsgId === message.id"
+                                                    class="inline-flex items-center gap-1 rounded-md bg-gray-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    :title="t('حذف الرسالة', 'Delete message')"
+                                                >
+                                                    <Trash2 class="h-3.5 w-3.5" />
+                                                    <span v-if="deletingWhatsappMsgId !== message.id">
+                                                        {{ t('حذف', 'Delete') }}
+                                                    </span>
+                                                    <span v-else>...</span>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>

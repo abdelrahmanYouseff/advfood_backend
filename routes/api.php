@@ -42,6 +42,7 @@ Route::post('/webhook/generic', [GenericWebhookController::class, 'handle']);
 
 // WhatsApp messages API (receive deliver_order + location)
 Route::post('/whatsapp/messages', [WhatsappMsgController::class, 'store']);
+Route::delete('/whatsapp/messages/{id}', [WhatsappMsgController::class, 'destroy']);
 
 // API endpoint to get webhooks as JSON
 Route::get('/webhooks/logs', [WebhookLogController::class, 'api']);

@@ -40,6 +40,27 @@ class WhatsappMsgController extends Controller
             ],
         ], 201);
     }
+
+    /**
+     * Delete a WhatsApp message.
+     */
+    public function destroy($id)
+    {
+        try {
+            $msg = WhatsappMsg::findOrFail($id);
+            $msg->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'WhatsApp message deleted successfully',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete WhatsApp message: ' . $e->getMessage(),
+            ], 404);
+        }
+    }
 }
 
 
