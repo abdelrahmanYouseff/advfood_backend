@@ -145,6 +145,129 @@
                 </div>
             </div>
 
+            <!-- Shipping Status Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6 border-l-4 border-blue-500">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">🚚 حالة إرسال الطلبات لشركة الشحن (Shadda)</h2>
+                        <p class="text-gray-600 mt-1">عرض آخر محاولات إرسال الطلبات لشركة الشحن وسبب الفشل إن وجد</p>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        آخر تحديث: {{ now()->format('Y-m-d H:i:s') }}
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-blue-600">إجمالي المحاولات</p>
+                                <p class="text-2xl font-bold text-blue-900">{{ $shippingStatus['summary']['total'] }}</p>
+                            </div>
+                            <div class="text-3xl">📊</div>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-green-600">نجح</p>
+                                <p class="text-2xl font-bold text-green-900">{{ $shippingStatus['summary']['success'] }}</p>
+                            </div>
+                            <div class="text-3xl">✅</div>
+                        </div>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-4 border border-red-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-red-600">فشل</p>
+                                <p class="text-2xl font-bold text-red-900">{{ $shippingStatus['summary']['failed'] }}</p>
+                            </div>
+                            <div class="text-3xl">❌</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attempts List -->
+                @if(count($shippingStatus['attempts']) > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">الوقت</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">رقم الطلب</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">الحالة</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">سبب المشكلة</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($shippingStatus['attempts'] as $attempt)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $attempt['timestamp'] ?? 'N/A' }}
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                            @if($attempt['order_number'])
+                                                <span class="font-mono font-semibold text-gray-900">{{ $attempt['order_number'] }}</span>
+                                            @elseif($attempt['order_id'])
+                                                <span class="text-gray-500">ID: {{ $attempt['order_id'] }}</span>
+                                            @else
+                                                <span class="text-gray-400">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            @if($attempt['success'])
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    ✅ نجح
+                                                </span>
+                                                @if(isset($attempt['dsp_order_id']))
+                                                    <div class="text-xs text-gray-500 mt-1">
+                                                        DSP: {{ $attempt['dsp_order_id'] }}
+                                                    </div>
+                                                @endif
+                                            @else
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    ❌ فشل
+                                                </span>
+                                                @if(isset($attempt['http_status']))
+                                                    <div class="text-xs text-gray-500 mt-1">
+                                                        HTTP: {{ $attempt['http_status'] }}
+                                                    </div>
+                                                @endif
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">
+                                            @if(!$attempt['success'] && $attempt['error'])
+                                                <div class="max-w-md">
+                                                    @if(isset($attempt['error_type']))
+                                                        <div class="font-semibold text-red-600 mb-1">
+                                                            {{ $attempt['error_type'] }}
+                                                        </div>
+                                                    @endif
+                                                    <div class="text-xs">
+                                                        {{ $attempt['error'] }}
+                                                    </div>
+                                                </div>
+                                            @elseif($attempt['success'])
+                                                <span class="text-green-600">تم الإرسال بنجاح ✅</span>
+                                            @else
+                                                <span class="text-gray-400">قيد المعالجة...</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="text-center py-8 bg-gray-50 rounded-lg">
+                        <div class="text-4xl mb-2">📭</div>
+                        <p class="text-gray-600">لا توجد محاولات إرسال للعرض</p>
+                        <p class="text-sm text-gray-500 mt-1">سيتم عرض المحاولات هنا عند إرسال طلبات لشركة الشحن</p>
+                    </div>
+                @endif
+            </div>
+
             <!-- Filters -->
             <div class="bg-white rounded-lg shadow-md p-4 mb-6">
                 <form method="GET" action="{{ route('logs.index') }}" class="flex flex-wrap gap-4 items-end">

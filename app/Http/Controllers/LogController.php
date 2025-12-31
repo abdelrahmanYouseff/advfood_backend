@@ -124,7 +124,10 @@ class LogController extends Controller
             ]);
         }
 
-        return view('logs.index', compact('logs', 'stats', 'lines', 'filter', 'level'));
+        // Analyze shipping status from logs
+        $shippingStatus = $this->analyzeShippingStatus($logFile);
+
+        return view('logs.index', compact('logs', 'stats', 'lines', 'filter', 'level', 'shippingStatus'));
     }
 
     public function clear()
@@ -169,6 +172,183 @@ class LogController extends Controller
         $base = log($size, 1024);
         $suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
         return round(pow(1024, $base - floor($base)), $precision) . ' ' . $suffixes[floor($base)];
+    }
+
+    /**
+     * Analyze shipping status from logs
+     * Extract information about orders sent to Shadda shipping company
+     */
+    private function analyzeShippingStatus($logFile)
+    {
+        $shippingAttempts = [];
+        $currentAttempt = null;
+
+        if (!File::exists($logFile)) {
+            return [
+                'attempts' => [],
+                'summary' => [
+                    'total' => 0,
+                    'success' => 0,
+                    'failed' => 0,
+                ],
+            ];
+        }
+
+        // Read last 2000 lines to find shipping attempts
+        $fileSize = File::size($logFile);
+        if ($fileSize > 10 * 1024 * 1024) {
+            $command = "tail -n 2000 " . escapeshellarg($logFile);
+            $fileContent = shell_exec($command);
+            $allLines = explode("\n", $fileContent);
+        } else {
+            $fileContent = File::get($logFile);
+            $allLines = explode("\n", $fileContent);
+            $allLines = array_reverse($allLines);
+            $selectedLines = array_slice($allLines, 0, 2000);
+            $allLines = array_reverse($selectedLines);
+        }
+
+        foreach ($allLines as $line) {
+            if (empty(trim($line))) {
+                continue;
+            }
+
+            // Detect start of shipping attempt
+            if (stripos($line, 'SHADDASHIPPINGSERVICE::createOrder CALLED') !== false ||
+                stripos($line, '📦 SHADDASHIPPINGSERVICE::createOrder CALLED') !== false) {
+                // Extract order info
+                preg_match('/order_id["\']?\s*=>\s*(\d+)/i', $line, $orderIdMatch);
+                preg_match('/order_number["\']?\s*=>\s*([^\s,}]+)/i', $line, $orderNumberMatch);
+                
+                $currentAttempt = [
+                    'order_id' => $orderIdMatch[1] ?? null,
+                    'order_number' => $orderNumberMatch[1] ?? null,
+                    'status' => 'processing',
+                    'timestamp' => $this->extractTimestamp($line),
+                    'error' => null,
+                    'success' => false,
+                ];
+            }
+
+            // Detect success
+            if ($currentAttempt && (
+                stripos($line, 'Order successfully sent to shipping company') !== false ||
+                stripos($line, '🎉 Order successfully sent to shipping company') !== false ||
+                stripos($line, '✅ Order successfully sent') !== false
+            )) {
+                $currentAttempt['status'] = 'success';
+                $currentAttempt['success'] = true;
+                
+                // Extract dsp_order_id if available
+                preg_match('/dsp_order_id["\']?\s*=>\s*([^\s,}]+)/i', $line, $dspMatch);
+                $currentAttempt['dsp_order_id'] = $dspMatch[1] ?? null;
+                
+                $shippingAttempts[] = $currentAttempt;
+                $currentAttempt = null;
+            }
+
+            // Detect failure
+            if ($currentAttempt && (
+                stripos($line, 'Failed to send order to shipping company') !== false ||
+                stripos($line, '❌ Failed to send order to shipping company') !== false ||
+                stripos($line, '🔴') !== false && stripos($line, 'shipping') !== false
+            )) {
+                $currentAttempt['status'] = 'failed';
+                $currentAttempt['success'] = false;
+                
+                // Extract error message
+                $errorMessage = $this->extractErrorMessage($line);
+                if (empty($currentAttempt['error'])) {
+                    $currentAttempt['error'] = $errorMessage;
+                }
+            }
+
+            // Extract detailed error information
+            if ($currentAttempt && $currentAttempt['status'] === 'failed') {
+                if (stripos($line, 'http_status') !== false) {
+                    preg_match('/http_status["\']?\s*=>\s*(\d+)/i', $line, $statusMatch);
+                    if (isset($statusMatch[1])) {
+                        $currentAttempt['http_status'] = $statusMatch[1];
+                    }
+                }
+                
+                if (stripos($line, 'error_message') !== false || stripos($line, 'message') !== false) {
+                    $errorMsg = $this->extractErrorMessage($line);
+                    if (!empty($errorMsg) && empty($currentAttempt['error'])) {
+                        $currentAttempt['error'] = $errorMsg;
+                    }
+                }
+
+                // Check for specific error types
+                if (stripos($line, '422') !== false || stripos($line, 'Validation Error') !== false) {
+                    $currentAttempt['error_type'] = 'Validation Error (422)';
+                    if (stripos($line, 'branch') !== false || stripos($line, 'shop_id') !== false) {
+                        $currentAttempt['error'] = 'خطأ في shop_id أو branchId - يرجى التحقق من shop_id في جدول المطاعم';
+                    }
+                } elseif (stripos($line, '401') !== false) {
+                    $currentAttempt['error_type'] = 'Authentication Error (401)';
+                    $currentAttempt['error'] = 'خطأ في المصادقة - يرجى التحقق من SHADDA_CLIENT_ID و SHADDA_SECRET_KEY';
+                } elseif (stripos($line, '404') !== false) {
+                    $currentAttempt['error_type'] = 'Not Found (404)';
+                    $currentAttempt['error'] = 'Endpoint غير موجود - يرجى التحقق من SHADDA_API_URL';
+                } elseif (stripos($line, 'Connection Exception') !== false || stripos($line, 'Connection') !== false) {
+                    $currentAttempt['error_type'] = 'Connection Error';
+                    $currentAttempt['error'] = 'خطأ في الاتصال - يرجى التحقق من الاتصال بالإنترنت أو عنوان API';
+                }
+            }
+
+            // If we have a failed attempt and find a new attempt, save the failed one
+            if ($currentAttempt && $currentAttempt['status'] === 'failed' && 
+                (stripos($line, 'SHADDASHIPPINGSERVICE::createOrder CALLED') !== false)) {
+                $shippingAttempts[] = $currentAttempt;
+                $currentAttempt = null;
+            }
+        }
+
+        // Save last attempt if still processing
+        if ($currentAttempt) {
+            $shippingAttempts[] = $currentAttempt;
+        }
+
+        // Get only last 20 attempts
+        $shippingAttempts = array_slice(array_reverse($shippingAttempts), 0, 20);
+
+        // Calculate summary
+        $summary = [
+            'total' => count($shippingAttempts),
+            'success' => count(array_filter($shippingAttempts, fn($a) => $a['success'])),
+            'failed' => count(array_filter($shippingAttempts, fn($a) => !$a['success'])),
+        ];
+
+        return [
+            'attempts' => $shippingAttempts,
+            'summary' => $summary,
+        ];
+    }
+
+    private function extractTimestamp($line)
+    {
+        // Try to extract timestamp from log line
+        // Format: [2024-01-01 12:00:00] or similar
+        preg_match('/\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\]/', $line, $match);
+        return $match[1] ?? date('Y-m-d H:i:s');
+    }
+
+    private function extractErrorMessage($line)
+    {
+        // Try to extract error message from log line
+        preg_match('/message["\']?\s*=>\s*["\']?([^"\']+)["\']?/i', $line, $match);
+        if (isset($match[1])) {
+            return trim($match[1]);
+        }
+        
+        // Try alternative patterns
+        preg_match('/error["\']?\s*=>\s*["\']?([^"\']+)["\']?/i', $line, $match);
+        if (isset($match[1])) {
+            return trim($match[1]);
+        }
+
+        return null;
     }
 }
 
