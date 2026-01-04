@@ -580,7 +580,7 @@ const playOrderAnnouncement = (order: any) => {
     }
 
     const dailyNumber = getDailyOrderNumber(order);
-    const message = `New Order Number ${dailyNumber}`;
+    const message = `Order Number ${dailyNumber}`;
 
     // Cancel any pending speech
     if (speechSynthesis.speaking || speechSynthesis.pending) {
@@ -651,7 +651,10 @@ const startOrderAnnouncement = (order: any) => {
         return;
     }
 
-    // Play immediately
+    // Play sound first
+    playNotificationSound();
+
+    // Play announcement immediately
     playOrderAnnouncement(order);
 
     // Repeat every 5 seconds until order is accepted
@@ -662,11 +665,13 @@ const startOrderAnnouncement = (order: any) => {
             stopOrderAnnouncement(order.id);
             return;
         }
+        // Play sound and announcement
+        playNotificationSound();
         playOrderAnnouncement(currentOrder);
     }, 5000);
 
     announcementIntervals.set(order.id, intervalId);
-    console.log(`🔔 Started announcement for order ${order.id}`);
+    console.log(`🔔 Started announcement for order ${order.id} - will repeat every 5 seconds until accepted`);
 };
 
 // Stop announcement for an order
@@ -736,26 +741,22 @@ const checkForOrdersWithSound = () => {
         return;
     }
 
-    // Sort orders by creation date (newest first)
-    const sortedOrders = [...ordersNeedingSound].sort((a: any, b: any) => {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-    // Only announce the newest order
-    const newestOrder: any = sortedOrders[0];
-
-    // Stop announcements for all other orders (older ones)
-    announcementIntervals.forEach((intervalId, orderId) => {
-        if (orderId !== newestOrder.id) {
-            stopOrderAnnouncement(orderId);
+    // Start announcement for ALL unaccepted orders (not just newest)
+    // This ensures all pending orders get announced until accepted
+    ordersNeedingSound.forEach((order: any) => {
+        if (!announcementIntervals.has(order.id)) {
+            console.log(`🔔 Starting announcement for order: ${order.id} (daily number: ${getDailyOrderNumber(order)})`);
+            startOrderAnnouncement(order);
         }
     });
 
-    // Start announcement only for the newest order if not already announcing
-    if (!announcementIntervals.has(newestOrder.id)) {
-        console.log(`🔔 Starting announcement for newest order: ${newestOrder.id} (daily number: ${getDailyOrderNumber(newestOrder)})`);
-        startOrderAnnouncement(newestOrder);
-    }
+    // Stop announcements for orders that are no longer unaccepted
+    announcementIntervals.forEach((intervalId, orderId) => {
+        const order = props.orders.find((o: any) => o.id === orderId);
+        if (!order || !isUnacceptedOrder(order)) {
+            stopOrderAnnouncement(orderId);
+        }
+    });
 
     // Legacy continuous sound - keep for backward compatibility but prioritize voice announcements
     const ordersWithSound = filteredOrders.value.filter((order: any) => order.sound === true);
