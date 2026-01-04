@@ -5,13 +5,13 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createSSRApp, DefineComponent, h } from 'vue';
 import { ZiggyVue } from 'ziggy-js';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = 'AdvFood - System';
 
 createServer((page) =>
     createInertiaApp({
         page,
         render: renderToString,
-        title: (title) => title ? `${title} - ${appName}` : appName,
+        title: (title) => title || appName,
         resolve: resolvePage,
         setup: ({ App, props, plugin }) =>
             createSSRApp({ render: () => h(App, props) })
