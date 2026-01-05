@@ -408,12 +408,17 @@ const startDriverStatusPolling = () => {
     driverStatusInterval = setInterval(poll, 15000);
 };
 
-// Sound notification for new orders
+// Sound notification for new orders - Enhanced with multiple fallback methods
 const playNotificationSound = () => {
-    if (!soundEnabled.value) return; // Don't play sound if disabled
+    if (!soundEnabled.value) {
+        console.log('🔇 Sound is disabled');
+        return;
+    }
 
+    console.log('🔊 Attempting to play notification sound...');
+
+    // Method 1: Web Audio API (primary method)
     try {
-        // Create audio context for notification sound
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
@@ -421,18 +426,78 @@ const playNotificationSound = () => {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
-        // Create a pleasant notification sound
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-        oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+        // Create a loud, attention-grabbing notification sound
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.2);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.3);
 
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime); // Louder volume
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
 
         oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3);
+        oscillator.stop(audioContext.currentTime + 0.4);
+        console.log('✅ Sound played using Web Audio API');
     } catch (error) {
-        console.log('Audio not supported or blocked by browser');
+        console.warn('⚠️ Web Audio API failed, trying fallback method:', error);
+        
+        // Method 2: HTML5 Audio fallback
+        try {
+            const audio = new Audio();
+            // Create a data URL for a beep sound
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const destination = audioContext.createMediaStreamDestination();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(destination);
+            
+            oscillator.frequency.value = 1000;
+            gainNode.gain.value = 0.5;
+            
+            const mediaRecorder = new MediaRecorder(destination.stream);
+            const chunks: Blob[] = [];
+            
+            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'audio/ogg' });
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audio.volume = 1.0;
+                audio.play().catch(err => console.warn('Audio play failed:', err));
+            };
+            
+            oscillator.start();
+            mediaRecorder.start();
+            setTimeout(() => {
+                oscillator.stop();
+                mediaRecorder.stop();
+            }, 400);
+        } catch (error2) {
+            console.warn('⚠️ HTML5 Audio fallback also failed:', error2);
+            
+            // Method 3: Simple beep using system beep (if available)
+            try {
+                // Try to use system beep
+                if (typeof (window as any).beep === 'function') {
+                    (window as any).beep();
+                } else {
+                    // Last resort: Create a very simple beep
+                    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.connect(g);
+                    g.connect(ctx.destination);
+                    osc.frequency.value = 1000;
+                    g.gain.value = 0.5;
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.3);
+                }
+            } catch (error3) {
+                console.error('❌ All sound methods failed:', error3);
+            }
+        }
     }
 };
 
@@ -651,11 +716,15 @@ const startOrderAnnouncement = (order: any) => {
         return;
     }
 
-    // Play sound first
+    // Play sound first (multiple times to ensure it's heard)
     playNotificationSound();
+    setTimeout(() => playNotificationSound(), 200);
+    setTimeout(() => playNotificationSound(), 400);
 
     // Play announcement immediately
-    playOrderAnnouncement(order);
+    setTimeout(() => {
+        playOrderAnnouncement(order);
+    }, 600);
 
     // Repeat every 5 seconds until order is accepted
     const intervalId = setInterval(() => {
@@ -665,9 +734,12 @@ const startOrderAnnouncement = (order: any) => {
             stopOrderAnnouncement(order.id);
             return;
         }
-        // Play sound and announcement
+        // Play sound multiple times and announcement
         playNotificationSound();
-        playOrderAnnouncement(currentOrder);
+        setTimeout(() => playNotificationSound(), 200);
+        setTimeout(() => {
+            playOrderAnnouncement(currentOrder);
+        }, 400);
     }, 5000);
 
     announcementIntervals.set(order.id, intervalId);
@@ -719,7 +791,10 @@ const checkForOrdersWithSound = () => {
     newOrders.forEach((order: any) => {
         if (!notifiedNewOrders.value.has(order.id)) {
             console.log(`🔔 New order detected: ${order.id} - Playing notification sound`);
+            // Play sound multiple times to ensure it's heard
             playNotificationSound();
+            setTimeout(() => playNotificationSound(), 300);
+            setTimeout(() => playNotificationSound(), 600);
             notifiedNewOrders.value.add(order.id);
         }
     });
@@ -1039,11 +1114,14 @@ onMounted(() => {
                     newlyAddedOrders.forEach((order: any) => {
                         if (!notifiedNewOrders.value.has(order.id)) {
                             console.log(`🔔 Playing sound immediately for new order: ${order.id} (${order.order_number})`);
+                            // Play sound multiple times to ensure it's heard
                             playNotificationSound();
+                            setTimeout(() => playNotificationSound(), 300);
+                            setTimeout(() => playNotificationSound(), 600);
                             notifiedNewOrders.value.add(order.id);
                         }
                     });
-                    // Also check for orders with sound enabled
+                    // Also check for orders with sound enabled and start announcements
                     checkForOrdersWithSound();
                 } else {
                     // Check for orders with sound enabled (even if no new orders)
