@@ -35,7 +35,8 @@ class AdController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:20480',
+
         ]);
 
         // Handle image upload
@@ -91,7 +92,7 @@ class AdController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
             'link' => 'nullable|url',
             'type' => 'required|in:banner,popup,sidebar',
             'position' => 'required|in:top,bottom,left,right,center',
