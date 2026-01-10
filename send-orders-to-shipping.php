@@ -32,26 +32,26 @@ foreach ($orders as $order) {
     echo "   المطعم: {$order->restaurant->name}\n";
     echo "   shop_id: {$order->shop_id}\n";
     echo "   shipping_provider: " . ($order->shipping_provider ?? 'NULL') . "\n";
-    
+
     try {
         // Get shipping provider
         $provider = $order->shipping_provider ?? \App\Models\AppSetting::get('default_shipping_provider', 'shadda');
-        
+
         echo "   استخدام شركة الشحن: {$provider}\n";
-        
+
         // Get shipping service
         $shippingService = ShippingServiceFactory::getService($provider);
-        
+
         // Send order to shipping
         $shippingResult = $shippingService->createOrder($order);
-        
+
         if ($shippingResult && isset($shippingResult['dsp_order_id'])) {
             // Update order with shipping information
             $order->dsp_order_id = $shippingResult['dsp_order_id'];
             $order->shipping_status = $shippingResult['shipping_status'] ?? 'New Order';
             $order->shipping_provider = $shippingResult['shipping_provider'] ?? $provider;
             $order->save();
-            
+
             echo "   ✅ تم إرسال الطلب بنجاح!\n";
             echo "   📝 dsp_order_id: {$order->dsp_order_id}\n";
             echo "   📊 shipping_status: {$order->shipping_status}\n";
@@ -64,7 +64,7 @@ foreach ($orders as $order) {
         echo "   ❌ خطأ أثناء إرسال الطلب: " . $e->getMessage() . "\n";
         echo "   📄 Trace: " . substr($e->getTraceAsString(), 0, 200) . "...\n";
     }
-    
+
     echo "\n";
 }
 
