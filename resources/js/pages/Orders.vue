@@ -1090,6 +1090,13 @@ onMounted(() => {
     props.orders.forEach((order: any) => {
         if (isNewOrder(order)) {
             notifiedNewOrders.value.add(order.id);
+            // Start voice announcement for existing new orders on page load
+            if (isUnacceptedOrder(order)) {
+                console.log(`🔊 Starting voice announcement for existing new order on page load: ${order.id} (${order.order_number})`);
+                setTimeout(() => {
+                    startOrderAnnouncement(order);
+                }, 1000); // Start after 1 second to allow page to fully load
+            }
         }
     });
 
@@ -1126,6 +1133,14 @@ onMounted(() => {
                             setTimeout(() => playNotificationSound(), 300);
                             setTimeout(() => playNotificationSound(), 600);
                             notifiedNewOrders.value.add(order.id);
+                            
+                            // Start voice announcement immediately for new orders
+                            if (isUnacceptedOrder(order)) {
+                                console.log(`🔊 Starting voice announcement for new order: ${order.id} (${order.order_number})`);
+                                setTimeout(() => {
+                                    startOrderAnnouncement(order);
+                                }, 800); // Start after sound plays
+                            }
                         }
                     });
                     // Also check for orders with sound enabled and start announcements
