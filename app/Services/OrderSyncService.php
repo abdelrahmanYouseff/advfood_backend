@@ -42,14 +42,17 @@ class OrderSyncService
         // Try to get location from whatsapp_msg table using unique Zyda order key
         // الفكرة: لما ييجي اوردر جديد من Zyda، ندور على نفس الكود الفريد في جدول whatsapp_msg
         // ولو لقينا سطر مطابق، ناخد الـ location منه ونحطه في zyda_orders
+        // Optimized query: try exact match first (fastest), then LIKE search (slower but fallback)
         $whatsappLocation = DB::table('whatsapp_msg')
             ->whereNotNull('location')
             ->where(function ($query) use ($zydaOrderKey) {
-                // Exact match or deliver_order text contains the key
+                // Try exact match first (uses index efficiently)
                 $query->where('deliver_order', $zydaOrderKey)
-                      ->orWhere('deliver_order', 'like', '%' . $zydaOrderKey . '%');
+                      // Fallback: LIKE search if exact match fails (uses index prefix)
+                      ->orWhere('deliver_order', 'like', $zydaOrderKey . '%');
             })
             ->orderByDesc('id')
+            ->limit(1) // Only need the most recent match
             ->value('location');
 
         // النهائي: لو في لوكيشن من الواتساب نستخدمه، لو لأ نستخدم اللي جاي من Zyda (لو موجود)
@@ -92,22 +95,37 @@ class OrderSyncService
         } else {
             // If order already exists and we now have location from WhatsApp, update it once
             // ثم فوراً نستخدم هذا اللوكيشن لنقل الطلب إلى جدول Orders عبر updateLocation API
-            if (!empty($whatsappLocation) && empty($existingOrder->location ?? null)) {
-                DB::table('zyda_orders')
-                    ->where('id', $existingOrder->id)
-                    ->update([
-                        'location' => $whatsappLocation,
-                        'updated_at' => Carbon::now(),
+            // إذا كان location موجود من whatsapp_msg ولم يتم إنشاء Order بعد
+            if (!empty($whatsappLocation)) {
+                $shouldUpdate = false;
+                
+                // تحديث إذا كان location غير موجود
+                if (empty($existingOrder->location ?? null)) {
+                    $shouldUpdate = true;
+                }
+                // أو إذا كان location موجود لكن Order لم يتم إنشاؤه بعد
+                elseif (empty($existingOrder->order_id)) {
+                    $shouldUpdate = true;
+                }
+                
+                if ($shouldUpdate) {
+                    DB::table('zyda_orders')
+                        ->where('id', $existingOrder->id)
+                        ->update([
+                            'location' => $whatsappLocation,
+                            'updated_at' => Carbon::now(),
+                        ]);
+
+                    Log::info('✅ Zyda order location updated from whatsapp_msg', [
+                        'zyda_order_id' => $existingOrder->id,
+                        'zyda_order_key' => $zydaOrderKey,
+                        'location_from_whatsapp' => $whatsappLocation,
+                        'reason' => empty($existingOrder->location ?? null) ? 'location_missing' : 'order_not_created',
                     ]);
 
-                Log::info('✅ Zyda order location updated from whatsapp_msg', [
-                    'zyda_order_id' => $existingOrder->id,
-                    'zyda_order_key' => $zydaOrderKey,
-                    'location_from_whatsapp' => $whatsappLocation,
-                ]);
-
-                // Push to Orders immediately using the same internal flow
-                $this->pushZydaOrderToOrders($existingOrder->id, $whatsappLocation, $zydaOrderKey, 'existing record');
+                    // Push to Orders immediately using the same internal flow
+                    $this->pushZydaOrderToOrders($existingOrder->id, $whatsappLocation, $zydaOrderKey, 'existing record with whatsapp location');
+                }
             }
 
             // Order already exists: skip (don't add duplicate)
@@ -120,16 +138,25 @@ class OrderSyncService
             ]);
         }
 
-        // After saving, try to fetch location from webhook
+        // After saving, process location and create order immediately
         if ($result) {
-            // ما زلنا نحاول نجلب لوكيشن من الـ webhook القديم (للتوافق)
-            $this->fetchLocationFromWebhook($orderData['phone']);
-
-            // فقط عند إنشاء سجل جديد في zyda_orders + وجود لوكيشن (من الواتساب أو من Zyda):
-            // 1) نمرر اللوكيشن النهائي إلى API /api/zyda/orders/{id}/location
-            //    والذي بدوره ينقل الطلب من zyda_orders إلى جدول orders
-            if ($isNewRecord && $zydaOrderId && !empty($finalLocation)) {
-                $this->pushZydaOrderToOrders($zydaOrderId, $finalLocation, $zydaOrderKey, 'new record');
+            // إذا كان location موجود من whatsapp_msg، استخدمه فوراً ولا تنتظر webhook (fast path)
+            if (!empty($finalLocation)) {
+                // Push to Orders immediately (fast path - no webhook delay)
+                if ($isNewRecord && $zydaOrderId) {
+                    $this->pushZydaOrderToOrders($zydaOrderId, $finalLocation, $zydaOrderKey, 'new record with whatsapp location');
+                }
+            } else {
+                // Fallback: جرب webhook فقط إذا لم يتم العثور على location من whatsapp_msg
+                $this->fetchLocationFromWebhook($orderData['phone']);
+                
+                // بعد webhook، جرب مرة أخرى إذا تم العثور على location
+                if ($isNewRecord && $zydaOrderId) {
+                    $updatedZydaOrder = DB::table('zyda_orders')->where('id', $zydaOrderId)->first();
+                    if ($updatedZydaOrder && !empty($updatedZydaOrder->location)) {
+                        $this->pushZydaOrderToOrders($zydaOrderId, $updatedZydaOrder->location, $zydaOrderKey, 'new record with webhook location');
+                    }
+                }
             }
         }
 
@@ -344,11 +371,22 @@ class OrderSyncService
      * to:
      *  1) تحديث zyda_orders.location
      *  2) استخراج الإحداثيات
-     *  3) إنشاء سجل في جدول orders (لو مفيش order_id)
+     *  3) تحديد الفرع الأقرب بناءً على المسافة
+     *  4) إنشاء سجل في جدول orders (لو مفيش order_id)
+     * 
+     * This method is called directly without HTTP overhead for maximum speed.
      */
     protected function pushZydaOrderToOrders(int $zydaOrderId, string $location, string $zydaOrderKey, string $context = 'auto'): void
     {
         try {
+            Log::info('🚀 pushZydaOrderToOrders started', [
+                'zyda_order_id' => $zydaOrderId,
+                'zyda_order_key' => $zydaOrderKey,
+                'context' => $context,
+                'has_location' => !empty($location),
+            ]);
+
+            // Direct call to controller method (no HTTP overhead)
             $controller = app(ZydaOrderController::class);
             $request = Request::create(
                 uri: "/api/zyda/orders/{$zydaOrderId}/location",
@@ -358,7 +396,7 @@ class OrderSyncService
 
             $controller->updateLocation($request, $zydaOrderId);
 
-            Log::info('✅ pushZydaOrderToOrders completed', [
+            Log::info('✅ pushZydaOrderToOrders completed successfully', [
                 'zyda_order_id' => $zydaOrderId,
                 'zyda_order_key' => $zydaOrderKey,
                 'context' => $context,
@@ -371,6 +409,9 @@ class OrderSyncService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+            
+            // Re-throw to allow caller to handle if needed
+            throw $e;
         }
     }
 }
