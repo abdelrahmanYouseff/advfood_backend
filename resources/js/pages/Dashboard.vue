@@ -348,6 +348,10 @@ const savingOrderId = ref<number | null>(null);
 const deletingOrderId = ref<number | null>(null);
 const autoSubmittingIds = ref<Set<number>>(new Set());
 
+// State for nearest branch info
+const nearestBranchInfo = ref<Record<number, { branch: { id: number; name: string }; distance: number } | null>>({});
+const calculatingBranchId = ref<number | null>(null);
+
 // State for sync
 const syncLoading = ref(false);
 const showSyncModal = ref(false);
@@ -373,6 +377,74 @@ watch(zydaOrders, () => {
     // Auto-submit Zyda orders that already have location and no linked Order
     autoSubmitZydaOrders();
 }, { immediate: true });
+
+// Calculate nearest branch function
+const calculateNearestBranch = async (orderId: number) => {
+    const location = editingLocations.value[orderId] || null;
+    
+    if (!location || location.trim() === '') {
+        nearestBranchInfo.value[orderId] = null;
+        return;
+    }
+
+    calculatingBranchId.value = orderId;
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            || getCookie('XSRF-TOKEN')
+            || '';
+
+        const response = await fetch('/api/zyda/orders/calculate-nearest-branch', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken || '',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                location: location,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            nearestBranchInfo.value[orderId] = {
+                branch: data.branch,
+                distance: data.distance,
+            };
+        } else {
+            nearestBranchInfo.value[orderId] = null;
+        }
+    } catch (error: any) {
+        console.error('❌ Failed to calculate nearest branch:', error);
+        nearestBranchInfo.value[orderId] = null;
+    } finally {
+        calculatingBranchId.value = null;
+    }
+};
+
+// Watch for location changes to calculate nearest branch
+watch(editingLocations, (newLocations, oldLocations) => {
+    for (const [orderId, location] of Object.entries(newLocations)) {
+        const orderIdNum = parseInt(orderId);
+        const oldLocation = oldLocations[orderIdNum];
+        
+        // Only calculate if location changed and is not empty
+        if (location !== oldLocation && location && location.trim() !== '') {
+            // Debounce: wait 500ms after user stops typing
+            setTimeout(() => {
+                if (editingLocations.value[orderIdNum] === location) {
+                    calculateNearestBranch(orderIdNum);
+                }
+            }, 500);
+        } else if (!location || location.trim() === '') {
+            nearestBranchInfo.value[orderIdNum] = null;
+        }
+    }
+}, { deep: true });
 
 // Update location function
 const updateLocation = async (orderId: number) => {
@@ -1173,24 +1245,35 @@ const deleteWhatsappMessage = async (messageId: number) => {
 
                                     <!-- Location (editable) -->
                                     <td class="px-4 py-3">
-                                        <div class="flex items-center gap-2">
-                                            <input
-                                                v-model="editingLocations[order.id]"
-                                                type="text"
-                                                :placeholder="order.location || t('أدخل الموقع', 'Enter location')"
-                                                class="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                            />
-                                            <button
-                                                @click="updateLocation(order.id)"
-                                                :disabled="savingOrderId === order.id"
-                                                class="inline-flex items-center gap-1 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                <Save class="h-3.5 w-3.5" />
-                                                <span v-if="savingOrderId !== order.id">
-                                                    {{ t('حفظ', 'Save') }}
-                                                </span>
-                                                <span v-else>...</span>
-                                            </button>
+                                        <div class="space-y-2">
+                                            <div class="flex items-center gap-2">
+                                                <input
+                                                    v-model="editingLocations[order.id]"
+                                                    type="text"
+                                                    :placeholder="order.location || t('أدخل الموقع', 'Enter location')"
+                                                    class="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                />
+                                                <button
+                                                    @click="updateLocation(order.id)"
+                                                    :disabled="savingOrderId === order.id"
+                                                    class="inline-flex items-center gap-1 rounded-md bg-gray-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    <Save class="h-3.5 w-3.5" />
+                                                    <span v-if="savingOrderId !== order.id">
+                                                        {{ t('حفظ', 'Save') }}
+                                                    </span>
+                                                    <span v-else>...</span>
+                                                </button>
+                                            </div>
+                                            <!-- Nearest Branch Info -->
+                                            <div v-if="calculatingBranchId === order.id" class="text-[10px] text-gray-500">
+                                                {{ t('جاري حساب الفرع الأقرب...', 'Calculating nearest branch...') }}
+                                            </div>
+                                            <div v-else-if="nearestBranchInfo[order.id]" class="rounded-md bg-blue-50 px-2 py-1 text-[10px] text-blue-700">
+                                                <span class="font-medium">{{ t('الفرع الأقرب:', 'Nearest Branch:') }}</span>
+                                                <span class="mr-1">{{ nearestBranchInfo[order.id].branch.name }}</span>
+                                                <span class="text-blue-600">({{ nearestBranchInfo[order.id].distance }} km)</span>
+                                            </div>
                                         </div>
                                     </td>
 

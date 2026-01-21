@@ -23,6 +23,72 @@ class ZydaOrderController extends Controller
     {
     }
 
+    /**
+     * Calculate nearest branch based on location
+     */
+    public function calculateNearestBranch(Request $request)
+    {
+        $validated = $request->validate([
+            'location' => 'required|string|max:2048',
+        ]);
+
+        try {
+            // Parse location to get coordinates
+            $locationData = $this->parseLocationAndExtractUrl($validated['location']);
+            $coordinates = $locationData['coordinates'] ?? null;
+
+            if (!$coordinates || empty($coordinates['latitude']) || empty($coordinates['longitude'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Could not extract coordinates from location',
+                ], 400);
+            }
+
+            // Find nearest branch
+            $branch = \App\Services\BranchService::findNearestBranch(
+                (float) $coordinates['latitude'],
+                (float) $coordinates['longitude']
+            );
+
+            if (!$branch) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active branches found',
+                ], 404);
+            }
+
+            // Calculate distance
+            $distance = \App\Services\BranchService::calculateDistance(
+                (float) $coordinates['latitude'],
+                (float) $coordinates['longitude'],
+                (float) $branch->latitude,
+                (float) $branch->longitude
+            );
+
+            return response()->json([
+                'success' => true,
+                'branch' => [
+                    'id' => $branch->id,
+                    'name' => $branch->name,
+                    'latitude' => $branch->latitude,
+                    'longitude' => $branch->longitude,
+                ],
+                'distance' => round($distance, 2),
+                'coordinates' => $coordinates,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ Error calculating nearest branch', [
+                'error' => $e->getMessage(),
+                'location' => $validated['location'],
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error calculating nearest branch: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function store(Request $request)
     {
         try {
