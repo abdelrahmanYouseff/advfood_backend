@@ -641,71 +641,132 @@ const isUnacceptedOrder = (order: any): boolean => {
 // Play female voice announcement for an order
 const playOrderAnnouncement = (order: any) => {
     if (!('speechSynthesis' in window) || !soundEnabled.value) {
+        console.warn('⚠️ Speech synthesis not available or sound disabled');
         return;
     }
 
     const dailyNumber = getDailyOrderNumber(order);
     const message = `Order Number ${dailyNumber}`;
 
-    // Cancel any pending speech
+    console.log(`🔊 Attempting to play announcement: "${message}" for order ${order.id}`);
+
+    // Cancel any pending speech to avoid queue issues
     if (speechSynthesis.speaking || speechSynthesis.pending) {
+        console.log('🛑 Canceling existing speech before new announcement');
         speechSynthesis.cancel();
+        // Wait a bit for cancellation to complete
+        setTimeout(() => doSpeakOrder(message, order), 100);
+    } else {
+        doSpeakOrder(message, order);
     }
+};
 
-    // Get voices
+// Separate function for actual speaking to improve reliability
+const doSpeakOrder = (message: string, order: any) => {
+    // Get voices - try multiple times if needed
     let voices = speechSynthesis.getVoices();
-
-    const speak = () => {
-        if (voices.length === 0) {
+    
+    // If no voices, wait for them to load
+    if (voices.length === 0) {
+        console.log('⏳ No voices available, waiting for voices to load...');
+        const loadVoices = () => {
             voices = speechSynthesis.getVoices();
-            if (voices.length === 0) {
-                setTimeout(speak, 100);
-                return;
-            }
-        }
-
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.2;
-        utterance.volume = 1;
-
-        // Find female voice
-        const femaleVoice = voices.find(v =>
-            v.name.toLowerCase().includes('samantha') ||
-            v.name.toLowerCase().includes('zira') ||
-            v.name.toLowerCase().includes('hazel') ||
-            v.name.toLowerCase().includes('karen') ||
-            v.name.toLowerCase().includes('susan') ||
-            (v.name.toLowerCase().includes('female') && v.lang.includes('en'))
-        ) || voices.find(v => v.lang.includes('en-US')) || voices.find(v => v.lang.includes('en')) || voices[0];
-
-        if (femaleVoice) {
-            utterance.voice = femaleVoice;
-        }
-
-        utterance.onerror = (e: any) => {
-            if (e.error !== 'canceled' && e.error !== 'interrupted') {
-                console.error('Speech error for order', order.id, ':', e.error);
+            if (voices.length > 0) {
+                console.log(`✅ Loaded ${voices.length} voices`);
+                createAndSpeakUtterance(message, order, voices);
+            } else {
+                // Retry with exponential backoff
+                setTimeout(loadVoices, 100);
             }
         };
+        
+        // Set up voices changed listener (important for Chrome)
+        speechSynthesis.onvoiceschanged = () => {
+            voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                console.log(`✅ Voices loaded via event: ${voices.length}`);
+                createAndSpeakUtterance(message, order, voices);
+            }
+        };
+        
+        // Also try loading immediately
+        loadVoices();
+        return;
+    }
+    
+    createAndSpeakUtterance(message, order, voices);
+};
 
-        try {
-            speechSynthesis.speak(utterance);
-            console.log(`🔊 Announced: ${message} for order ${order.id}`);
-        } catch (error) {
-            console.error('Error speaking:', error);
+// Create and speak the utterance
+const createAndSpeakUtterance = (message: string, order: any, voices: SpeechSynthesisVoice[]) => {
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9; // Slightly slower for clarity
+    utterance.pitch = 1.3; // Higher pitch for more feminine sound
+    utterance.volume = 1.0; // Maximum volume
+
+    // Find female voice - expanded list of female voice names
+    const femaleVoiceNames = [
+        'samantha', 'zira', 'hazel', 'karen', 'susan', 'victoria', 'samantha',
+        'samantha premium', 'samantha enhanced', 'samantha (enhanced)',
+        'samantha (premium)', 'samantha (enhanced)', 'samantha (premium)',
+        'samantha enhanced', 'samantha premium', 'samantha (enhanced)',
+        'samantha (premium)', 'samantha (enhanced)', 'samantha (premium)',
+        'female', 'woman', 'woman voice', 'female voice'
+    ];
+
+    // Try to find a female voice
+    let femaleVoice = voices.find(v => {
+        const nameLower = v.name.toLowerCase();
+        return femaleVoiceNames.some(femaleName => nameLower.includes(femaleName)) && 
+               (v.lang.includes('en-US') || v.lang.includes('en'));
+    });
+
+    // Fallback: try any English voice
+    if (!femaleVoice) {
+        femaleVoice = voices.find(v => v.lang.includes('en-US')) || 
+                     voices.find(v => v.lang.includes('en')) || 
+                     voices[0];
+    }
+
+    if (femaleVoice) {
+        utterance.voice = femaleVoice;
+        console.log(`🎤 Using voice: ${femaleVoice.name} (${femaleVoice.lang})`);
+    } else {
+        console.warn('⚠️ No voice selected, using default');
+    }
+
+    // Event handlers for better debugging
+    utterance.onstart = () => {
+        console.log(`✅ ✅ ✅ الصوت الأنثوي بدأ! "${message}"`);
+    };
+
+    utterance.onend = () => {
+        console.log(`✅ ✅ ✅ انتهى الصوت الأنثوي بنجاح! "${message}"`);
+    };
+
+    utterance.onerror = (e: any) => {
+        if (e.error !== 'canceled' && e.error !== 'interrupted') {
+            console.error(`❌ خطأ في الصوت الأنثوي:`, e.error, e);
+        } else {
+            console.log(`ℹ️ Speech was ${e.error}`);
         }
     };
 
-    // Set up voices if needed
-    if (voices.length === 0) {
-        speechSynthesis.onvoiceschanged = () => {
-            voices = speechSynthesis.getVoices();
-            speak();
-        };
-    } else {
-        speak();
+    try {
+        // Cancel any pending speech before speaking
+        if (speechSynthesis.pending) {
+            speechSynthesis.cancel();
+            setTimeout(() => {
+                speechSynthesis.speak(utterance);
+                console.log(`🔊 speechSynthesis.speak() called for: "${message}"`);
+            }, 50);
+        } else {
+            speechSynthesis.speak(utterance);
+            console.log(`🔊 speechSynthesis.speak() called for: "${message}"`);
+        }
+    } catch (error: any) {
+        console.error('❌ Error in speechSynthesis.speak():', error);
     }
 };
 
@@ -713,37 +774,44 @@ const playOrderAnnouncement = (order: any) => {
 const startOrderAnnouncement = (order: any) => {
     // Stop if already announcing
     if (announcementIntervals.has(order.id)) {
+        console.log(`ℹ️ Already announcing for order ${order.id}, skipping`);
         return;
     }
+
+    console.log(`🔔 Starting announcement for order ${order.id} (${order.order_number})`);
 
     // Play sound first (multiple times to ensure it's heard)
     playNotificationSound();
     setTimeout(() => playNotificationSound(), 200);
     setTimeout(() => playNotificationSound(), 400);
 
-    // Play announcement immediately
+    // Play announcement immediately after sound (shorter delay for faster response)
     setTimeout(() => {
-    playOrderAnnouncement(order);
-    }, 600);
+        console.log(`🔊 Playing initial announcement for order ${order.id}`);
+        playOrderAnnouncement(order);
+    }, 500);
 
     // Repeat every 5 seconds until order is accepted
     const intervalId = setInterval(() => {
         // Check if order still needs announcement
         const currentOrder = props.orders.find(o => o.id === order.id);
         if (!currentOrder || !isUnacceptedOrder(currentOrder)) {
+            console.log(`✅ Order ${order.id} no longer needs announcement, stopping`);
             stopOrderAnnouncement(order.id);
             return;
         }
+        
         // Play sound multiple times and announcement
+        console.log(`🔊 Repeating announcement for order ${order.id}`);
         playNotificationSound();
         setTimeout(() => playNotificationSound(), 200);
         setTimeout(() => {
-        playOrderAnnouncement(currentOrder);
+            playOrderAnnouncement(currentOrder);
         }, 400);
     }, 5000);
 
     announcementIntervals.set(order.id, intervalId);
-    console.log(`🔔 Started announcement for order ${order.id} - will repeat every 5 seconds until accepted`);
+    console.log(`✅ Started announcement for order ${order.id} - will repeat every 5 seconds until accepted`);
 };
 
 // Stop announcement for an order
@@ -1093,9 +1161,10 @@ onMounted(() => {
             // Start voice announcement for existing new orders on page load
             if (isUnacceptedOrder(order)) {
                 console.log(`🔊 Starting voice announcement for existing new order on page load: ${order.id} (${order.order_number})`);
+                // Start after a short delay to allow page to fully load and voices to be ready
                 setTimeout(() => {
                     startOrderAnnouncement(order);
-                }, 1000); // Start after 1 second to allow page to fully load
+                }, 500); // Reduced delay for faster response
             }
         }
     });
@@ -1136,10 +1205,9 @@ onMounted(() => {
                             
                             // Start voice announcement immediately for new orders
                             if (isUnacceptedOrder(order)) {
-                                console.log(`🔊 Starting voice announcement for new order: ${order.id} (${order.order_number})`);
-                                setTimeout(() => {
-                                    startOrderAnnouncement(order);
-                                }, 800); // Start after sound plays
+                                console.log(`🔊 Starting voice announcement IMMEDIATELY for new order: ${order.id} (${order.order_number})`);
+                                // Start immediately (no delay) to ensure fast response
+                                startOrderAnnouncement(order);
                             }
                         }
                     });
