@@ -14,6 +14,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Check if branches table exists first
+        if (!Schema::hasTable('branches')) {
+            // Table doesn't exist, skip this migration
+            // The recreate migration will handle it
+            return;
+        }
+        
         $connection = DB::connection();
         $dbName = $connection->getDatabaseName();
         
@@ -26,6 +33,20 @@ return new class extends Migration
         
         $existingColumns = array_column($columns, 'COLUMN_NAME');
         
+        // First ensure 'name' column exists (required for 'after' clause)
+        if (!in_array('name', $existingColumns)) {
+            Schema::table('branches', function (Blueprint $table) {
+                $table->string('name')->after('id');
+            });
+            // Refresh existing columns list
+            $columns = DB::select(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS 
+                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'branches'",
+                [$dbName]
+            );
+            $existingColumns = array_column($columns, 'COLUMN_NAME');
+        }
+        
         // Add email column if it doesn't exist
         if (!in_array('email', $existingColumns)) {
             Schema::table('branches', function (Blueprint $table) {
@@ -34,9 +55,17 @@ return new class extends Migration
         } else {
             // Email exists, ensure it has unique constraint
             try {
-                DB::statement('ALTER TABLE branches ADD UNIQUE KEY branches_email_unique (email)');
+                $constraints = DB::select(
+                    "SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS 
+                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'branches' 
+                     AND CONSTRAINT_TYPE = 'UNIQUE' AND CONSTRAINT_NAME LIKE '%email%'",
+                    [$dbName]
+                );
+                if (empty($constraints)) {
+                    DB::statement('ALTER TABLE branches ADD UNIQUE KEY branches_email_unique (email)');
+                }
             } catch (\Exception $e) {
-                // Unique constraint already exists, ignore
+                // Unique constraint might already exist, ignore
             }
         }
         
