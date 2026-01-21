@@ -663,31 +663,48 @@ const playOrderAnnouncement = (order: any) => {
 
 // Separate function for actual speaking to improve reliability
 const doSpeakOrder = (message: string, order: any) => {
+    // Check if speech synthesis is available
+    if (!('speechSynthesis' in window)) {
+        console.error('❌ Speech synthesis not available');
+        return;
+    }
+
     // Get voices - try multiple times if needed
     let voices = speechSynthesis.getVoices();
     
     // If no voices, wait for them to load
     if (voices.length === 0) {
         console.log('⏳ No voices available, waiting for voices to load...');
+        let retryCount = 0;
+        const maxRetries = 20; // Maximum 2 seconds of retries
+        
         const loadVoices = () => {
             voices = speechSynthesis.getVoices();
             if (voices.length > 0) {
-                console.log(`✅ Loaded ${voices.length} voices`);
+                console.log(`✅ Loaded ${voices.length} voices after ${retryCount} retries`);
                 createAndSpeakUtterance(message, order, voices);
-            } else {
+            } else if (retryCount < maxRetries) {
+                retryCount++;
                 // Retry with exponential backoff
                 setTimeout(loadVoices, 100);
+            } else {
+                console.error('❌ Failed to load voices after maximum retries');
+                // Try to speak anyway with default voice
+                createAndSpeakUtterance(message, order, []);
             }
         };
         
         // Set up voices changed listener (important for Chrome)
-        speechSynthesis.onvoiceschanged = () => {
+        const voicesChangedHandler = () => {
             voices = speechSynthesis.getVoices();
             if (voices.length > 0) {
                 console.log(`✅ Voices loaded via event: ${voices.length}`);
+                speechSynthesis.onvoiceschanged = null; // Remove listener
                 createAndSpeakUtterance(message, order, voices);
             }
         };
+        
+        speechSynthesis.onvoiceschanged = voicesChangedHandler;
         
         // Also try loading immediately
         loadVoices();
@@ -699,21 +716,46 @@ const doSpeakOrder = (message: string, order: any) => {
 
 // Create and speak the utterance
 const createAndSpeakUtterance = (message: string, order: any, voices: SpeechSynthesisVoice[]) => {
+    // Ensure we have voices - if not, try to get them again
+    if (!voices || voices.length === 0) {
+        console.warn('⚠️ No voices provided, trying to get voices again...');
+        voices = speechSynthesis.getVoices();
+        if (!voices || voices.length === 0) {
+            console.error('❌ No voices available after retry');
+            // Try one more time after a delay
+            setTimeout(() => {
+                const retryVoices = speechSynthesis.getVoices();
+                if (retryVoices && retryVoices.length > 0) {
+                    console.log('✅ Got voices on retry, speaking now...');
+                    createAndSpeakUtterance(message, order, retryVoices);
+                } else {
+                    console.error('❌ Still no voices available');
+                }
+            }, 200);
+            return;
+        }
+    }
+
     const utterance = new SpeechSynthesisUtterance(message);
     utterance.lang = 'en-US';
-    utterance.rate = 0.9; // Slightly slower for clarity
-    utterance.pitch = 1.3; // Higher pitch for more feminine sound
+    utterance.rate = 0.85; // Slightly slower for clarity
+    utterance.pitch = 1.4; // Higher pitch for more feminine sound (increased from 1.3)
     utterance.volume = 1.0; // Maximum volume
 
-    // Find female voice - expanded list of female voice names
+    // Find female voice - comprehensive list of female voice names
     const femaleVoiceNames = [
-        'samantha', 'zira', 'hazel', 'karen', 'susan', 'victoria', 'samantha',
+        'samantha', 'zira', 'hazel', 'karen', 'susan', 'victoria', 
         'samantha premium', 'samantha enhanced', 'samantha (enhanced)',
-        'samantha (premium)', 'samantha (enhanced)', 'samantha (premium)',
-        'samantha enhanced', 'samantha premium', 'samantha (enhanced)',
-        'samantha (premium)', 'samantha (enhanced)', 'samantha (premium)',
-        'female', 'woman', 'woman voice', 'female voice'
+        'samantha (premium)', 'female', 'woman', 'woman voice', 'female voice',
+        'karen', 'karen enhanced', 'karen (enhanced)', 'karen (premium)',
+        'susan', 'susan enhanced', 'susan (enhanced)', 'susan (premium)',
+        'victoria', 'victoria enhanced', 'victoria (enhanced)', 'victoria (premium)',
+        'zira', 'zira enhanced', 'zira (enhanced)', 'zira (premium)',
+        'hazel', 'hazel enhanced', 'hazel (enhanced)', 'hazel (premium)'
     ];
+
+    // Log all available voices for debugging
+    console.log('🎤 Available voices:', voices.map(v => `${v.name} (${v.lang})`));
 
     // Try to find a female voice
     let femaleVoice = voices.find(v => {
@@ -722,32 +764,52 @@ const createAndSpeakUtterance = (message: string, order: any, voices: SpeechSynt
                (v.lang.includes('en-US') || v.lang.includes('en'));
     });
 
-    // Fallback: try any English voice
+    // Fallback: try any English voice with higher pitch preference
     if (!femaleVoice) {
+        // Try to find any English voice
         femaleVoice = voices.find(v => v.lang.includes('en-US')) || 
                      voices.find(v => v.lang.includes('en')) || 
                      voices[0];
+        
+        // If we found a voice but it's not explicitly female, increase pitch more
+        if (femaleVoice && !femaleVoiceNames.some(name => femaleVoice!.name.toLowerCase().includes(name))) {
+            utterance.pitch = 1.5; // Even higher pitch to sound more feminine
+        }
     }
 
     if (femaleVoice) {
         utterance.voice = femaleVoice;
-        console.log(`🎤 Using voice: ${femaleVoice.name} (${femaleVoice.lang})`);
+        console.log(`🎤 ✅ Using voice: ${femaleVoice.name} (${femaleVoice.lang}) with pitch ${utterance.pitch}`);
     } else {
         console.warn('⚠️ No voice selected, using default');
     }
 
     // Event handlers for better debugging
+    let started = false;
+    let ended = false;
+
     utterance.onstart = () => {
+        started = true;
         console.log(`✅ ✅ ✅ الصوت الأنثوي بدأ! "${message}"`);
     };
 
     utterance.onend = () => {
+        ended = true;
         console.log(`✅ ✅ ✅ انتهى الصوت الأنثوي بنجاح! "${message}"`);
     };
 
     utterance.onerror = (e: any) => {
+        console.error(`❌ خطأ في الصوت الأنثوي:`, e.error, e);
         if (e.error !== 'canceled' && e.error !== 'interrupted') {
-            console.error(`❌ خطأ في الصوت الأنثوي:`, e.error, e);
+            // Try to speak again after a short delay if it's not a cancellation
+            console.log('🔄 Retrying speech after error...');
+            setTimeout(() => {
+                try {
+                    speechSynthesis.speak(utterance);
+                } catch (retryError) {
+                    console.error('❌ Retry also failed:', retryError);
+                }
+            }, 500);
         } else {
             console.log(`ℹ️ Speech was ${e.error}`);
         }
@@ -755,16 +817,34 @@ const createAndSpeakUtterance = (message: string, order: any, voices: SpeechSynt
 
     try {
         // Cancel any pending speech before speaking
-        if (speechSynthesis.pending) {
+        if (speechSynthesis.speaking || speechSynthesis.pending) {
+            console.log('🛑 Canceling existing speech before new announcement');
             speechSynthesis.cancel();
+            // Wait a bit longer for Chrome
             setTimeout(() => {
                 speechSynthesis.speak(utterance);
                 console.log(`🔊 speechSynthesis.speak() called for: "${message}"`);
-            }, 50);
+            }, 150);
         } else {
             speechSynthesis.speak(utterance);
             console.log(`🔊 speechSynthesis.speak() called for: "${message}"`);
         }
+
+        // Verify it started after a delay
+        setTimeout(() => {
+            if (!started && !speechSynthesis.speaking && !speechSynthesis.pending) {
+                console.warn('⚠️ Speech may not have started. Trying again...');
+                // Try once more
+                setTimeout(() => {
+                    try {
+                        speechSynthesis.cancel();
+                        speechSynthesis.speak(utterance);
+                    } catch (retryError) {
+                        console.error('❌ Retry failed:', retryError);
+                    }
+                }, 200);
+            }
+        }, 1000);
     } catch (error: any) {
         console.error('❌ Error in speechSynthesis.speak():', error);
     }
@@ -945,27 +1025,25 @@ const toggleSound = () => {
     localStorage.setItem('orderSoundEnabled', soundEnabled.value.toString());
 };
 
-// Test announcement function - plays "New Order Number 1" once
-const testAnnouncement = () => {
+// Test female voice function - plays "Order Number 1" with female voice
+const testFemaleVoice = () => {
     if (!('speechSynthesis' in window)) {
         alert('❌ Speech synthesis غير مدعوم في هذا المتصفح');
         return;
     }
 
-    console.log('🧪 Test announcement button clicked');
+    console.log('🧪 Test female voice button clicked');
 
-    // For Chrome: Cancel any pending speech first, then wait a bit
-    if (speechSynthesis.speaking || speechSynthesis.pending) {
-        console.log('🛑 Canceling existing speech...');
-        speechSynthesis.cancel();
-        // Chrome needs a bit more time
-        setTimeout(() => {
-            doSpeak();
-        }, 200);
-    } else {
-        // Direct call for immediate execution
-        doSpeak();
-    }
+    // Create a test order object
+    const testOrder = {
+        id: 999999,
+        order_number: 'TEST-001',
+        created_at: new Date().toISOString(),
+        shipping_status: 'New Order'
+    };
+
+    // Play announcement
+    playOrderAnnouncement(testOrder);
 };
 
 // Direct speech function
@@ -1137,18 +1215,36 @@ onMounted(() => {
     }
 
     // Enable speech after first user interaction (required by browsers)
+    // This is critical - browsers block speech synthesis until user interaction
+    let speechEnabled = false;
     const enableSpeechOnInteraction = () => {
-        console.log('✅ User interaction detected - speech enabled');
+        if (speechEnabled) return;
+        
+        console.log('✅ User interaction detected - enabling speech synthesis');
+        speechEnabled = true;
+        
         // Test speech is now enabled by creating a silent utterance
-        const testUtterance = new SpeechSynthesisUtterance('');
-        testUtterance.volume = 0;
-        speechSynthesis.speak(testUtterance);
-        speechSynthesis.cancel(); // Cancel immediately
+        try {
+            const testUtterance = new SpeechSynthesisUtterance('');
+            testUtterance.volume = 0;
+            speechSynthesis.speak(testUtterance);
+            speechSynthesis.cancel(); // Cancel immediately
+            console.log('✅ Speech synthesis enabled successfully');
+        } catch (error) {
+            console.error('❌ Failed to enable speech synthesis:', error);
+        }
     };
 
-    // Add click listener to enable speech (only once)
+    // Add multiple event listeners to ensure speech is enabled
     document.addEventListener('click', enableSpeechOnInteraction, { once: true });
     document.addEventListener('touchstart', enableSpeechOnInteraction, { once: true });
+    document.addEventListener('keydown', enableSpeechOnInteraction, { once: true });
+    window.addEventListener('focus', enableSpeechOnInteraction, { once: true });
+    
+    // Also try to enable immediately if page is already focused
+    if (document.hasFocus()) {
+        setTimeout(enableSpeechOnInteraction, 100);
+    }
 
     // Check for new orders on initial load
     checkForOrdersWithSound();
@@ -1304,6 +1400,12 @@ onMounted(() => {
                             class="ml-2 px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
                         >
                             اختبار الصوت
+                        </button>
+                        <button
+                            @click="testFemaleVoice"
+                            class="ml-2 px-2 py-1 text-xs bg-pink-600 text-white rounded hover:bg-pink-700 dark:bg-pink-500 dark:hover:bg-pink-600"
+                        >
+                            اختبار الصوت الأنثوي
                         </button>
                     </div>
 
