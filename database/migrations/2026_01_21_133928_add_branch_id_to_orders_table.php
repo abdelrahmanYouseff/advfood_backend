@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('branches', function (Blueprint $table) {
-            $table->rememberToken()->after('password');
+        Schema::table('orders', function (Blueprint $table) {
+            $table->foreignId('branch_id')->nullable()->after('restaurant_id')->constrained('branches')->onDelete('set null');
         });
     }
 
@@ -21,8 +21,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('branches', function (Blueprint $table) {
-            $table->dropRememberToken();
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropForeign(['branch_id']);
+            $table->dropColumn('branch_id');
         });
     }
 };

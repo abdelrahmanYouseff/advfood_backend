@@ -243,11 +243,26 @@ class RestLinkController extends Controller
                 'has_coordinates' => !empty($request->customer_latitude) && !empty($request->customer_longitude),
             ]);
 
+            // Find nearest branch based on customer coordinates
+            $branch = null;
+            if (!empty($request->customer_latitude) && !empty($request->customer_longitude)) {
+                $branch = \App\Services\BranchService::findNearestBranch(
+                    (float) $request->customer_latitude,
+                    (float) $request->customer_longitude
+                );
+            }
+
+            // Get shop_id from branch_restaurant_shop_ids if branch is found
+            if ($branch) {
+                $shopId = \App\Models\BranchRestaurantShopId::getShopId($branch->id, $request->restaurant_id) ?? $shopId;
+            }
+
             // Create order in orders table
             $order = \App\Models\Order::create([
                 'order_number' => $orderNumber,
                 'user_id' => $guestUser->id,
                 'restaurant_id' => $request->restaurant_id,
+                'branch_id' => $branch?->id,
                 'shop_id' => $shopId,
                 'status' => 'pending',
                 'source' => 'link',

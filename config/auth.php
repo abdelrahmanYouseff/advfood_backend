@@ -40,6 +40,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'branches' => [
+            'driver' => 'session',
+            'provider' => 'branches',
+        ],
     ],
 
     /*
@@ -69,6 +73,11 @@ return [
         //     'driver' => 'database',
         //     'table' => 'users',
         // ],
+
+        'branches' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Branch::class,
+        ],
     ],
 
     /*

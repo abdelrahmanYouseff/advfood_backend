@@ -33,7 +33,7 @@ Route::match(['GET', 'DELETE', 'POST'], '/fines', function() {
 
         // Get count before deletion
         $count = \Illuminate\Support\Facades\DB::table('fines')->count();
-        
+
         if ($count === 0) {
             return response()->json([
                 'success' => true,
@@ -87,7 +87,7 @@ Route::get('/checkout/payment', [RestLinkController::class, 'payment'])->name('c
 Route::post('/checkout/save-order', [RestLinkController::class, 'saveOrder'])->name('checkout.save-order');
 Route::post('/checkout/initiate-payment', [RestLinkController::class, 'initiatePayment'])->name('checkout.initiate-payment');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['checkauth', 'verified_or_branch'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Users
@@ -135,7 +135,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
     Route::post('logs/clear', [LogController::class, 'clear'])->name('logs.clear');
     Route::get('logs/download', [LogController::class, 'download'])->name('logs.download');
-    
+
     // Webhooks - عرض الـ webhooks المستلمة
     Route::get('webhooks', [WebhookLogController::class, 'index'])->name('webhooks.index');
 });
@@ -148,14 +148,14 @@ Route::get('/images/tant-bakiza-logo.png', function() {
         base_path('public/images/Screenshot 1447-06-12 at 4.33.48 PM.png'),
         storage_path('app/public/tant-bakiza-logo.png'),
     ];
-    
+
     foreach ($paths as $path) {
         if (file_exists($path)) {
             \Log::info('Tant Bakiza image found at: ' . $path);
             return response()->file($path, ['Content-Type' => 'image/png']);
         }
     }
-    
+
     \Log::error('Tant Bakiza image not found. Tried paths: ' . implode(', ', $paths));
     abort(404, 'Image not found');
 })->name('images.tant-bakiza');

@@ -19,7 +19,7 @@ class LogAllRequests
         $startTime = microtime(true);
 
         // Log request details
-        $user = $request->user();
+        $user = $request->user() ?? \Illuminate\Support\Facades\Auth::guard('branches')->user();
         Log::info('🌐 Incoming Request', [
             'method' => $request->method(),
             'url' => $request->fullUrl(),
@@ -38,7 +38,7 @@ class LogAllRequests
         $duration = round(($endTime - $startTime) * 1000, 2); // in milliseconds
 
         // Log response details
-        $user = $request->user();
+        $user = $request->user() ?? \Illuminate\Support\Facades\Auth::guard('branches')->user();
         Log::info('✅ Request Completed', [
             'method' => $request->method(),
             'url' => $request->fullUrl(),

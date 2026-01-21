@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -17,22 +18,33 @@ class OrderController extends Controller
      */
     public function index()
     {
-        $user = request()->user();
+        // Check if user is a branch or regular user
+        $user = Auth::guard('web')->user();
+        $branch = Auth::guard('branches')->user();
+        $isBranch = $branch !== null;
+        $branchId = $branch?->id;
+
         Log::info('📋 Orders page accessed', [
-            'user_id' => $user?->id ?? 'guest',
-            'user_name' => $user?->name ?? 'guest',
+            'type' => $isBranch ? 'branch' : 'user',
+            'id' => $isBranch ? $branchId : $user?->id,
+            'name' => $isBranch ? $branch?->name : $user?->name,
         ]);
 
         // Only show orders that have been successfully paid
         // AND (either not scheduled OR scheduled_for <= now)
-        $orders = Order::with(['user', 'restaurant', 'orderItems.menuItem', 'zydaOrder'])
+        $orderQuery = Order::with(['user', 'restaurant', 'orderItems.menuItem', 'zydaOrder'])
             ->where('payment_status', 'paid')
             ->where(function ($query) {
                 $query->whereNull('scheduled_for')
                       ->orWhere('scheduled_for', '<=', now());
-            })
-            ->latest()
-            ->get();
+            });
+
+        // Apply branch filtering if a branch is logged in
+        if ($isBranch && $branchId) {
+            $orderQuery->where('branch_id', $branchId);
+        }
+
+        $orders = $orderQuery->latest()->get();
 
         // Add calculated fields for each order
         $orders = $orders->map(function ($order) {
@@ -57,11 +69,18 @@ class OrderController extends Controller
 
         // Calculate statistics
         // New orders: orders that haven't been accepted yet (status is pending OR shipping_status is New Order)
-        $totalNewOrders = Order::where('payment_status', 'paid')
+        $statsQuery = Order::where('payment_status', 'paid')
             ->where(function ($query) {
                 $query->whereNull('scheduled_for')
                       ->orWhere('scheduled_for', '<=', now());
-            })
+            });
+
+        // Apply branch filtering if a branch is logged in
+        if ($isBranch && $branchId) {
+            $statsQuery->where('branch_id', $branchId);
+        }
+
+        $totalNewOrders = (clone $statsQuery)
             ->where(function ($query) {
                 $query->where('status', 'pending')
                     ->orWhere('shipping_status', 'New Order');
@@ -75,11 +94,7 @@ class OrderController extends Controller
         // 1. status is 'delivered' or 'cancelled' (any case)
         // 2. shipping_status is 'Delivered' or 'Cancelled' (any case)
         // 3. delivered_at is not null (has delivery timestamp)
-        $totalClosedOrders = Order::where('payment_status', 'paid')
-            ->where(function ($query) {
-                $query->whereNull('scheduled_for')
-                      ->orWhere('scheduled_for', '<=', now());
-            })
+        $totalClosedOrders = (clone $statsQuery)
             ->where(function ($query) {
                 $query->where(function ($q) {
                     // Check status field (case insensitive)
@@ -96,11 +111,7 @@ class OrderController extends Controller
             ->count();
 
         // Debug: Get sample of closed orders to verify logic
-        $sampleClosedOrders = Order::where('payment_status', 'paid')
-            ->where(function ($query) {
-                $query->whereNull('scheduled_for')
-                      ->orWhere('scheduled_for', '<=', now());
-            })
+        $sampleClosedOrders = (clone $statsQuery)
             ->where(function ($query) {
                 $query->where(function ($q) {
                     $q->whereRaw('LOWER(status) = ?', ['delivered'])
@@ -259,10 +270,22 @@ class OrderController extends Controller
             }
         }
 
+        // Find nearest branch based on customer coordinates
+        $branch = null;
+        if ($customerLatitude !== null && $customerLongitude !== null) {
+            $branch = \App\Services\BranchService::findNearestBranch($customerLatitude, $customerLongitude);
+        }
+
+        // Get shop_id from branch_restaurant_shop_ids if branch is found
+        if ($branch) {
+            $shopId = \App\Models\BranchRestaurantShopId::getShopId($branch->id, $validated['restaurant_id']) ?? $shopId;
+        }
+
         $order = Order::create([
             'order_number' => $this->generateOrderNumber(),
             'user_id' => $validated['user_id'],
             'restaurant_id' => $validated['restaurant_id'],
+            'branch_id' => $branch?->id,
             'shop_id' => $shopId,
             'status' => $status,
             'shipping_status' => $statusMap[$status] ?? 'New Order',

@@ -60,7 +60,7 @@ class ZydaOrderController extends Controller
                     'zyda_order_key' => $validated['zyda_order_key'],
                     'phone' => $validated['phone'],
                 ]);
-                
+
                 return response()->json([
                     'success' => true,
                     'operation' => 'skipped',
@@ -174,7 +174,7 @@ class ZydaOrderController extends Controller
             'zyda_order_id' => $id,
             'location' => $incomingLocation,
         ]);
-        
+
         // Initialize coordinates variable
         $coordinates = null;
         $originalUrl = $incomingLocation;
@@ -185,9 +185,9 @@ class ZydaOrderController extends Controller
             Log::info('🔗 Resolving short link to original URL using curl', [
                 'short_link' => $incomingLocation,
             ]);
-            
+
             $resolvedUrl = $this->getFinalUrlFromRedirects($incomingLocation);
-            
+
             if ($resolvedUrl && $resolvedUrl !== $incomingLocation) {
                 // Successfully resolved short link
                 $originalUrl = $resolvedUrl;
@@ -203,7 +203,7 @@ class ZydaOrderController extends Controller
                 ]);
                 $originalUrl = $incomingLocation;
             }
-            
+
             // Try to extract coordinates from original URL
             $locationData = $this->parseLocationAndExtractUrl($originalUrl);
             if ($locationData && isset($locationData['coordinates']) && $locationData['coordinates']) {
@@ -224,15 +224,15 @@ class ZydaOrderController extends Controller
                 $coordinates = $locationData['coordinates'];
             }
         }
-        
+
         // Save original URL (resolved from short link) in database
         $zydaOrder->location = $originalUrl;
-        
+
         // Save coordinates if extracted
         if ($coordinates) {
             $zydaOrder->latitude = $coordinates['latitude'];
             $zydaOrder->longitude = $coordinates['longitude'];
-            
+
             Log::info('✅ Original URL and coordinates saved', [
                 'zyda_order_id' => $id,
                 'original_url' => $originalUrl,
@@ -245,12 +245,12 @@ class ZydaOrderController extends Controller
                 'original_url' => $originalUrl,
             ]);
         }
-        
+
         // Note: status column was removed from zyda_orders table
         // Order status is now determined by order_id presence (null = pending, not null = received)
-        
+
         $zydaOrder->save();
-        
+
         Log::info('💾 Zyda order saved', [
             'zyda_order_id' => $id,
             'location' => $zydaOrder->location,
@@ -267,7 +267,7 @@ class ZydaOrderController extends Controller
                     $existingOrder->customer_latitude = $coordinates['latitude'];
                     $existingOrder->customer_longitude = $coordinates['longitude'];
                     $existingOrder->save();
-                    
+
                     Log::info('✅ Existing order location updated', [
                         'order_id' => $existingOrder->id,
                         'latitude' => $coordinates['latitude'],
@@ -425,7 +425,7 @@ class ZydaOrderController extends Controller
             throw new \Exception("No restaurants found in database. At least one restaurant is required for Zyda orders.");
         }
         $restaurantId = $restaurant->id;
-        
+
         Log::info('✅ Using Gather Us restaurant for Zyda order', [
             'user_id' => $userId,
             'user_name' => $user->name,
@@ -435,32 +435,69 @@ class ZydaOrderController extends Controller
             'note' => 'All Zyda orders are linked to Gather Us restaurant (shop_id = 210)',
         ]);
 
-        // Parse location to get coordinates
+        // Parse location to get coordinates and final URL
         $locationData = $this->parseLocationAndExtractUrl($zydaOrder->location);
         $coordinates = $locationData['coordinates'] ?? null;
-        
-        // IMPORTANT: All Zyda orders must use shop_id = 210 (Gather Us)
-        // This ensures all Zyda orders are sent to the correct branch in shipping company
-        $shopId = $restaurant->shop_id ?? '210';
-        
-        // Force shop_id = 210 for Gather Us (even if restaurant has different shop_id)
-        if ($restaurant->name === 'Gather Us' || $restaurant->shop_id === '210') {
-            $shopId = '210';
-            Log::info('✅ Using shop_id = 210 for Gather Us (Zyda orders)', [
+        $locationLink = $locationData['final_url'] ?? $zydaOrder->location ?? null;
+
+        // Find nearest branch based on customer coordinates
+        $branch = null;
+        if (!empty($coordinates['latitude']) && !empty($coordinates['longitude'])) {
+            $branch = \App\Services\BranchService::findNearestBranch(
+                (float) $coordinates['latitude'],
+                (float) $coordinates['longitude']
+            );
+
+            if ($branch) {
+                Log::info('📍 Nearest branch found for Zyda order', [
+                    'zyda_order_id' => $zydaOrder->id,
+                    'branch_id' => $branch->id,
+                    'branch_name' => $branch->name,
+                    'customer_latitude' => $coordinates['latitude'],
+                    'customer_longitude' => $coordinates['longitude'],
+                    'branch_latitude' => $branch->latitude,
+                    'branch_longitude' => $branch->longitude,
+                ]);
+            }
+        }
+
+        // Get shop_id from branch_restaurant_shop_ids if branch is found
+        // Otherwise, use restaurant shop_id or default
+        if ($branch) {
+            $shopId = \App\Models\BranchRestaurantShopId::getShopId($branch->id, $restaurantId)
+                ?? $restaurant->shop_id
+                ?? '210';
+
+            Log::info('✅ Using shop_id from branch_restaurant_shop_ids for Zyda order', [
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
                 'restaurant_id' => $restaurantId,
-                'restaurant_name' => $restaurant->name,
                 'shop_id' => $shopId,
             ]);
         } else {
-            // Fallback: If restaurant doesn't have shop_id, use 210 (Gather Us)
-            if (empty($shopId) || $shopId !== '210') {
+            // IMPORTANT: All Zyda orders must use shop_id = 210 (Gather Us) if no branch found
+            // This ensures all Zyda orders are sent to the correct branch in shipping company
+            $shopId = $restaurant->shop_id ?? '210';
+
+            // Force shop_id = 210 for Gather Us (even if restaurant has different shop_id)
+            if ($restaurant->name === 'Gather Us' || $restaurant->shop_id === '210') {
                 $shopId = '210';
-                Log::warning('⚠️ Restaurant shop_id not 210, forcing shop_id = 210 for Zyda orders', [
+                Log::info('✅ Using shop_id = 210 for Gather Us (Zyda orders - no branch found)', [
                     'restaurant_id' => $restaurantId,
                     'restaurant_name' => $restaurant->name,
-                    'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
-                    'forced_shop_id' => $shopId,
+                    'shop_id' => $shopId,
                 ]);
+            } else {
+                // Fallback: If restaurant doesn't have shop_id, use 210 (Gather Us)
+                if (empty($shopId) || $shopId !== '210') {
+                    $shopId = '210';
+                    Log::warning('⚠️ Restaurant shop_id not 210, forcing shop_id = 210 for Zyda orders', [
+                        'restaurant_id' => $restaurantId,
+                        'restaurant_name' => $restaurant->name,
+                        'restaurant_shop_id' => $restaurant->shop_id ?? 'NULL',
+                        'forced_shop_id' => $shopId,
+                    ]);
+                }
             }
         }
 
@@ -546,14 +583,15 @@ class ZydaOrderController extends Controller
 
         // Get default shipping provider from settings
         $defaultShippingProvider = \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
-        
+
         // Create Order WITHOUT calling ShippingService manually
         // Order::boot (static::created) سيتكفل بإرسال الطلب لشركة الشحن وتوليد dsp_order_id
         $order = Order::create([
             'order_number' => $orderNumber,
             'user_id' => $userId, // ثابت: 36
             'restaurant_id' => $restaurantId, // ثابت: 821017372
-            'shop_id' => $shopId, // من Restaurant أو default حسب shipping provider
+            'branch_id' => $branch?->id, // الفرع الأقرب بناءً على المسافة
+            'shop_id' => $shopId, // من branch_restaurant_shop_ids أو Restaurant أو default
             'status' => 'confirmed',
             'shipping_status' => 'New Order',
             'shipping_provider' => $defaultShippingProvider, // استخدام shipping provider الحالي من الإعدادات
@@ -567,6 +605,7 @@ class ZydaOrderController extends Controller
             'delivery_address' => $deliveryAddress,
             'customer_latitude' => $customerLatitude,
             'customer_longitude' => $customerLongitude,
+            'location_link' => $locationLink, // رابط Google Maps من Zyda order
             'payment_method' => 'online',
             'payment_status' => 'paid', // طلب Zyda مدفوع
             'sound' => true,
@@ -601,11 +640,11 @@ class ZydaOrderController extends Controller
         if (!empty($zydaOrder->items)) {
             // Parse items (can be JSON string or array)
             $items = is_string($zydaOrder->items) ? json_decode($zydaOrder->items, true) : $zydaOrder->items;
-            
+
             if (is_array($items) && count($items) > 0) {
                 // Use restaurant_id from order (821017372) to find menu items
                 $menuItem = MenuItem::where('restaurant_id', $restaurantId)->first();
-                
+
                 // Calculate total quantity for price distribution if needed
                 $totalQuantity = 0;
                 foreach ($items as $item) {
@@ -616,13 +655,13 @@ class ZydaOrderController extends Controller
                         $totalQuantity += 1;
                     }
                 }
-                
+
                 foreach ($items as $item) {
                     if (is_array($item)) {
                         // New structured format: {"name": "Burger", "quantity": 2, "price": 37.0}
                         $itemName = $item['name'] ?? $item['item_name'] ?? 'منتج من زيدا';
                         $itemQuantity = isset($item['quantity']) ? (int) $item['quantity'] : 1;
-                        
+
                         // IMPORTANT: Use exact price from Zyda if available, otherwise calculate proportionally
                         if (isset($item['price']) && $item['price'] !== null && $item['price'] > 0) {
                             // Use exact price from Zyda platform (as is, no modifications)
@@ -665,7 +704,7 @@ class ZydaOrderController extends Controller
                         'quantity' => $itemQuantity,
                         'subtotal' => $itemPrice * $itemQuantity,
                     ]);
-                    
+
                     Log::info('✅ Order item created', [
                         'order_id' => $order->id,
                         'item_name' => $itemName,
@@ -699,22 +738,22 @@ class ZydaOrderController extends Controller
         if (empty($url)) {
             return false;
         }
-        
+
         // Normalize URL (lowercase for comparison)
         $urlLower = strtolower($url);
-        
+
         // Parse URL to get components
         $parsedUrl = parse_url($url);
         $host = strtolower($parsedUrl['host'] ?? '');
         $path = strtolower($parsedUrl['path'] ?? '');
         $query = strtolower($parsedUrl['query'] ?? '');
-        
+
         Log::info('🔍 Checking if URL is Google Maps', [
             'url' => $url,
             'host' => $host,
             'path' => $path,
         ]);
-        
+
         // Check for Google Maps domains (more flexible)
         $googleMapsDomains = [
             'maps.google.com',
@@ -723,13 +762,13 @@ class ZydaOrderController extends Controller
             'maps.app.goo.gl',
             'goo.gl',
         ];
-        
+
         foreach ($googleMapsDomains as $domain) {
             if ($host === $domain || strpos($host, $domain) !== false) {
                 // For google.com, check if it's maps related
                 if ($domain === 'google.com' || $domain === 'www.google.com') {
                     // Check if path or query contains 'maps'
-                    if (strpos($path, 'maps') !== false || 
+                    if (strpos($path, 'maps') !== false ||
                         strpos($urlLower, '/maps') !== false ||
                         strpos($query, 'maps') !== false) {
                         Log::info('✅ URL is Google Maps (google.com with maps)', [
@@ -754,7 +793,7 @@ class ZydaOrderController extends Controller
                 }
             }
         }
-        
+
         // Also check if URL string contains Google Maps patterns
         $mapsPatterns = [
             'google.com/maps',
@@ -762,7 +801,7 @@ class ZydaOrderController extends Controller
             'maps/app/goo.gl',
             'goo.gl/maps',
         ];
-        
+
         foreach ($mapsPatterns as $pattern) {
             if (strpos($urlLower, $pattern) !== false) {
                 Log::info('✅ URL is Google Maps (pattern match)', [
@@ -772,7 +811,7 @@ class ZydaOrderController extends Controller
                 return true;
             }
         }
-        
+
         // If URL contains coordinates and looks like it came from curl following redirects,
         // it's likely a valid location link (probably Google Maps)
         // This is a fallback for edge cases where the domain might not be recognized
@@ -786,20 +825,20 @@ class ZydaOrderController extends Controller
                 return true;
             }
         }
-        
+
         Log::warning('⚠️ URL is NOT identified as Google Maps', [
             'url' => $url,
             'host' => $host,
             'path' => $path,
         ]);
-        
+
         return false;
     }
 
     /**
      * Parse location string and extract both coordinates AND final Google Maps URL
      * Returns array with 'coordinates' and 'final_url'
-     * 
+     *
      * Supports formats:
      * - "24.7136,46.6753" (comma-separated)
      * - {"lat": 24.7136, "lng": 46.6753} (JSON)
@@ -858,18 +897,18 @@ class ZydaOrderController extends Controller
             Log::info('🔗 Processing URL to extract coordinates', [
                 'url' => $trimmedLocation,
             ]);
-            
+
             $urlData = $this->extractCoordinatesAndUrl($trimmedLocation);
             if ($urlData && is_array($urlData)) {
                 $result['coordinates'] = $urlData['coordinates'] ?? null;
                 $result['final_url'] = $urlData['final_url'] ?? $trimmedLocation;
-                
+
                 Log::info('✅ URL data extracted', [
                     'original_url' => $trimmedLocation,
                     'final_url' => $result['final_url'],
                     'has_coordinates' => !empty($result['coordinates']),
                 ]);
-                
+
                 // Return result even if coordinates are null, so we can save the final URL
                 return $result;
             } else {
@@ -887,7 +926,7 @@ class ZydaOrderController extends Controller
         if (preg_match('/([-+]?\d+\.?\d*),([-+]?\d+\.?\d*)/', $trimmedLocation, $matches)) {
             $lat = (float) $matches[1];
             $lng = (float) $matches[2];
-            
+
             // Validate coordinates range (latitude: -90 to 90, longitude: -180 to 180)
             if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
                 $result['coordinates'] = [
@@ -904,7 +943,7 @@ class ZydaOrderController extends Controller
         Log::warning('Could not parse location string', ['location' => $location]);
         return $result;
     }
-    
+
     /**
      * Legacy method for backward compatibility
      * @deprecated Use parseLocationAndExtractUrl instead
@@ -926,15 +965,15 @@ class ZydaOrderController extends Controller
             'coordinates' => null,
             'final_url' => $url,
         ];
-        
+
         Log::info('🔗 Starting URL processing to extract original link and coordinates', [
             'original_url' => $url,
         ]);
-        
+
         // First, get the final URL after following redirects using curl
         // This will resolve ANY short link to its original URL
         $finalUrl = $this->extractCoordinatesFromUrlInternal($url);
-        
+
         // Always use the final URL (resolved from short link or original)
         if ($finalUrl) {
             $result['final_url'] = $finalUrl;
@@ -950,11 +989,11 @@ class ZydaOrderController extends Controller
                 'original_url' => $url,
             ]);
         }
-        
+
         // Now extract coordinates from final URL (original Google Maps link)
         $coordinates = $this->extractCoordinatesFromFinalUrl($result['final_url']);
         $result['coordinates'] = $coordinates;
-        
+
         // Log the extraction result
         if ($coordinates) {
             Log::info('✅ Coordinates extracted from original link', [
@@ -969,12 +1008,12 @@ class ZydaOrderController extends Controller
                 'final_url' => $result['final_url'],
             ]);
         }
-        
+
         // Always return result even if coordinates are null, so we can save the original link
         // The original link (final_url) will be saved in the location column
         return $result;
     }
-    
+
     /**
      * Legacy method for backward compatibility
      * @deprecated Use extractCoordinatesAndUrl instead
@@ -984,11 +1023,11 @@ class ZydaOrderController extends Controller
         $result = $this->extractCoordinatesAndUrl($url);
         return $result ? $result['coordinates'] : null;
     }
-    
+
     /**
      * Internal method to get final URL after following redirects using curl
      * Returns the final URL after following all redirects (any type, not just Google Maps)
-     * 
+     *
      * ALWAYS follows redirects for ANY URL to get the original link
      * This ensures that short links (like zyda.co, bit.ly, etc.) are resolved
      * to their final destination
@@ -1002,18 +1041,18 @@ class ZydaOrderController extends Controller
         // https://maps.google.com/?q=24.7136,46.6753
         // https://www.google.com/maps/dir/.../@24.7136,46.6753
         // Short links: https://is.gd/ZpIRU1, https://bit.ly/xxx, https://zyda.co/o2CONfN, etc.
-        
+
         // ALWAYS follow redirects to get the original link from any short link
         // This will resolve ANY short link to its final destination
         try {
             Log::info('🔗 Following URL redirects using curl to get original link', [
                 'original_url' => $url,
             ]);
-            
+
             // Use cURL to get final URL after following redirects
             // This will resolve ANY short link to its final destination
             $finalUrl = $this->getFinalUrlFromRedirects($url);
-            
+
             if ($finalUrl && $finalUrl !== $url) {
                 // Successfully resolved redirect
                 Log::info('✅ URL redirect resolved to original link', [
@@ -1039,7 +1078,7 @@ class ZydaOrderController extends Controller
             return $url;
         }
     }
-    
+
     /**
      * Extract coordinates from final Google Maps URL
      * Supports various Google Maps URL formats:
@@ -1049,7 +1088,7 @@ class ZydaOrderController extends Controller
      * - https://maps.google.com/?q=24.7136,46.6753
      * - https://www.google.com/maps/dir/24.7562097,46.6746282/24.7542315,46.6743851/... (direction link - extracts destination coordinates)
      * - https://maps.app.goo.gl/xxxxx (new Google Maps short links)
-     * 
+     *
      * For dir (direction) links, extracts DESTINATION coordinates (second pair)
      */
     protected function extractCoordinatesFromFinalUrl(string $url): ?array
@@ -1057,7 +1096,7 @@ class ZydaOrderController extends Controller
         // Parse final URL
         $parsedUrl = parse_url($url);
         $path = $parsedUrl['path'] ?? '';
-        
+
         // PRIORITY 1: Check for dir (direction) links
         // Format: /dir/lat1,lng1/lat2,lng2/...
         // We want the DESTINATION coordinates (lat2,lng2 - the second pair)
@@ -1066,7 +1105,7 @@ class ZydaOrderController extends Controller
             // matches[3] and matches[4] are destination (end point) - we want these
             $lat = (float) $matches[3];
             $lng = (float) $matches[4];
-            
+
             if ($lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180) {
                 Log::info('✅ Destination coordinates extracted from dir (direction) link', [
                     'url' => $url,
@@ -1081,11 +1120,11 @@ class ZydaOrderController extends Controller
                 ];
             }
         }
-        
+
         // Extract from query parameters (q=lat,lng or ll=lat,lng)
         if (isset($parsedUrl['query'])) {
             parse_str($parsedUrl['query'], $queryParams);
-            
+
             // Try 'q' parameter first
             if (isset($queryParams['q'])) {
                 $qValue = $queryParams['q'];
@@ -1105,7 +1144,7 @@ class ZydaOrderController extends Controller
                     }
                 }
             }
-            
+
             // Try 'll' parameter (lat,lng)
             if (isset($queryParams['ll'])) {
                 $llValue = $queryParams['ll'];
@@ -1125,7 +1164,7 @@ class ZydaOrderController extends Controller
                     }
                 }
             }
-            
+
             // Try separate 'lat' and 'lng' parameters
             if (isset($queryParams['lat']) && isset($queryParams['lng'])) {
                 $lat = (float) $queryParams['lat'];
@@ -1186,7 +1225,7 @@ class ZydaOrderController extends Controller
             'url' => $url,
             'parsed_url' => $parsedUrl,
         ]);
-        
+
         return null;
     }
 
@@ -1201,10 +1240,10 @@ class ZydaOrderController extends Controller
             Log::info('🔗 Opening URL and following all redirects', [
                 'original_url' => $url,
             ]);
-            
+
             // Initialize cURL
             $ch = curl_init($url);
-            
+
             // Set cURL options for following redirects
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,      // Return response as string
@@ -1220,32 +1259,32 @@ class ZydaOrderController extends Controller
                 CURLOPT_AUTOREFERER => true,         // Automatically set Referer header
                 CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1, // Use HTTP/1.1
             ]);
-            
+
             // Execute request
             $response = curl_exec($ch);
-            
+
             // Check for cURL errors
             if (curl_errno($ch)) {
                 $error = curl_error($ch);
                 $errorCode = curl_errno($ch);
                 curl_close($ch);
-                
+
                 Log::warning('⚠️ cURL error following redirects', [
                     'url' => $url,
                     'error_code' => $errorCode,
                     'error' => $error,
                 ]);
-                
+
                 // If HEAD request failed, try GET request as fallback
                 return $this->getFinalUrlFromRedirectsGet($url);
             }
-            
+
             // Get final URL after all redirects
             $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $redirectCount = curl_getinfo($ch, CURLINFO_REDIRECT_COUNT);
             curl_close($ch);
-            
+
             Log::info('📊 Redirect following results', [
                 'original_url' => $url,
                 'final_url' => $finalUrl,
@@ -1253,7 +1292,7 @@ class ZydaOrderController extends Controller
                 'redirect_count' => $redirectCount,
                 'is_google_maps' => strpos($finalUrl, 'google.com/maps') !== false || strpos($finalUrl, 'maps.google.com') !== false,
             ]);
-            
+
             // Validate final URL
             if ($finalUrl && $finalUrl !== $url) {
                 if ($httpCode < 400) {
@@ -1286,10 +1325,10 @@ class ZydaOrderController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
         }
-        
+
         return $url;
     }
-    
+
     /**
      * Fallback method: Get final URL using GET request instead of HEAD
      * Some servers don't handle HEAD requests properly
@@ -1300,7 +1339,7 @@ class ZydaOrderController extends Controller
             Log::info('🔄 Trying GET request as fallback', [
                 'url' => $url,
             ]);
-            
+
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
@@ -1315,9 +1354,9 @@ class ZydaOrderController extends Controller
                 CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 CURLOPT_AUTOREFERER => true,
             ]);
-            
+
             $response = curl_exec($ch);
-            
+
             if (curl_errno($ch)) {
                 $error = curl_error($ch);
                 curl_close($ch);
@@ -1327,11 +1366,11 @@ class ZydaOrderController extends Controller
                 ]);
                 return $url;
             }
-            
+
             $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            
+
             if ($finalUrl && $finalUrl !== $url) {
                 Log::info('✅ GET request successfully followed redirects', [
                     'original_url' => $url,
@@ -1346,7 +1385,7 @@ class ZydaOrderController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
-        
+
         return $url;
     }
 }

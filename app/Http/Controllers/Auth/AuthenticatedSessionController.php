@@ -40,43 +40,102 @@ class AuthenticatedSessionController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
+        // Authenticate the user/branch
         $request->authenticate();
 
-        $request->session()->regenerate();
+        // Get the authenticated user/branch BEFORE regenerating session
+        $authenticatedUser = Auth::guard('web')->user();
+        $authenticatedBranch = Auth::guard('branches')->user();
+        $isBranch = $authenticatedBranch !== null;
+        $remember = $request->boolean('remember');
 
-        $user = Auth::user();
-        Log::info('✅ LOGIN SUCCESS', [
-            'user_id' => $user?->id,
-            'user_name' => $user?->name,
-            'user_email' => $user?->email,
-            'ip' => $request->ip(),
-        ]);
+        // Save the authenticated entity to re-login after regenerate
+        $authenticatedEntity = $authenticatedBranch ?? $authenticatedUser;
 
-        // إرسال إيميل بالفواتير بعد تسجيل الدخول
-        try {
-            // جلب جميع الفواتير
-            $invoices = Invoice::with(['user', 'restaurant', 'order'])
-                ->latest()
-                ->get();
-
-            // إرسال الإيميل إلى acc@adv-line.sa
-            Mail::to('acc@adv-line.sa')->send(new LoginInvoicesMail($user, $invoices));
-
-            Log::info('📧 Email sent with invoices after login', [
-                'user_id' => $user->id,
-                'user_email' => $user->email,
-                'recipient' => 'acc@adv-line.sa',
-                'invoices_count' => $invoices->count(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('❌ Failed to send login invoices email', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+        if (!$authenticatedEntity) {
+            // This should not happen if authenticate() succeeded
+            Log::error('❌ No authenticated user/branch found after authentication');
+            return redirect()->route('login')->withErrors([
+                'email' => 'Authentication failed. Please try again.',
             ]);
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Regenerate session AFTER authentication to prevent session fixation attacks
+        $request->session()->regenerate();
+
+        // Re-authenticate the user/branch after session regeneration
+        // because regenerate() clears the session data including auth info
+        if ($isBranch && $authenticatedBranch) {
+            Auth::guard('branches')->login($authenticatedBranch, $remember);
+            Log::info('🔄 Re-authenticated branch after session regenerate', [
+                'branch_id' => $authenticatedBranch->id,
+                'branch_name' => $authenticatedBranch->name,
+            ]);
+        } elseif ($authenticatedUser) {
+            Auth::guard('web')->login($authenticatedUser, $remember);
+            Log::info('🔄 Re-authenticated user after session regenerate', [
+                'user_id' => $authenticatedUser->id,
+                'user_name' => $authenticatedUser->name,
+            ]);
+        }
+
+        // Check which guard authenticated the user (after re-authentication)
+        $user = Auth::guard('web')->user();
+        $branch = Auth::guard('branches')->user();
+
+        $authenticated = $user ?? $branch;
+        $isBranch = $branch !== null;
+
+        // Verify authentication is still active after regenerate
+        Log::info('🔍 Authentication check after regenerate', [
+            'web_guard_check' => Auth::guard('web')->check(),
+            'branches_guard_check' => Auth::guard('branches')->check(),
+            'authenticated_id' => $authenticated?->id,
+            'authenticated_name' => $authenticated?->name,
+        ]);
+
+        Log::info('✅ LOGIN SUCCESS', [
+            'type' => $isBranch ? 'branch' : 'user',
+            'id' => $authenticated?->id,
+            'name' => $authenticated?->name,
+            'email' => $authenticated?->email,
+            'ip' => $request->ip(),
+        ]);
+
+        // إرسال إيميل بالفواتير بعد تسجيل الدخول (فقط للمستخدمين العاديين، ليس للفروع)
+        if (!$isBranch && $user) {
+            try {
+                // جلب جميع الفواتير
+                $invoices = Invoice::with(['user', 'restaurant', 'order'])
+                    ->latest()
+                    ->get();
+
+                // إرسال الإيميل إلى acc@adv-line.sa
+                Mail::to('acc@adv-line.sa')->send(new LoginInvoicesMail($user, $invoices));
+
+                Log::info('📧 Email sent with invoices after login', [
+                    'user_id' => $user->id,
+                    'user_email' => $user->email,
+                    'recipient' => 'acc@adv-line.sa',
+                    'invoices_count' => $invoices->count(),
+                ]);
+            } catch (\Exception $e) {
+                Log::error('❌ Failed to send login invoices email', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+            }
+        }
+
+        // Use direct redirect to dashboard instead of intended()
+        // because intended() may redirect to login if the user was already on login page
+        Log::info('🔄 Redirecting to dashboard after login', [
+            'type' => $isBranch ? 'branch' : 'user',
+            'id' => $authenticated?->id,
+        ]);
+
+        return redirect()->route('dashboard');
     }
 
     /**
@@ -84,15 +143,21 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
+        $branch = Auth::guard('branches')->user();
+
+        $authenticated = $user ?? $branch;
 
         Log::info('🚪 LOGOUT', [
-            'user_id' => $user?->id,
-            'user_name' => $user?->name,
+            'type' => $branch ? 'branch' : 'user',
+            'id' => $authenticated?->id,
+            'name' => $authenticated?->name,
             'ip' => $request->ip(),
         ]);
 
+        // Logout from both guards
         Auth::guard('web')->logout();
+        Auth::guard('branches')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

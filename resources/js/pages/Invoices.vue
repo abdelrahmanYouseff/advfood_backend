@@ -440,7 +440,7 @@ const getStatusText = (status: string) => {
                                             {{ t('فرعي:', 'Subtotal:') }} 
                                             <sup class="text-[7px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
                                             <span>{{ formatCurrencyProfessional(invoice.subtotal) }}</span>
-                                        </div>
+                                </div>
                                     </div>
                                 </td>
                                 <td class="p-3">

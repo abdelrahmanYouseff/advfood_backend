@@ -24,6 +24,12 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\LogAllRequests::class,
         ]);
+
+        // Register CheckAuth middleware as alias
+        $middleware->alias([
+            'checkauth' => \App\Http\Middleware\CheckAuth::class,
+            'verified_or_branch' => \App\Http\Middleware\EnsureEmailOrBranchVerified::class,
+        ]);
     })
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('sync:zyda-orders')

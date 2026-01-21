@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('branches', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
+            $table->string('status')->default('active'); // active, inactive
+            $table->unsignedBigInteger('dashboard_user_id')->nullable();
             $table->timestamps();
         });
     }

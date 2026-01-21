@@ -17,6 +17,7 @@ class Order extends Model
         'order_number',
         'user_id',
         'restaurant_id',
+        'branch_id',
         'status',
         'shop_id',
         'dsp_order_id',
@@ -65,6 +66,11 @@ class Order extends Model
     public function restaurant(): BelongsTo
     {
         return $this->belongsTo(Restaurant::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function orderItems(): HasMany

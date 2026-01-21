@@ -119,6 +119,28 @@ class OrderController extends Controller
                 $orderData['shop_id'] = $restaurant?->shop_id ?? '210'; // Default: Gather Us
             }
 
+            // Find nearest branch based on customer coordinates
+            $branch = null;
+            if (!empty($orderData['customer_latitude']) && !empty($orderData['customer_longitude'])) {
+                $branch = \App\Services\BranchService::findNearestBranch(
+                    (float) $orderData['customer_latitude'],
+                    (float) $orderData['customer_longitude']
+                );
+            }
+
+            // Get shop_id from branch_restaurant_shop_ids if branch is found
+            if ($branch && !empty($orderData['restaurant_id'])) {
+                $orderData['shop_id'] = \App\Models\BranchRestaurantShopId::getShopId(
+                    $branch->id,
+                    $orderData['restaurant_id']
+                ) ?? $orderData['shop_id'];
+            }
+
+            // Set branch_id if found
+            if ($branch) {
+                $orderData['branch_id'] = $branch->id;
+            }
+
             // Set source default if not provided
             $orderData['source'] = $orderData['source'] ?? 'application';
 

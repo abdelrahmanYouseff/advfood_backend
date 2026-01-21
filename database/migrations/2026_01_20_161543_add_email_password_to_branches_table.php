@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('branches', function (Blueprint $table) {
-            //
+            $table->string('email')->unique()->after('name');
+            $table->string('password')->after('email');
         });
     }
 
@@ -22,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('branches', function (Blueprint $table) {
-            //
+            $table->dropColumn(['email', 'password']);
         });
     }
 };

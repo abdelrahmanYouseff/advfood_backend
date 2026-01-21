@@ -723,7 +723,7 @@ const startOrderAnnouncement = (order: any) => {
 
     // Play announcement immediately
     setTimeout(() => {
-        playOrderAnnouncement(order);
+    playOrderAnnouncement(order);
     }, 600);
 
     // Repeat every 5 seconds until order is accepted
@@ -738,7 +738,7 @@ const startOrderAnnouncement = (order: any) => {
         playNotificationSound();
         setTimeout(() => playNotificationSound(), 200);
         setTimeout(() => {
-            playOrderAnnouncement(currentOrder);
+        playOrderAnnouncement(currentOrder);
         }, 400);
     }, 5000);
 
@@ -1373,9 +1373,9 @@ onMounted(() => {
                                         </span>
                                         <span class="font-medium text-xs text-gray-900 dark:text-gray-100 truncate">
                                             {{ order.user.name }}
-                                        </span>
+                                </span>
                                     </div>
-                                </div>
+                            </div>
 
                                 <!-- Restaurant Info -->
                                 <div v-if="getRestaurantImage(order.restaurant.name)" class="flex items-center justify-center rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
@@ -1406,7 +1406,7 @@ onMounted(() => {
                                             {{ order.restaurant.name }}
                                         </span>
                                     </div>
-                                </div>
+                            </div>
 
                                 <!-- Order Source -->
                                 <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
@@ -1438,56 +1438,56 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <!-- Driver Info -->
+                            <!-- Driver Info -->
                                 <div class="col-span-2 flex items-start gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
                                     <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 mt-0.5">
                                         <UserCircle2 class="h-3 w-3 text-gray-700 dark:text-gray-300" />
-                                    </div>
+                                </div>
                                     <div class="flex flex-col min-w-0 flex-1 space-y-0.5">
-                                        <!-- Driver Status -->
+                                    <!-- Driver Status -->
                                         <div class="flex items-center gap-1.5 flex-wrap">
                                             <span class="text-[10px] text-gray-500">
                                                 {{ t('حالة', 'Status') }}:
-                                            </span>
-                                            <span
-                                                :class="[
+                                        </span>
+                                        <span
+                                            :class="[
                                                     'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                                                    getStatusColor(getDriverStatusForOrder(order) || 'New Order')
-                                                ]"
-                                            >
-                                                {{ getShippingStatusLabel(getDriverStatusForOrder(order) || 'New Order') }}
-                                            </span>
-                                        </div>
+                                                getStatusColor(getDriverStatusForOrder(order) || 'New Order')
+                                            ]"
+                                        >
+                                            {{ getShippingStatusLabel(getDriverStatusForOrder(order) || 'New Order') }}
+                                        </span>
+                                    </div>
 
-                                        <!-- Driver Name -->
+                                    <!-- Driver Name -->
                                         <div class="flex items-center gap-1.5">
                                             <span class="text-[10px] text-gray-500">
                                                 {{ t('المندوب', 'Driver') }}:
-                                            </span>
-                                            <span
-                                                :class="[
+                                        </span>
+                                        <span
+                                            :class="[
                                                     'text-[10px] font-medium truncate',
                                                     getDriverNameForOrder(order) ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 italic'
-                                                ]"
-                                            >
+                                            ]"
+                                        >
                                                 {{ getDriverNameForOrder(order) || t('غير معين', 'N/A') }}
-                                            </span>
-                                        </div>
+                                        </span>
+                                    </div>
 
-                                        <!-- Driver Phone -->
+                                    <!-- Driver Phone -->
                                         <div class="flex items-center gap-1.5" v-if="getDriverPhoneForOrder(order)">
                                             <span class="text-[10px] text-gray-500">
                                                 {{ t('هاتف', 'Phone') }}:
-                                            </span>
-                                            <a
+                                        </span>
+                                        <a
                                                 class="text-[10px] font-medium text-gray-700 dark:text-gray-300 hover:underline truncate"
-                                                :href="`tel:${getDriverPhoneForOrder(order)}`"
-                                            >
-                                                {{ getDriverPhoneForOrder(order) }}
-                                            </a>
-                                        </div>
+                                            :href="`tel:${getDriverPhoneForOrder(order)}`"
+                                        >
+                                            {{ getDriverPhoneForOrder(order) }}
+                                        </a>
                                     </div>
                                 </div>
+                            </div>
 
                                 <!-- Order Status -->
                                 <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
@@ -1507,9 +1507,9 @@ onMounted(() => {
                                             {{ getOrderStatusLabel(order.status) }}
                                         </span>
                                     </div>
-                                </div>
+                            </div>
 
-                                <!-- Items Count -->
+                            <!-- Items Count -->
                                 <div class="flex items-center gap-1.5 rounded-md bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5 border border-gray-200 dark:border-gray-700">
                                     <div class="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0">
                                         <ShoppingCart class="h-3 w-3 text-gray-700 dark:text-gray-300" />
@@ -1520,7 +1520,7 @@ onMounted(() => {
                                         </span>
                                         <span class="font-medium text-xs text-gray-900 dark:text-gray-100">
                                             {{ order.items_count || 0 }}
-                                        </span>
+                                </span>
                                     </div>
                                 </div>
                             </div>

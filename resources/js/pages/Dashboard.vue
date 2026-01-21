@@ -1262,8 +1262,8 @@ const deleteWhatsappMessage = async (messageId: number) => {
                                 <p class="mt-1 text-sm text-muted-foreground">
                                     {{ t('عرض أحدث الرسائل المستلمة من الواتساب.', 'View the latest messages received from WhatsApp.') }}
                                 </p>
-                            </div>
-                        </div>
+                </div>
+            </div>
 
                         <div class="mt-6 overflow-x-auto">
                             <table class="min-w-[800px] w-full divide-y divide-gray-200 text-right text-sm table-auto">

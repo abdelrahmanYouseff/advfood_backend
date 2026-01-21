@@ -95,18 +95,45 @@ class ShippingService implements ShippingServiceInterface
             $shopIdSource = 'unknown';
 
             // PRIORITY 1: Use shop_id from order (this is correct for Zyda orders with fixed shop_id = 210)
+            // Note: shop_id in order should already be set from branch_restaurant_shop_ids during order creation
             if (!empty($orderObj->shop_id)) {
                 $shopIdString = (string) $orderObj->shop_id;
                 $shopIdSource = 'order.shop_id';
                 Log::info('✅ Using shop_id from order (PRIORITY)', [
                     'order_id' => $orderObj->id ?? null,
                     'order_shop_id' => $shopIdString,
+                    'branch_id' => $orderObj->branch_id ?? null,
                     'source' => $orderObj->source ?? 'unknown',
-                    'note' => 'Using order.shop_id (especially important for Zyda orders with fixed shop_id = 210)',
+                    'note' => 'Using order.shop_id (should already be set from branch_restaurant_shop_ids if branch_id exists)',
                 ]);
             }
-            // PRIORITY 2: Fallback to restaurant.shop_id only if order doesn't have shop_id
-            elseif (isset($orderObj->restaurant_id)) {
+            // PRIORITY 2: If order has branch_id but no shop_id, get from branch_restaurant_shop_ids
+            elseif (!empty($orderObj->branch_id) && !empty($orderObj->restaurant_id)) {
+                try {
+                    $shopId = \App\Models\BranchRestaurantShopId::getShopId(
+                        $orderObj->branch_id,
+                        $orderObj->restaurant_id
+                    );
+                    if ($shopId) {
+                        $shopIdString = (string) $shopId;
+                        $shopIdSource = 'branch_restaurant_shop_ids';
+                        Log::info('✅ Using shop_id from branch_restaurant_shop_ids', [
+                            'order_id' => $orderObj->id ?? null,
+                            'branch_id' => $orderObj->branch_id,
+                            'restaurant_id' => $orderObj->restaurant_id,
+                            'shop_id' => $shopIdString,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('❌ Error fetching shop_id from branch_restaurant_shop_ids', [
+                        'branch_id' => $orderObj->branch_id ?? null,
+                        'restaurant_id' => $orderObj->restaurant_id ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+            // PRIORITY 3: Fallback to restaurant.shop_id only if order doesn't have shop_id
+            if (empty($shopIdString) && isset($orderObj->restaurant_id)) {
                 try {
                     $restaurant = \App\Models\Restaurant::find($orderObj->restaurant_id);
                     if ($restaurant) {
