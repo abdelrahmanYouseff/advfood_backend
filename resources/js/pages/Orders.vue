@@ -1034,16 +1034,108 @@ const testFemaleVoice = () => {
 
     console.log('🧪 Test female voice button clicked');
 
-    // Create a test order object
-    const testOrder = {
-        id: 999999,
-        order_number: 'TEST-001',
-        created_at: new Date().toISOString(),
-        shipping_status: 'New Order'
+    // First, ensure speech is enabled by user interaction
+    try {
+        // Create a silent utterance to enable speech (required by browsers)
+        const enableUtterance = new SpeechSynthesisUtterance('');
+        enableUtterance.volume = 0;
+        speechSynthesis.speak(enableUtterance);
+        speechSynthesis.cancel();
+        console.log('✅ Speech synthesis enabled');
+    } catch (error) {
+        console.error('❌ Failed to enable speech:', error);
+    }
+
+    // Get voices first
+    let voices = speechSynthesis.getVoices();
+    
+    // If no voices, wait for them
+    if (voices.length === 0) {
+        console.log('⏳ Waiting for voices to load...');
+        const waitForVoices = () => {
+            voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                console.log(`✅ Loaded ${voices.length} voices`);
+                speakTestMessage(voices);
+            } else {
+                setTimeout(waitForVoices, 100);
+            }
+        };
+        
+        speechSynthesis.onvoiceschanged = () => {
+            voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                console.log(`✅ Voices loaded via event: ${voices.length}`);
+                speakTestMessage(voices);
+            }
+        };
+        
+        waitForVoices();
+        return;
+    }
+    
+    speakTestMessage(voices);
+};
+
+// Helper function to speak test message
+const speakTestMessage = (voices: SpeechSynthesisVoice[]) => {
+    const message = 'Order Number 1';
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.85;
+    utterance.pitch = 1.4; // Higher pitch for feminine sound
+    utterance.volume = 1.0;
+
+    // Find female voice
+    const femaleVoiceNames = [
+        'samantha', 'zira', 'hazel', 'karen', 'susan', 'victoria',
+        'female', 'woman'
+    ];
+
+    const femaleVoice = voices.find(v => {
+        const nameLower = v.name.toLowerCase();
+        return femaleVoiceNames.some(femaleName => nameLower.includes(femaleName)) && 
+               (v.lang.includes('en-US') || v.lang.includes('en'));
+    }) || voices.find(v => v.lang.includes('en-US')) || 
+         voices.find(v => v.lang.includes('en')) || 
+         voices[0];
+
+    if (femaleVoice) {
+        utterance.voice = femaleVoice;
+        console.log(`🎤 Using voice: ${femaleVoice.name} (${femaleVoice.lang})`);
+    }
+
+    utterance.onstart = () => {
+        console.log('✅ ✅ ✅ الصوت الأنثوي بدأ! "Order Number 1"');
     };
 
-    // Play announcement
-    playOrderAnnouncement(testOrder);
+    utterance.onend = () => {
+        console.log('✅ ✅ ✅ انتهى الصوت الأنثوي بنجاح!');
+    };
+
+    utterance.onerror = (e: any) => {
+        console.error('❌ خطأ في الصوت:', e.error);
+        if (e.error !== 'canceled' && e.error !== 'interrupted') {
+            alert(`❌ خطأ في الصوت: ${e.error}`);
+        }
+    };
+
+    try {
+        // Cancel any existing speech
+        if (speechSynthesis.speaking || speechSynthesis.pending) {
+            speechSynthesis.cancel();
+            setTimeout(() => {
+                speechSynthesis.speak(utterance);
+                console.log('🔊 Test speech started');
+            }, 150);
+        } else {
+            speechSynthesis.speak(utterance);
+            console.log('🔊 Test speech started');
+        }
+    } catch (error: any) {
+        console.error('❌ Error speaking:', error);
+        alert('❌ خطأ: ' + (error.message || error));
+    }
 };
 
 // Direct speech function
