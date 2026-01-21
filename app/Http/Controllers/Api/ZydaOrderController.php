@@ -100,12 +100,12 @@ class ZydaOrderController extends Controller
                 'phone' => $request->input('phone'),
             ]);
 
-        $validated = $request->validate([
-            'name' => 'nullable|string|max:255',
-            'phone' => 'required|string|max:50',
-            'address' => 'nullable|string|max:500',
-            'location' => 'nullable|string|max:255',
-            'total_amount' => 'nullable|numeric|min:0',
+            $validated = $request->validate([
+                'name' => 'nullable|string|max:255',
+                'phone' => 'required|string|max:50',
+                'address' => 'nullable|string|max:500',
+                'location' => 'nullable|string|max:2048', // Increased from 255 to 2048 for long Google Maps URLs
+                'total_amount' => 'nullable|numeric|min:0',
                 'items' => 'nullable|array',
                 'zyda_order_key' => 'required|string|max:255', // Unique order identifier from Zyda
             ]);
@@ -115,15 +115,18 @@ class ZydaOrderController extends Controller
                 'phone' => $validated['phone'],
             ]);
 
+            // Normalize zyda_order_key (remove leading '#' and whitespace)
+            $normalizedKey = ltrim((string) $validated['zyda_order_key'], "# \t\n\r\0\x0B");
+
             // Check if order exists using zyda_order_key (unique identifier from Zyda)
-        $exists = DB::table('zyda_orders')
-                ->where('zyda_order_key', $validated['zyda_order_key'])
-            ->exists();
+            $exists = DB::table('zyda_orders')
+                ->where('zyda_order_key', $normalizedKey)
+                ->exists();
 
             // If order already exists, return success without processing (no duplicate)
             if ($exists) {
                 Log::info('ℹ️ Zyda order already exists, skipping', [
-                    'zyda_order_key' => $validated['zyda_order_key'],
+                    'zyda_order_key' => $normalizedKey,
                     'phone' => $validated['phone'],
                 ]);
 
@@ -135,44 +138,55 @@ class ZydaOrderController extends Controller
             }
 
             Log::info('🔄 Saving new Zyda order', [
-                'zyda_order_key' => $validated['zyda_order_key'],
+                'zyda_order_key' => $normalizedKey,
                 'phone' => $validated['phone'],
             ]);
 
-        $payload = [
-            'name' => $validated['name'] ?? null,
-            'phone' => $validated['phone'],
-            'address' => $validated['address'] ?? null,
-            'location' => $validated['location'] ?? null,
-            'total_amount' => $validated['total_amount'] ?? 0,
-            'items' => $validated['items'],
-                'zyda_order_key' => $validated['zyda_order_key'],
-        ];
+            $payload = [
+                'name' => $validated['name'] ?? null,
+                'phone' => $validated['phone'],
+                'address' => $validated['address'] ?? null,
+                'location' => $validated['location'] ?? null,
+                'total_amount' => $validated['total_amount'] ?? 0,
+                'items' => $validated['items'] ?? [],
+                'zyda_order_key' => $validated['zyda_order_key'], // Keep original for processing
+            ];
 
-        $result = $this->orderSyncService->saveScrapedOrder($payload);
+            try {
+                $result = $this->orderSyncService->saveScrapedOrder($payload);
 
-        if (!$result) {
-                Log::error('❌ Failed to save Zyda order in OrderSyncService', [
+                if (!$result) {
+                    Log::error('❌ Failed to save Zyda order in OrderSyncService', [
+                        'phone' => $validated['phone'],
+                        'zyda_order_key' => $normalizedKey,
+                        'payload' => $payload,
+                    ]);
+                    throw ValidationException::withMessages([
+                        'phone' => ['Failed to save Zyda order.'],
+                    ]);
+                }
+
+                Log::info('✅ New Zyda order saved successfully', [
                     'phone' => $validated['phone'],
-                    'zyda_order_key' => $validated['zyda_order_key'],
+                    'zyda_order_key' => $normalizedKey,
+                    'total_amount' => $validated['total_amount'] ?? 0,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'operation' => 'created',
+                    'message' => 'Order saved successfully',
+                ]);
+            } catch (\Exception $serviceException) {
+                Log::error('❌ Exception in OrderSyncService::saveScrapedOrder', [
+                    'error' => $serviceException->getMessage(),
+                    'trace' => $serviceException->getTraceAsString(),
+                    'file' => $serviceException->getFile(),
+                    'line' => $serviceException->getLine(),
                     'payload' => $payload,
                 ]);
-            throw ValidationException::withMessages([
-                'phone' => ['Failed to save Zyda order.'],
-            ]);
-        }
-
-            Log::info('✅ New Zyda order saved successfully', [
-                'phone' => $validated['phone'],
-                'zyda_order_key' => $validated['zyda_order_key'],
-                'total_amount' => $validated['total_amount'] ?? 0,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'operation' => 'created',
-                'message' => 'Order saved successfully',
-            ]);
+                throw $serviceException;
+            }
         } catch (ValidationException $e) {
             Log::error('❌ Validation error in Zyda order store', [
                 'errors' => $e->errors(),
@@ -182,10 +196,19 @@ class ZydaOrderController extends Controller
         } catch (\Exception $e) {
             Log::error('❌ Unexpected error in Zyda order store', [
                 'error' => $e->getMessage(),
+                'error_type' => get_class($e),
                 'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'payload' => $request->all(),
             ]);
-            throw $e;
+            
+            // Return a proper JSON error response instead of throwing
+            return response()->json([
+                'success' => false,
+                'error' => 'Internal server error: ' . $e->getMessage(),
+                'operation' => 'failed',
+            ], 500);
         }
     }
 

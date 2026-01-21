@@ -40,27 +40,85 @@ class ZydaScriptRunner
         $venvPythonAlt = $pythonDir . '/venv/bin/python';
 
         $pythonBinary = null;
+        $pythonBinaryPath = null;
 
         // Priority 1: Try venv/bin/python3
         if (file_exists($venvPython)) {
             $pythonBinary = $venvPython;
+            $pythonBinaryPath = $venvPython;
             Log::info('🔍 Found venv Python binary', ['path' => $pythonBinary]);
         }
         // Priority 2: Try venv/bin/python
         elseif (file_exists($venvPythonAlt)) {
             $pythonBinary = $venvPythonAlt;
+            $pythonBinaryPath = $venvPythonAlt;
             Log::info('🔍 Found venv Python binary (alt)', ['path' => $pythonBinary]);
         }
-        // Priority 3: Try system python3
+        // Priority 3: Try to find python3 in common system paths
         else {
-            $pythonBinary = 'python3';
-            Log::info('🔍 Using system python3');
+            $systemPaths = [
+                '/usr/bin/python3',
+                '/usr/local/bin/python3',
+                '/bin/python3',
+                'python3', // Fallback to PATH
+            ];
+
+            foreach ($systemPaths as $path) {
+                if ($path === 'python3') {
+                    // Check if command exists using which/whereis
+                    $whichResult = shell_exec('which python3 2>/dev/null');
+                    if (!empty($whichResult)) {
+                        $pythonBinary = trim($whichResult);
+                        $pythonBinaryPath = $pythonBinary;
+                        Log::info('🔍 Found python3 in PATH', ['path' => $pythonBinary]);
+                        break;
+                    }
+                } elseif (file_exists($path)) {
+                    $pythonBinary = $path;
+                    $pythonBinaryPath = $path;
+                    Log::info('🔍 Found python3 in system path', ['path' => $pythonBinary]);
+                    break;
+                }
+            }
+
+            // If still not found, try python (without 3)
+            if (!$pythonBinary) {
+                $pythonPaths = [
+                    '/usr/bin/python',
+                    '/usr/local/bin/python',
+                    '/bin/python',
+                    'python',
+                ];
+
+                foreach ($pythonPaths as $path) {
+                    if ($path === 'python') {
+                        $whichResult = shell_exec('which python 2>/dev/null');
+                        if (!empty($whichResult)) {
+                            $pythonBinary = trim($whichResult);
+                            $pythonBinaryPath = $pythonBinary;
+                            Log::info('🔍 Found python in PATH', ['path' => $pythonBinary]);
+                            break;
+                        }
+                    } elseif (file_exists($path)) {
+                        $pythonBinary = $path;
+                        $pythonBinaryPath = $path;
+                        Log::info('🔍 Found python in system path', ['path' => $pythonBinary]);
+                        break;
+                    }
+                }
+            }
+
+            if (!$pythonBinary) {
+                throw new \RuntimeException('Python binary not found. Please install Python 3 or create a virtual environment in python/venv/');
+            }
         }
 
         Log::info('🔍 Running script', [
             'script' => $scriptName,
             'directory' => $pythonDir,
             'python_binary' => $pythonBinary,
+            'python_binary_path' => $pythonBinaryPath,
+            'binary_exists' => file_exists($pythonBinaryPath ?? $pythonBinary),
             'command' => "cd {$pythonDir} && {$pythonBinary} {$scriptName}",
         ]);
 
@@ -68,7 +126,7 @@ class ZydaScriptRunner
             return $this->executeProcess($pythonBinary, $scriptName, $pythonDir);
         } catch (ProcessFailedException $e) {
             // Fallback to python if python3 command not found (for local)
-            if ($this->isCommandNotFound($e) && $pythonBinary !== 'python') {
+            if ($this->isCommandNotFound($e) && $pythonBinary !== 'python' && strpos($pythonBinary, 'python') === false) {
                 Log::warning('Primary Python binary failed, fallback to python', [
                     'failed_binary' => $pythonBinary,
                     'script' => $scriptName,

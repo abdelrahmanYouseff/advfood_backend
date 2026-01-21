@@ -1421,9 +1421,23 @@ def run_once() -> Dict[str, int]:
         raise
     except Exception as exc:
         error_msg = f"Scraper run failed: {exc}"
+        error_type = type(exc).__name__
         print(f"[ERROR] {error_msg}", flush=True)
+        print(f"[ERROR] Error type: {error_type}", flush=True)
         import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}", flush=True)
+        traceback_str = traceback.format_exc()
+        print(f"[ERROR] Traceback: {traceback_str}", flush=True)
+
+        # Try to provide more specific error information
+        if "selenium" in str(exc).lower() or "webdriver" in str(exc).lower():
+            print("[ERROR] Selenium/WebDriver error detected. Check if Chrome/Chromium is installed.", flush=True)
+        elif "timeout" in str(exc).lower():
+            print("[ERROR] Timeout error detected. The Zyda website may be slow or unreachable.", flush=True)
+        elif "connection" in str(exc).lower():
+            print("[ERROR] Connection error detected. Check network connectivity.", flush=True)
+        elif "login" in str(exc).lower() or "authentication" in str(exc).lower():
+            print("[ERROR] Login/Authentication error detected. Check Zyda credentials.", flush=True)
+
         print("SUMMARY created=0 updated=0 skipped=0 failed=1", flush=True)
         return {"total": 0, "created": 0, "updated": 0, "skipped": 0, "failed": 1}
 
