@@ -5,7 +5,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft, User, Store, MapPin, Phone, Clock, DollarSign, Package, Truck,
     CheckCircle, AlertCircle, XCircle, Navigation, Calendar, CreditCard,
-    Receipt, Star, Mail, Hash, Timer, Utensils
+    Receipt, Star, Mail, Hash, Timer, Utensils, Building2
 } from 'lucide-vue-next';
 
 interface OrderItem {
@@ -72,6 +72,10 @@ interface Order {
         delivery_fee: string;
         delivery_time: number;
         rating?: number;
+    };
+    branch?: {
+        id: number;
+        name: string;
     };
     order_items: OrderItem[];
 }
@@ -549,6 +553,16 @@ const formatCurrencyProfessional = (amount: number | string) => {
                                     <div>
                                         <p class="text-sm text-gray-500">العنوان</p>
                                         <p class="text-sm text-gray-900 leading-relaxed">{{ order.delivery_address }}</p>
+                                    </div>
+                                </div>
+                                <!-- Branch Information -->
+                                <div v-if="order.branch" class="flex items-center space-x-3">
+                                    <div class="p-2 bg-gray-200 rounded-lg">
+                                        <Building2 class="w-5 h-5 text-gray-700" />
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">الفرع المستلم</p>
+                                        <p class="font-medium text-gray-900">{{ order.branch.name }}</p>
                                     </div>
                                 </div>
                                 <!-- Customer Location -->

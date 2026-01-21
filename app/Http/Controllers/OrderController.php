@@ -400,7 +400,7 @@ class OrderController extends Controller
      */
     public function show(string $id)
     {
-        $order = Order::with(['user', 'restaurant', 'orderItems.menuItem'])->find($id);
+        $order = Order::with(['user', 'restaurant', 'branch', 'orderItems.menuItem'])->find($id);
 
         if (!$order) {
             abort(404, 'Order not found');
