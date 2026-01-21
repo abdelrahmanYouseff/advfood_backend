@@ -765,13 +765,15 @@ const notifiedNewOrders = ref<Set<number>>(new Set());
 
 // Check for orders that need sound announcements
 const checkForOrdersWithSound = () => {
+    // IMPORTANT: Use props.orders (all orders) instead of filteredOrders to ensure
+    // sound works for ALL orders regardless of status filter or branch
     // Get all new orders (created within last 5 minutes) that are still unaccepted
-    const newOrders = filteredOrders.value.filter(
+    const newOrders = props.orders.filter(
         (order: any) => isNewOrder(order) && isUnacceptedOrder(order)
     );
 
-    // Get unaccepted orders (New Order status)
-    const unacceptedOrders = filteredOrders.value.filter((order: any) => isUnacceptedOrder(order));
+    // Get unaccepted orders (New Order status) - use all orders, not filtered
+    const unacceptedOrders = props.orders.filter((order: any) => isUnacceptedOrder(order));
 
     // Combine both: new orders OR unaccepted orders (unique by ID)
     const ordersNeedingSound: any[] = Array.from(
@@ -806,8 +808,9 @@ const checkForOrdersWithSound = () => {
         });
         stopContinuousSound();
         // Clean up old notified orders (older than 5 minutes)
+        // Use props.orders to check all orders, not just filtered ones
         const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-        filteredOrders.value.forEach((order: any) => {
+        props.orders.forEach((order: any) => {
             const orderTime = new Date(order.created_at).getTime();
             if (orderTime < fiveMinutesAgo) {
                 notifiedNewOrders.value.delete(order.id);
@@ -834,7 +837,8 @@ const checkForOrdersWithSound = () => {
     });
 
     // Legacy continuous sound - keep for backward compatibility but prioritize voice announcements
-    const ordersWithSound = filteredOrders.value.filter((order: any) => order.sound === true);
+    // Use props.orders to check all orders, not just filtered ones
+    const ordersWithSound = props.orders.filter((order: any) => order.sound === true);
     if (ordersWithSound.length === 0) {
         stopContinuousSound();
     }
@@ -1082,7 +1086,8 @@ onMounted(() => {
     checkForOrdersWithSound();
 
     // Mark existing new orders as notified to avoid duplicate sounds
-    filteredOrders.value.forEach((order: any) => {
+    // Use props.orders to check all orders, not just filtered ones
+    props.orders.forEach((order: any) => {
         if (isNewOrder(order)) {
             notifiedNewOrders.value.add(order.id);
         }
@@ -1097,13 +1102,15 @@ onMounted(() => {
     // Set up polling for new orders every 3 seconds (real-time monitoring)
     const interval = setInterval(() => {
         console.log('🔄 Polling for new orders...');
-        const previousOrderIds = new Set(filteredOrders.value.map((o: any) => o.id));
+        // Use props.orders to track all orders, not just filtered ones
+        const previousOrderIds = new Set(props.orders.map((o: any) => o.id));
         router.reload({
             only: ['orders'],
             // @ts-expect-error preserveScroll exists at runtime but is missing from TS types
             preserveScroll: true,
             onSuccess: (page: any) => {
                 console.log('✅ Orders reloaded, checking for new orders and sound...');
+                // Check ALL orders from backend, not just filtered ones
                 const currentOrderIds = new Set(page.props.orders.map((o: any) => o.id));
 
                 // Check for new orders (orders that weren't in previous list)
