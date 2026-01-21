@@ -16,6 +16,8 @@ class DatabaseSeeder extends Seeder
         // Create admin user only
         $this->call([
             AdminUserSeeder::class,
+            BranchSeeder::class,
+            BranchRestaurantShopIdSeeder::class,
         ]);
     }
 }

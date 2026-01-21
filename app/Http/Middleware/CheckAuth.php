@@ -19,7 +19,19 @@ class CheckAuth
     {
         // Check if user is authenticated via either guard
         $user = Auth::guard('web')->user();
-        $branch = Auth::guard('branches')->user();
+        
+        // Try to get branch, but handle case where 'branches' guard might not be defined yet
+        $branch = null;
+        try {
+            $branch = Auth::guard('branches')->user();
+        } catch (\InvalidArgumentException $e) {
+            // Guard not defined yet - this can happen if config/auth.php hasn't been updated on server
+            // Log the error but continue - we'll only check for regular user authentication
+            \Log::warning('Branches guard not defined', [
+                'error' => $e->getMessage(),
+                'note' => 'Make sure config/auth.php has been updated on server with branches guard and provider',
+            ]);
+        }
         
         if (!$user && !$branch) {
             // Not authenticated via any guard, redirect to login
