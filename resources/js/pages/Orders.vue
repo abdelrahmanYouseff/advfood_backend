@@ -1588,20 +1588,22 @@ onMounted(() => {
                         <span class="text-sm text-muted-foreground">
                             {{ soundEnabled ? '🔊 الصوت مفعل' : '🔇 الصوت معطل' }}
                         </span>
-                        <button
+                        <!-- Test Sound Button - Hidden -->
+                        <!-- <button
                             @click="playBeepSound"
                             type="button"
                             class="ml-2 px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
                         >
                             اختبار الصوت
-                        </button>
-                        <button
+                        </button> -->
+                        <!-- Test Female Voice Button - Hidden -->
+                        <!-- <button
                             @click="testFemaleVoice"
                             type="button"
                             class="ml-2 px-2 py-1 text-xs bg-pink-600 text-white rounded hover:bg-pink-700 dark:bg-pink-500 dark:hover:bg-pink-600 cursor-pointer"
                         >
                             اختبار الصوت الأنثوي
-                        </button>
+                        </button> -->
                     </div>
 
                     <!-- Action Buttons -->

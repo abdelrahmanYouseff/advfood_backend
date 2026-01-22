@@ -20,7 +20,8 @@ import {
     Link as LinkIcon,
     Truck,
     UserCircle2,
-    Package
+    Package,
+    Building2
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed, ref, watch } from 'vue';
@@ -147,6 +148,11 @@ const mainNavItems = computed(() => {
                 icon: Users,
             },
             {
+                title: t('الفروع', 'Branches'),
+                href: '/branches',
+                icon: Building2,
+            },
+            {
                 title: t('المطاعم', 'Restaurants'),
                 href: '/restaurants',
                 icon: Store,
@@ -196,6 +202,11 @@ const mainNavItems = computed(() => {
             title: t('المستخدمين', 'Users'),
             href: '/users',
             icon: Users,
+        },
+        {
+            title: t('الفروع', 'Branches'),
+            href: '/branches',
+            icon: Building2,
         },
         {
             title: t('المطاعم', 'Restaurants'),

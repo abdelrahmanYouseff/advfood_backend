@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdController;
+use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryTripController;
@@ -92,6 +93,9 @@ Route::middleware(['checkauth', 'verified_or_branch'])->group(function () {
 
     // Users
     Route::resource('users', UserController::class);
+
+    // Branches
+    Route::resource('branches', BranchController::class);
 
     // Restaurants
     Route::resource('restaurants', RestaurantController::class);
