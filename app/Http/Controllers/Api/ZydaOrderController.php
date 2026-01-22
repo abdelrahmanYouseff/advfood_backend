@@ -118,22 +118,33 @@ class ZydaOrderController extends Controller
             // Normalize zyda_order_key (remove leading '#' and whitespace)
             $normalizedKey = ltrim((string) $validated['zyda_order_key'], "# \t\n\r\0\x0B");
 
-            // Check if order exists using zyda_order_key (unique identifier from Zyda)
-            $exists = DB::table('zyda_orders')
+            // Check if order exists and if it has been fully processed
+            $existingOrder = DB::table('zyda_orders')
                 ->where('zyda_order_key', $normalizedKey)
-                ->exists();
+                ->first();
 
-            // If order already exists, return success without processing (no duplicate)
-            if ($exists) {
-                Log::info('ℹ️ Zyda order already exists, skipping', [
+            // If order exists AND has been converted to Order, skip (fully processed)
+            if ($existingOrder && !empty($existingOrder->order_id)) {
+                Log::info('ℹ️ Zyda order already fully processed, skipping', [
                     'zyda_order_key' => $normalizedKey,
                     'phone' => $validated['phone'],
+                    'order_id' => $existingOrder->order_id,
                 ]);
 
                 return response()->json([
                     'success' => true,
                     'operation' => 'skipped',
-                    'message' => 'Order already exists in database',
+                    'message' => 'Order already fully processed',
+                ]);
+            }
+
+            // If order exists but NOT fully processed (no order_id or no location), continue processing
+            if ($existingOrder) {
+                Log::info('🔄 Zyda order exists but not fully processed, will update', [
+                    'zyda_order_key' => $normalizedKey,
+                    'phone' => $validated['phone'],
+                    'has_location' => !empty($existingOrder->location),
+                    'has_order_id' => !empty($existingOrder->order_id),
                 ]);
             }
 
