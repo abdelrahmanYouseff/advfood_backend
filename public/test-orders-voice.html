@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار صوت الأوردرات - بسيط ومضمون</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            width: calc(100% - 20px);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .test-btn {
+            background: linear-gradient(135deg, #fc00ff 0%, #00dbde 100%);
+        }
+        #log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            direction: ltr;
+            text-align: left;
+        }
+        .emoji {
+            font-size: 24px;
+            margin: 0 10px;
+        }
+        .status {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+        .voice-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 اختبار صوت الأوردرات - النسخة المبسطة</h1>
+    
+    <div class="card">
+        <h2><span class="emoji">🔊</span> اختبار سريع</h2>
+        <button class="success" onclick="simpleTest()">
+            ▶️ تشغيل: "Order Number 1"
+        </button>
+        <button class="test-btn" onclick="testOrders()">
+            🔢 اختبار أوردرات متعددة (1، 2، 3)
+        </button>
+        
+        <div class="status">
+            <strong>الصوت المستخدم:</strong> <span id="voice-name">جاري التحميل...</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📝 Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let selectedVoice = null;
+
+        const log = (message) => {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString('en-US');
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        };
+
+        // Load voices and select female voice
+        function loadVoices() {
+            const voices = speechSynthesis.getVoices();
+            
+            if (voices.length > 0) {
+                // Find Samantha or any female voice
+                selectedVoice = voices.find(v => 
+                    v.name.toLowerCase().includes('samantha')
+                ) || voices.find(v => 
+                    v.name.toLowerCase().includes('karen')
+                ) || voices.find(v => 
+                    v.name.toLowerCase().includes('female')
+                ) || voices.find(v => 
+                    v.lang.includes('en-US')
+                ) || voices[0];
+
+                if (selectedVoice) {
+                    document.getElementById('voice-name').textContent = 
+                        `${selectedVoice.name} (${selectedVoice.lang})`;
+                    log(`✅ Voice loaded: ${selectedVoice.name} (${selectedVoice.lang})`);
+                }
+            } else {
+                log('⏳ Waiting for voices to load...');
+            }
+        }
+
+        // Simple test - just speak, no complexity
+        function simpleTest() {
+            log('🔊 Starting simple test...');
+            
+            if (!('speechSynthesis' in window)) {
+                alert('❌ Speech Synthesis not supported');
+                return;
+            }
+
+            // Make sure voices are loaded
+            if (!selectedVoice) {
+                loadVoices();
+                if (!selectedVoice) {
+                    log('❌ No voice available');
+                    alert('❌ Please wait for voices to load and try again');
+                    return;
+                }
+            }
+
+            const message = 'Order Number 1';
+            const utterance = new SpeechSynthesisUtterance(message);
+            
+            utterance.voice = selectedVoice;
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.2;
+            utterance.volume = 1.0;
+
+            utterance.onstart = () => {
+                log(`✅ ✅ ✅ STARTED: "${message}"`);
+            };
+
+            utterance.onend = () => {
+                log(`✅ ✅ ✅ ENDED: "${message}"`);
+            };
+
+            utterance.onerror = (e) => {
+                log(`❌ ERROR: ${e.error}`);
+            };
+
+            log(`📤 Calling speechSynthesis.speak("${message}")...`);
+            speechSynthesis.speak(utterance);
+        }
+
+        // Test multiple orders in sequence
+        function testOrders() {
+            log('🔢 Testing multiple orders...');
+            
+            if (!selectedVoice) {
+                loadVoices();
+                if (!selectedVoice) {
+                    alert('❌ Please wait for voices to load and try again');
+                    return;
+                }
+            }
+
+            const orders = [1, 2, 3];
+            let index = 0;
+
+            const speakNext = () => {
+                if (index >= orders.length) {
+                    log('✅ All orders announced!');
+                    return;
+                }
+
+                const orderNumber = orders[index];
+                const message = `Order Number ${orderNumber}`;
+                
+                log(`🔊 Announcing order ${orderNumber}...`);
+                
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.voice = selectedVoice;
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9;
+                utterance.pitch = 1.2;
+                utterance.volume = 1.0;
+
+                utterance.onend = () => {
+                    log(`✅ Finished order ${orderNumber}`);
+                    index++;
+                    // Wait a bit before next order
+                    setTimeout(speakNext, 1000);
+                };
+
+                utterance.onerror = (e) => {
+                    log(`❌ Error on order ${orderNumber}: ${e.error}`);
+                    index++;
+                    setTimeout(speakNext, 1000);
+                };
+
+                speechSynthesis.speak(utterance);
+            };
+
+            speakNext();
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded');
+            
+            // Load voices immediately
+            loadVoices();
+            
+            // Set up voices changed listener for browsers that need it
+            speechSynthesis.onvoiceschanged = loadVoices;
+
+            // Enable speech on first interaction
+            document.addEventListener('click', () => {
+                const silent = new SpeechSynthesisUtterance('');
+                silent.volume = 0;
+                speechSynthesis.speak(silent);
+                log('✅ Speech enabled by user interaction');
+            }, { once: true });
+
+            log('✅ System ready');
+        });
+    </script>
+</body>
+</html>

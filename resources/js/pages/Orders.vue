@@ -648,17 +648,54 @@ const playOrderAnnouncement = (order: any) => {
     const dailyNumber = getDailyOrderNumber(order);
     const message = `Order Number ${dailyNumber}`;
 
-    console.log(`🔊 Attempting to play announcement: "${message}" for order ${order.id}`);
+    console.log(`🔊 Playing announcement: "${message}" for order ${order.id}`);
 
-    // Cancel any pending speech to avoid queue issues
-    if (speechSynthesis.speaking || speechSynthesis.pending) {
-        console.log('🛑 Canceling existing speech before new announcement');
-        speechSynthesis.cancel();
-        // Wait a bit for cancellation to complete
-        setTimeout(() => doSpeakOrder(message, order), 100);
-    } else {
-        doSpeakOrder(message, order);
-    }
+    // IMPORTANT: Cancel any existing speech first (fixes Chrome on macOS issue)
+    // Then wait before speaking to ensure queue is clear
+    speechSynthesis.cancel();
+    
+    setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.2;
+        utterance.volume = 1.0;
+
+        // Get voices and select female voice
+        const voices = speechSynthesis.getVoices();
+        const femaleVoice = voices.find(v =>
+            v.name.toLowerCase().includes('samantha') ||
+            v.name.toLowerCase().includes('karen') ||
+            v.name.toLowerCase().includes('female')
+        ) || voices.find(v => v.lang.includes('en-US')) || voices[0];
+
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+            console.log(`🎤 Using voice: ${femaleVoice.name}`);
+        }
+
+        utterance.onstart = () => {
+            console.log(`✅ Started speaking: "${message}"`);
+        };
+
+        utterance.onend = () => {
+            console.log(`✅ Finished speaking: "${message}"`);
+        };
+
+        utterance.onerror = (e: any) => {
+            // Only log non-canceled errors
+            if (e.error !== 'canceled' && e.error !== 'interrupted') {
+                console.error(`❌ Speech error: ${e.error}`, e);
+            }
+        };
+
+        // Speak after clearing queue
+        try {
+            speechSynthesis.speak(utterance);
+        } catch (error: any) {
+            console.error('❌ Error calling speak():', error);
+        }
+    }, 250); // Wait 250ms after cancel for Chrome on macOS
 };
 
 // Separate function for actual speaking to improve reliability
@@ -1144,81 +1181,62 @@ const speakTestMessage = (voices: SpeechSynthesisVoice[]) => {
 
 // Test female voice function - plays "Order Number 1" with female voice
 const testFemaleVoice = () => {
-    console.log('🧪 🧪 🧪 Test female voice button clicked - starting...');
+    console.log('🧪 Test female voice button clicked');
     
     if (!('speechSynthesis' in window)) {
         alert('❌ Speech synthesis غير مدعوم في هذا المتصفح');
-        console.error('❌ Speech synthesis not available');
         return;
     }
+
+    // IMPORTANT: Cancel first, then wait before speaking (fixes Chrome on macOS)
+    console.log('🛑 Canceling any existing speech...');
+    speechSynthesis.cancel();
     
-    console.log('✅ Speech synthesis is available');
-
-    // Cancel any existing speech first
-    if (speechSynthesis.speaking || speechSynthesis.pending) {
-        console.log('🛑 Canceling existing speech...');
-        speechSynthesis.cancel();
-    }
-
-    // First, try to enable speech by speaking a silent utterance (required by browsers)
-    try {
-        const enableUtterance = new SpeechSynthesisUtterance('');
-        enableUtterance.volume = 0;
-        speechSynthesis.speak(enableUtterance);
-        speechSynthesis.cancel();
-        console.log('✅ Speech enabled via silent utterance');
-    } catch (error) {
-        console.error('❌ Failed to enable speech:', error);
-    }
-
-    // Get voices - try multiple times if needed
-    const trySpeak = () => {
-        let voices = speechSynthesis.getVoices();
-        console.log(`🔍 Found ${voices.length} voices`);
+    setTimeout(() => {
+        const voices = speechSynthesis.getVoices();
+        console.log(`🎤 Found ${voices.length} voices`);
         
         if (voices.length === 0) {
-            console.log('⏳ No voices yet, waiting...');
-            let retryCount = 0;
-            const maxRetries = 30; // Maximum 3 seconds
-            
-            // Wait for voices to load
-            const checkVoices = () => {
-                voices = speechSynthesis.getVoices();
-                if (voices.length > 0) {
-                    console.log(`✅ Got ${voices.length} voices after ${retryCount} retries, speaking now...`);
-                    console.log('🎤 Available voices:', voices.map(v => `${v.name} (${v.lang})`));
-                    speakTestMessage(voices);
-                } else if (retryCount < maxRetries) {
-                    retryCount++;
-                    setTimeout(checkVoices, 100);
-                } else {
-                    console.error('❌ Failed to load voices after maximum retries');
-                    alert('❌ فشل تحميل الأصوات. يرجى المحاولة مرة أخرى.');
-                }
-            };
-            
-            // Set up voices changed listener
-            const voicesChangedHandler = () => {
-                voices = speechSynthesis.getVoices();
-                if (voices.length > 0) {
-                    console.log(`✅ Voices loaded via event: ${voices.length}`);
-                    console.log('🎤 Available voices:', voices.map(v => `${v.name} (${v.lang})`));
-                    speechSynthesis.onvoiceschanged = null; // Remove listener
-                    speakTestMessage(voices);
-                }
-            };
-            
-            speechSynthesis.onvoiceschanged = voicesChangedHandler;
-            checkVoices();
-        } else {
-            console.log(`✅ Got ${voices.length} voices immediately, speaking now...`);
-            console.log('🎤 Available voices:', voices.map(v => `${v.name} (${v.lang})`));
-            speakTestMessage(voices);
+            alert('❌ No voices available. Please try again.');
+            return;
         }
-    };
 
-    // Small delay to ensure speech synthesis is ready
-    setTimeout(trySpeak, 200);
+        const message = 'Order Number 1';
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.2;
+        utterance.volume = 1.0;
+
+        // Find female voice
+        const femaleVoice = voices.find(v =>
+            v.name.toLowerCase().includes('samantha') ||
+            v.name.toLowerCase().includes('karen') ||
+            v.name.toLowerCase().includes('female')
+        ) || voices.find(v => v.lang.includes('en-US')) || voices[0];
+
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+            console.log(`✅ Using voice: ${femaleVoice.name}`);
+        }
+
+        utterance.onstart = () => {
+            console.log('✅ ✅ ✅ الصوت الأنثوي بدأ!');
+        };
+
+        utterance.onend = () => {
+            console.log('✅ ✅ ✅ انتهى الصوت الأنثوي بنجاح!');
+        };
+
+        utterance.onerror = (e: any) => {
+            if (e.error !== 'canceled' && e.error !== 'interrupted') {
+                console.error('❌ خطأ في الصوت:', e.error);
+            }
+        };
+
+        console.log(`🔊 Speaking: "${message}"`);
+        speechSynthesis.speak(utterance);
+    }, 250); // Wait 250ms after cancel for Chrome on macOS
 };
 
 // Direct speech function
