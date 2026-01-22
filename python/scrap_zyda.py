@@ -400,7 +400,7 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
         # Wait for page to be ready
         print("[INFO] Waiting for page to be ready...", flush=True)
         wait.until(EC.url_contains("/orders/current"))
-        time.sleep(3)  # Additional wait for page to fully render
+        time.sleep(0.5)  # Reduced from 3 to 0.5 seconds for faster scraping
 
         # Try to close any modals or popups
         try:
@@ -428,8 +428,8 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
         print("[STEP] Fetching orders from Zyda dashboard...", flush=True)
         print("[INFO] Waiting for order cards to appear...", flush=True)
 
-        # Use longer timeout for waiting
-        extended_wait = WebDriverWait(driver, 20)  # 20 seconds timeout
+        # Use optimized timeout for waiting
+        extended_wait = WebDriverWait(driver, 10)  # Reduced from 20 to 10 seconds for faster scraping
 
         # Try multiple selectors with longer timeout
         cards = None
@@ -458,10 +458,10 @@ def _scrape_order_cards(driver, wait: WebDriverWait) -> List[Dict[str, object]]:
                 print(f"[WARN] Selector {selector} did not find cards within 20s, trying next...", flush=True)
                 continue
 
-        # If still no cards found, try one more time with even longer wait
+        # If still no cards found, try one more time with shorter wait
         if not cards or len(cards) == 0:
-            print("[INFO] Waiting additional 5 seconds and trying one more time...", flush=True)
-            time.sleep(5)
+            print("[INFO] Waiting additional 1 second and trying one more time...", flush=True)
+            time.sleep(1)  # Reduced from 5 to 1 second for faster scraping
 
             # Try to find any elements that might be order cards
             try:
@@ -1380,9 +1380,9 @@ def run_once() -> Dict[str, int]:
     print(f"[INFO] API Endpoint: {API_ENDPOINT}", flush=True)
     print(f"[INFO] Python version: {sys.version}", flush=True)
 
-    # Delete saved session cookies to force fresh login
-    print("[INFO] Deleting saved session cookies to force fresh login...", flush=True)
-    delete_session_cookies()
+    # DO NOT delete session cookies - reuse existing session for faster execution
+    # Session cookies are automatically managed and refreshed as needed
+    print("[INFO] Using existing session if available (faster execution)...", flush=True)
 
     # Check if required modules are available
     try:
