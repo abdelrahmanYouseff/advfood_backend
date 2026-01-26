@@ -112,4 +112,25 @@ class BranchController extends Controller
         return redirect()->route('branches.index')
             ->with('success', 'تم حذف الفرع بنجاح');
     }
+
+    /**
+     * Toggle the branch status (active/inactive).
+     */
+    public function toggleStatus(Branch $branch)
+    {
+        $newStatus = $branch->status === 'active' ? 'inactive' : 'active';
+        $branch->update(['status' => $newStatus]);
+
+        \Log::info('🔄 Branch status toggled', [
+            'branch_id' => $branch->id,
+            'branch_name' => $branch->name,
+            'old_status' => $branch->status === 'active' ? 'inactive' : 'active',
+            'new_status' => $newStatus,
+        ]);
+
+        return back()->with('success', $newStatus === 'active' 
+            ? 'تم تفعيل الفرع بنجاح' 
+            : 'تم تعطيل الفرع بنجاح'
+        );
+    }
 }

@@ -96,6 +96,7 @@ Route::middleware(['checkauth', 'verified_or_branch'])->group(function () {
 
     // Branches
     Route::resource('branches', BranchController::class);
+    Route::post('branches/{branch}/toggle-status', [BranchController::class, 'toggleStatus'])->name('branches.toggle-status');
 
     // Restaurants
     Route::resource('restaurants', RestaurantController::class);

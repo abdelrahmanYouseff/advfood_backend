@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
-import { Building2, Plus, MapPin, Mail, Lock } from 'lucide-vue-next';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { Building2, Plus, MapPin, Mail, Lock, Power, PowerOff } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 interface Branch {
     id: number;
@@ -19,19 +20,34 @@ interface Props {
 
 const { branches } = defineProps<Props>();
 
-// Debug: Log branches data
-console.log('🔍 Branches data:', branches);
-console.log('🔍 Branches count:', branches?.length || 0);
-console.log('🔍 Branches type:', typeof branches);
-console.log('🔍 Is Array?:', Array.isArray(branches));
+// Track which branches are being toggled
+const togglingBranches = ref<Set<number>>(new Set());
 
 // Format status for display
 const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; class: string }> = {
         active: { label: 'نشط', class: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
-        inactive: { label: 'غير نشط', class: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' },
+        inactive: { label: 'غير نشط', class: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
     };
     return statusMap[status] || { label: status, class: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' };
+};
+
+// Toggle branch status
+const toggleStatus = (branchId: number) => {
+    if (togglingBranches.value.has(branchId)) return;
+    
+    togglingBranches.value.add(branchId);
+    
+    router.post(
+        `/branches/${branchId}/toggle-status`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                togglingBranches.value.delete(branchId);
+            },
+        }
+    );
 };
 </script>
 
@@ -119,15 +135,33 @@ const getStatusBadge = (status: string) => {
                             </div>
                         </div>
 
-                        <!-- Actions (Future) -->
-                        <!-- <div class="mt-6 flex gap-2">
-                            <Link
-                                :href="`/branches/${branch.id}/edit`"
-                                class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-center text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                        <!-- Actions -->
+                        <div class="mt-6 flex gap-2">
+                            <button
+                                @click="toggleStatus(branch.id)"
+                                :disabled="togglingBranches.has(branch.id)"
+                                :class="[
+                                    'flex-1 rounded-lg px-3 py-2 text-center text-sm font-medium transition',
+                                    branch.status === 'active'
+                                        ? 'border border-red-300 bg-white text-red-700 hover:bg-red-50 dark:border-red-600 dark:bg-gray-700 dark:text-red-400 dark:hover:bg-red-900/20'
+                                        : 'border border-green-300 bg-white text-green-700 hover:bg-green-50 dark:border-green-600 dark:bg-gray-700 dark:text-green-400 dark:hover:bg-green-900/20',
+                                    togglingBranches.has(branch.id) && 'opacity-50 cursor-not-allowed'
+                                ]"
                             >
-                                تعديل
-                            </Link>
-                        </div> -->
+                                <span v-if="togglingBranches.has(branch.id)" class="inline-flex items-center gap-2">
+                                    <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>جاري التحديث...</span>
+                                </span>
+                                <span v-else class="inline-flex items-center gap-2">
+                                    <PowerOff v-if="branch.status === 'active'" class="h-4 w-4" />
+                                    <Power v-else class="h-4 w-4" />
+                                    <span>{{ branch.status === 'active' ? 'تعطيل الفرع' : 'تفعيل الفرع' }}</span>
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
