@@ -126,7 +126,7 @@ const toggleStatus = (branchId: number) => {
                                     target="_blank"
                                     class="truncate hover:text-purple-600 hover:underline dark:hover:text-purple-400"
                                 >
-                                    {{ branch.latitude.toFixed(4) }}, {{ branch.longitude.toFixed(4) }}
+                                    {{ parseFloat(branch.latitude).toFixed(4) }}, {{ parseFloat(branch.longitude).toFixed(4) }}
                                 </a>
                             </div>
                             <div v-else class="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
