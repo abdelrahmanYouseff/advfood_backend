@@ -167,7 +167,7 @@ Route::get('/images/tant-bakiza-logo.png', function() {
 
 // Route to serve Delawa menu image (public route)
 Route::get('/menu/delawa', function() {
-    $imageUrl = asset('images/المنيو عربي.jpg.jpeg');
+    $imageUrl = asset('images/WhatsApp Image 2026-01-29 at 4.11.36 PM.jpeg');
     
     return response()->make('
 <!DOCTYPE html>
@@ -194,30 +194,10 @@ Route::get('/menu/delawa', function() {
             align-items: center;
         }
         img {
-            max-width: 100vw;
-            max-height: 100vh;
-            width: auto;
+            width: 100vw;
             height: 100vh;
             object-fit: contain;
             display: block;
-            image-orientation: from-image;
-        }
-        
-        /* التأكد من أن الصورة عمودية على كل الأجهزة */
-        @media (orientation: landscape) {
-            img {
-                width: auto;
-                height: 100vh;
-                max-width: 100vw;
-            }
-        }
-        
-        @media (orientation: portrait) {
-            img {
-                width: 100vw;
-                height: auto;
-                max-height: 100vh;
-            }
         }
     </style>
 </head>
