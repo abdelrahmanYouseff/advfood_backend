@@ -188,7 +188,7 @@ Route::get('/menu/delawa', function() {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: #000;
+            background: #662b37;
         }
         img {
             width: 100vw;
