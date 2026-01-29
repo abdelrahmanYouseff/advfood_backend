@@ -167,7 +167,7 @@ Route::get('/images/tant-bakiza-logo.png', function() {
 
 // Route to serve Delawa menu image (public route)
 Route::get('/menu/delawa', function() {
-    $imageUrl = asset('images/delawa-menu-portrait.jpeg');
+    $imageUrl = asset('images/المنيو عربي.jpg.jpeg');
     
     return response()->make('
 <!DOCTYPE html>
