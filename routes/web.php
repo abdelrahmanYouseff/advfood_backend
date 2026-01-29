@@ -189,9 +189,14 @@ Route::get('/menu/delawa', function() {
             height: 100%;
             overflow: hidden;
             background: #662b37;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         img {
-            width: 100vw;
+            max-width: 100vw;
+            max-height: 100vh;
+            width: auto;
             height: 100vh;
             object-fit: contain;
             display: block;
