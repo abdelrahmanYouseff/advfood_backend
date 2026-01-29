@@ -165,6 +165,21 @@ Route::get('/images/tant-bakiza-logo.png', function() {
     abort(404, 'Image not found');
 })->name('images.tant-bakiza');
 
+// Route to serve Delawa menu image (public route)
+Route::get('/menu/delawa', function() {
+    $path = public_path('images/delawa-menu.jpeg');
+    
+    if (file_exists($path)) {
+        return response()->file($path, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'public, max-age=31536000', // Cache for 1 year
+        ]);
+    }
+    
+    \Log::error('Delawa menu image not found at: ' . $path);
+    abort(404, 'Menu image not found');
+})->name('menu.delawa');
+
 // Public webhook routes for shipping providers (no authentication required)
 Route::post('/webhook/shipping/shadda', [ShippingController::class, 'handleShaddaWebhook'])->name('webhook.shadda');
 
