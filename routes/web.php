@@ -200,6 +200,24 @@ Route::get('/menu/delawa', function() {
             height: 100vh;
             object-fit: contain;
             display: block;
+            image-orientation: from-image;
+        }
+        
+        /* التأكد من أن الصورة عمودية على كل الأجهزة */
+        @media (orientation: landscape) {
+            img {
+                width: auto;
+                height: 100vh;
+                max-width: 100vw;
+            }
+        }
+        
+        @media (orientation: portrait) {
+            img {
+                width: 100vw;
+                height: auto;
+                max-height: 100vh;
+            }
         }
     </style>
 </head>
