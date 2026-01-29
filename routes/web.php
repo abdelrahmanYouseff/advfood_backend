@@ -167,17 +167,117 @@ Route::get('/images/tant-bakiza-logo.png', function() {
 
 // Route to serve Delawa menu image (public route)
 Route::get('/menu/delawa', function() {
-    $path = public_path('images/delawa-menu.jpeg');
+    $imageUrl = asset('images/delawa-menu-portrait.jpeg');
     
-    if (file_exists($path)) {
-        return response()->file($path, [
-            'Content-Type' => 'image/jpeg',
-            'Cache-Control' => 'public, max-age=31536000', // Cache for 1 year
-        ]);
-    }
-    
-    \Log::error('Delawa menu image not found at: ' . $path);
-    abort(404, 'Menu image not found');
+    return response()->make('
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta property="og:title" content="قائمة الطعام - ديلاوا">
+    <meta property="og:image" content="' . $imageUrl . '">
+    <meta property="og:type" content="website">
+    <title>قائمة الطعام - ديلاوا</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #7c2d12 0%, #991b1b 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .image-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 140px);
+            padding: 20px;
+            background: white;
+        }
+        .menu-image-container {
+            position: relative;
+            width: 90vw;
+            max-width: 600px;
+        }
+        .menu-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .footer {
+            background: #f5f5f5;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        /* تعديل خاص للموبايل */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 22px;
+            }
+            .header p {
+                font-size: 14px;
+            }
+            .image-wrapper {
+                padding: 10px;
+            }
+            .menu-image-container {
+                width: 95vw;
+            }
+        }
+        /* تعديل للشاشات الكبيرة */
+        @media (min-width: 1200px) {
+            .menu-image-container {
+                max-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🍽️ قائمة الطعام</h1>
+        <p>ديلاوا - Delawa</p>
+    </div>
+    <div class="image-wrapper">
+        <div class="menu-image-container">
+            <img src="' . $imageUrl . '" alt="قائمة الطعام - ديلاوا" class="menu-image">
+        </div>
+    </div>
+    <div class="footer">
+        <p>© 2026 AdvFood · جميع الحقوق محفوظة</p>
+    </div>
+</body>
+</html>
+    ', 200, [
+        'Content-Type' => 'text/html; charset=UTF-8',
+        'Cache-Control' => 'public, max-age=3600',
+    ]);
 })->name('menu.delawa');
 
 // Public webhook routes for shipping providers (no authentication required)
