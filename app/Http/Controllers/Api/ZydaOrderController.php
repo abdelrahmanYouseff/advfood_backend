@@ -424,6 +424,9 @@ class ZydaOrderController extends Controller
                     'note' => 'Order Model boot method should have sent to shipping company automatically',
                 ]);
 
+                // 🗑️ Delete completed order from zyda_orders and whatsapp_msg tables
+                $this->cleanupProcessedZydaOrder($zydaOrder);
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Location updated and order created successfully',
@@ -1327,6 +1330,66 @@ class ZydaOrderController extends Controller
         ]);
 
         return null;
+    }
+
+    /**
+     * Clean up processed Zyda order from database tables
+     * Deletes records from:
+     * 1. zyda_orders table
+     * 2. whatsapp_msg table (matching deliver_order with zyda_order_key)
+     */
+    protected function cleanupProcessedZydaOrder(ZydaOrder $zydaOrder): void
+    {
+        try {
+            // Normalize zyda_order_key (remove leading '#' and whitespace)
+            $zydaOrderKey = ltrim((string) $zydaOrder->zyda_order_key, "# \t\n\r\0\x0B");
+
+            Log::info('🗑️ Starting cleanup of processed Zyda order', [
+                'zyda_order_id' => $zydaOrder->id,
+                'zyda_order_key' => $zydaOrderKey,
+                'phone' => $zydaOrder->phone,
+                'order_id' => $zydaOrder->order_id,
+            ]);
+
+            // Delete from whatsapp_msg table where deliver_order matches zyda_order_key
+            $deletedWhatsappCount = DB::table('whatsapp_msg')
+                ->where(function ($query) use ($zydaOrderKey) {
+                    // Match exact key or key with '#' prefix
+                    $query->where('deliver_order', $zydaOrderKey)
+                          ->orWhere('deliver_order', '#' . $zydaOrderKey)
+                          ->orWhere('deliver_order', 'like', $zydaOrderKey . '%')
+                          ->orWhere('deliver_order', 'like', '#' . $zydaOrderKey . '%');
+                })
+                ->delete();
+
+            Log::info('✅ Deleted WhatsApp messages for processed order', [
+                'zyda_order_key' => $zydaOrderKey,
+                'deleted_count' => $deletedWhatsappCount,
+            ]);
+
+            // Delete from zyda_orders table
+            $zydaOrder->delete();
+
+            Log::info('✅ Deleted Zyda order from database', [
+                'zyda_order_id' => $zydaOrder->id,
+                'zyda_order_key' => $zydaOrderKey,
+                'order_id' => $zydaOrder->order_id,
+            ]);
+
+            Log::info('🎉 Cleanup completed successfully', [
+                'zyda_order_key' => $zydaOrderKey,
+                'whatsapp_messages_deleted' => $deletedWhatsappCount,
+                'zyda_order_deleted' => true,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ Error cleaning up processed Zyda order', [
+                'zyda_order_id' => $zydaOrder->id ?? null,
+                'zyda_order_key' => $zydaOrder->zyda_order_key ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Don't re-throw - cleanup failure shouldn't break the main flow
+        }
     }
 
     /**
