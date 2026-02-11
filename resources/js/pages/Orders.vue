@@ -635,18 +635,40 @@ const getDailyOrderNumber = (order: any): number => {
 const isUnacceptedOrder = (order: any): boolean => {
     // If sound is explicitly disabled, order doesn't need announcement
     if (order.sound === false) {
+        console.log(`❌ Order ${order.id} has sound=false, skipping announcement`);
         return false;
     }
     
-    return order.shipping_status === 'New Order' ||
+    const isUnaccepted = order.shipping_status === 'New Order' ||
            order.status === 'pending' ||
            order.shipping_status?.toLowerCase() === 'new order';
+    
+    console.log(`🔍 isUnacceptedOrder check for order ${order.id}:`, {
+        sound: order.sound,
+        shipping_status: order.shipping_status,
+        status: order.status,
+        isUnaccepted,
+    });
+    
+    return isUnaccepted;
 };
 
 // Play female voice announcement for an order
 const playOrderAnnouncement = (order: any) => {
+    console.log('🎯 playOrderAnnouncement called', {
+        orderId: order.id,
+        orderNumber: order.order_number,
+        sound: order.sound,
+        shippingStatus: order.shipping_status,
+        soundEnabled: soundEnabled.value,
+        hasSpeechSynthesis: 'speechSynthesis' in window,
+    });
+    
     if (!('speechSynthesis' in window) || !soundEnabled.value) {
-        console.warn('⚠️ Speech synthesis not available or sound disabled');
+        console.warn('⚠️ Speech synthesis not available or sound disabled', {
+            hasSpeechSynthesis: 'speechSynthesis' in window,
+            soundEnabled: soundEnabled.value,
+        });
         return;
     }
 
@@ -888,6 +910,14 @@ const createAndSpeakUtterance = (message: string, order: any, voices: SpeechSynt
 
 // Start repeating announcement for an order
 const startOrderAnnouncement = (order: any) => {
+    console.log('🎬 startOrderAnnouncement called', {
+        orderId: order.id,
+        orderNumber: order.order_number,
+        sound: order.sound,
+        shippingStatus: order.shipping_status,
+        isUnaccepted: isUnacceptedOrder(order),
+    });
+    
     // Stop if already announcing
     if (announcementIntervals.has(order.id)) {
         console.log(`ℹ️ Already announcing for order ${order.id}, skipping`);
@@ -949,6 +979,11 @@ const notifiedNewOrders = ref<Set<number>>(new Set());
 
 // Check for orders that need sound announcements
 const checkForOrdersWithSound = () => {
+    console.log('🔍 checkForOrdersWithSound called', {
+        totalOrders: props.orders.length,
+        soundEnabled: soundEnabled.value,
+    });
+    
     // IMPORTANT: Use props.orders (all orders) instead of filteredOrders to ensure
     // sound works for ALL orders regardless of status filter or branch
     // Get all new orders (created within last 5 minutes) that are still unaccepted
@@ -958,6 +993,13 @@ const checkForOrdersWithSound = () => {
 
     // Get unaccepted orders (New Order status) - use all orders, not filtered
     const unacceptedOrders = props.orders.filter((order: any) => isUnacceptedOrder(order));
+    
+    console.log('📊 Orders needing sound:', {
+        newOrders: newOrders.length,
+        unacceptedOrders: unacceptedOrders.length,
+        newOrderIds: newOrders.map((o: any) => o.id),
+        unacceptedOrderIds: unacceptedOrders.map((o: any) => o.id),
+    });
 
     // Combine both: new orders OR unaccepted orders (unique by ID)
     const ordersNeedingSound: any[] = Array.from(
