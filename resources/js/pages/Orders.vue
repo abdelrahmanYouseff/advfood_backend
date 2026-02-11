@@ -633,6 +633,11 @@ const getDailyOrderNumber = (order: any): number => {
 
 // Check if order is not accepted (needs announcement)
 const isUnacceptedOrder = (order: any): boolean => {
+    // If sound is explicitly disabled, order doesn't need announcement
+    if (order.sound === false) {
+        return false;
+    }
+    
     return order.shipping_status === 'New Order' ||
            order.status === 'pending' ||
            order.shipping_status?.toLowerCase() === 'new order';

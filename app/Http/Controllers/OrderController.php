@@ -484,8 +484,8 @@ class OrderController extends Controller
             $updateData['delivered_at'] = now();
         }
 
-        // If status is confirmed, turn off sound
-        if ($request->status === 'confirmed') {
+        // If status is confirmed OR preparing, turn off sound
+        if ($request->status === 'confirmed' || $request->status === 'preparing') {
             $updateData['sound'] = false;
         }
 
