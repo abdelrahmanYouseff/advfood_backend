@@ -1,7 +1,7 @@
 [
   {
     "domain": ".zyda.com",
-    "expiry": 1800607074,
+    "expiry": 1802362923,
     "httpOnly": false,
     "name": "mp_5387f456b7dd662bd205621a6fe3fb9d_mixpanel",
     "path": "/",
@@ -11,27 +11,27 @@
   },
   {
     "domain": ".zyda.com",
-    "expiry": 1803631074,
+    "expiry": 1805386923,
     "httpOnly": false,
     "name": "_ga_CCHR5G2FD8",
     "path": "/",
     "sameSite": "Lax",
     "secure": false,
-    "value": "GS2.1.s1769070224$o2$g1$t1769071074$j58$l0$h0"
+    "value": "GS2.1.s1770826446$o3$g1$t1770826923$j59$l0$h0"
   },
   {
     "domain": ".zyda.com",
-    "expiry": 1769072875,
+    "expiry": 1770828724,
     "httpOnly": false,
     "name": "__hssc",
     "path": "/",
     "sameSite": "Lax",
     "secure": false,
-    "value": "136317743.2.1769070225986"
+    "value": "136317743.2.1770826447741"
   },
   {
     "domain": ".zyda.com",
-    "expiry": 1776780110,
+    "expiry": 1778602448,
     "httpOnly": false,
     "name": "_fbp",
     "path": "/",
@@ -59,8 +59,17 @@
     "value": "eyJhbGciOiJSUzUxMiJ9.eyJyZXN0YXVyYW50X2lkIjo1NjE3LCJwZXJtaXNzaW9ucyI6eyJkZWxpdmVyeV96b25lIjp7ImluZGV4Ijp0cnVlLCJzaG93Ijp0cnVlLCJ1cGRhdGUiOnRydWUsImNyZWF0ZSI6dHJ1ZSwiZGVzdHJveSI6dHJ1ZSwibW92ZV90byI6dHJ1ZX0sImRlbGl2ZXJ5X3pvbmVfYXJlYSI6eyJpbmRleCI6dHJ1ZSwic2hvdyI6dHJ1ZSwidXBkYXRlIjp0cnVlLCJjcmVhdGVkIjp0cnVlLCJkZXN0cm95Ijp0cnVlfX0sInVzZXJfcm9sZSI6Im93bmVyIn0.HG7gWcHeCU67rdfQfjwXNtfBtD9aIVvXL-uvy-3MX9gFvpCOTEsvbe7W_CgFr2sW8qxcB69DOjFXbxlKPA842kVPDy0R8LHznkSGC7i1Yk_5S46Grgt2rFNm8txSjy_te1UHaXqpq2h_wgysp9nqyt78m0LYu39bEpWORapmj9XXgcImPk1kUE2SJQ5YlRO--ADc5fP4juEMhDKC4iEs6xrwaLuvWf2R9tYmL_lR5XNKRXiviFXhx5cmN5gRkNJuil-PQRvKEfeV8QBCu5ISOMkRh2t6HZs9ZcC8IbdZtUSIZXxxWGHH_a4oBUVGZOfQ2F602mgA7TLP531TEnVAiQ"
   },
   {
+    "domain": ".dash.zyda.com",
+    "httpOnly": false,
+    "name": "delivery_zone_ms_store_id",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": true,
+    "value": "5617"
+  },
+  {
     "domain": ".zyda.com",
-    "expiry": 1784623075,
+    "expiry": 1786378924,
     "httpOnly": false,
     "name": "hubspotutk",
     "path": "/",
@@ -70,23 +79,13 @@
   },
   {
     "domain": ".zyda.com",
-    "expiry": 1769157475,
+    "expiry": 1805386922,
     "httpOnly": false,
-    "name": "_clsk",
+    "name": "_ga",
     "path": "/",
     "sameSite": "Lax",
     "secure": false,
-    "value": "bxhvpn%5E1769071075382%5E7%5E1%5Ev.clarity.ms%2Fcollect"
-  },
-  {
-    "domain": ".zyda.com",
-    "expiry": 1800606221,
-    "httpOnly": false,
-    "name": "_clck",
-    "path": "/",
-    "sameSite": "Lax",
-    "secure": true,
-    "value": "kpfxls%5E2%5Eg2x%5E0%5E2212"
+    "value": "GA1.1.1210732695.1769004107"
   },
   {
     "domain": ".zyda.com",
@@ -99,42 +98,33 @@
   },
   {
     "domain": ".zyda.com",
-    "expiry": 1784623075,
+    "expiry": 1786378924,
     "httpOnly": false,
     "name": "__hstc",
     "path": "/",
     "sameSite": "Lax",
     "secure": false,
-    "value": "136317743.dc64ed5cf8c7107dd58a9e80e7a790f6.1769004109653.1769004109653.1769070225986.2"
+    "value": "136317743.dc64ed5cf8c7107dd58a9e80e7a790f6.1769004109653.1769070225986.1770826447741.3"
   },
   {
     "domain": ".zyda.com",
-    "expiry": 1803631072,
+    "expiry": 1770913325,
     "httpOnly": false,
-    "name": "_ga",
+    "name": "_clsk",
     "path": "/",
     "sameSite": "Lax",
     "secure": false,
-    "value": "GA1.1.1210732695.1769004107"
+    "value": "13mqb1u%5E1770826925186%5E14%5E1%5Ed.clarity.ms%2Fcollect"
   },
   {
-    "domain": ".dash.zyda.com",
+    "domain": ".zyda.com",
+    "expiry": 1802362443,
     "httpOnly": false,
-    "name": "delivery_zone_ms_store_id",
+    "name": "_clck",
     "path": "/",
     "sameSite": "Lax",
     "secure": true,
-    "value": "5617"
-  },
-  {
-    "domain": ".dash.zyda.com",
-    "expiry": 1769072228,
-    "httpOnly": false,
-    "name": "_BEAMER_FILTER_BY_URL_LmpYWhLp36422",
-    "path": "/",
-    "sameSite": "None",
-    "secure": true,
-    "value": "false"
+    "value": "kpfxls%5E2%5Eg3h%5E0%5E2212"
   },
   {
     "domain": ".zyda.com",
@@ -145,15 +135,5 @@
     "sameSite": "None",
     "secure": true,
     "value": "2026-01-22T08:23:46.433Z"
-  },
-  {
-    "domain": ".zyda.com",
-    "expiry": 1769071379,
-    "httpOnly": false,
-    "name": "_BEAMER_FILTER_BY_URL_LmpYWhLp36422",
-    "path": "/",
-    "sameSite": "None",
-    "secure": true,
-    "value": "false"
   }
 ]
