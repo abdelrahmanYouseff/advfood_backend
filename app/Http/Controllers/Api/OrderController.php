@@ -83,6 +83,8 @@ class OrderController extends Controller
             'estimated_delivery_time' => 'sometimes|date',
             'shop_id' => 'sometimes|string|max:50',
             'source' => 'sometimes|string|max:50',
+            'customer_latitude' => 'sometimes|numeric|between:-90,90',
+            'customer_longitude' => 'sometimes|numeric|between:-180,180',
 
             // Order items (optional for now, can be added separately)
             'items' => 'sometimes|array',

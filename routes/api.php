@@ -217,7 +217,8 @@ Route::get('/points/{pointCustomerId}', function($pointCustomerId) {
     }
 });
 
-// Orders API routes
+// Orders API routes (upload must be before apiResource to avoid "upload" being parsed as order id)
+Route::post('/orders/upload', [OrderController::class, 'store']);
 Route::apiResource('orders', OrderController::class);
 Route::get('/users/{userId}/orders', [OrderController::class, 'getUserOrders']);
 Route::get('/users/{userId}/orders/stats', [OrderController::class, 'getUserOrdersStats']);
