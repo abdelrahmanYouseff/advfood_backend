@@ -197,6 +197,54 @@ class MenuItemController extends Controller
     }
 
     /**
+     * Get a compact menu list for integrations.
+     * Returns only: restaurant_code, product_name, product_price, product_image.
+     */
+    public function compactByRestaurant(Restaurant $restaurant, Request $request)
+    {
+        $query = $restaurant->menuItems()
+            ->select(['id', 'restaurant_id', 'name', 'price', 'image', 'is_available', 'sort_order'])
+            ->orderBy('sort_order')
+            ->orderBy('name');
+
+        if ($request->has('is_available')) {
+            $query->where('is_available', $request->boolean('is_available'));
+        }
+
+        $items = $query->get()->map(function (MenuItem $item) {
+            return [
+                'restaurant_code' => (string) ($item->restaurant?->shop_id ?? $item->restaurant_id),
+                'product_name' => $item->name,
+                'product_price' => (float) $item->price,
+                'product_image' => $item->image,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'restaurant' => [
+                'id' => $restaurant->id,
+                'code' => (string) ($restaurant->shop_id ?? $restaurant->id),
+                'name' => $restaurant->name,
+            ],
+            'count' => $items->count(),
+            'items' => $items,
+        ]);
+    }
+
+    /**
+     * Shortcut endpoint for Tant Bakiza restaurant by name.
+     */
+    public function compactBakiza(Request $request)
+    {
+        $restaurant = Restaurant::query()
+            ->where('name', 'Tant Bakiza')
+            ->firstOrFail();
+
+        return $this->compactByRestaurant($restaurant, $request);
+    }
+
+    /**
      * Get featured menu items.
      */
     public function getFeatured(Request $request)

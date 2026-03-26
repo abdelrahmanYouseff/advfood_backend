@@ -97,6 +97,9 @@ Route::get('/restaurant/{id}/items', function($id) {
 // Public menu items routes
 Route::get('/menu-items', [MenuItemController::class, 'index']);
 Route::get('/menu-items/featured', [MenuItemController::class, 'getFeatured']);
+// Compact integration endpoint for Tant Bakiza (static route must be before {restaurant})
+Route::get('/restaurants/bakiza/menu-items', [MenuItemController::class, 'compactBakiza']);
+Route::get('/restaurants/{restaurant}/menu-items/compact', [MenuItemController::class, 'compactByRestaurant']);
 Route::get('/restaurants/{restaurant}/menu-items', [MenuItemController::class, 'getByRestaurant']);
 Route::get('/menu-items/{menuItem}', [MenuItemController::class, 'show']);
 
