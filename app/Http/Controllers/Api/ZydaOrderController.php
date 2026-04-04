@@ -745,9 +745,6 @@ class ZydaOrderController extends Controller
             $items = is_string($zydaOrder->items) ? json_decode($zydaOrder->items, true) : $zydaOrder->items;
 
             if (is_array($items) && count($items) > 0) {
-                // Use restaurant_id from order (821017372) to find menu items
-                $menuItem = MenuItem::where('restaurant_id', $restaurantId)->first();
-
                 // Calculate total quantity for price distribution if needed
                 $totalQuantity = 0;
                 foreach ($items as $item) {
@@ -799,9 +796,18 @@ class ZydaOrderController extends Controller
                         }
                     }
 
+                    $resolvedMenuItem = $this->resolveMenuItemForZydaLineItem($itemName, $restaurantId);
+                    if ($resolvedMenuItem !== null) {
+                        $menuItemId = $resolvedMenuItem->id;
+                        $itemName = $resolvedMenuItem->name;
+                    } else {
+                        $fallbackMenuItem = MenuItem::where('restaurant_id', $restaurantId)->first();
+                        $menuItemId = $fallbackMenuItem?->id;
+                    }
+
                     OrderItem::create([
                         'order_id' => $order->id,
-                        'menu_item_id' => $menuItem ? $menuItem->id : null,
+                        'menu_item_id' => $menuItemId,
                         'item_name' => $itemName,
                         'price' => $itemPrice,
                         'quantity' => $itemQuantity,
@@ -811,6 +817,7 @@ class ZydaOrderController extends Controller
                     Log::info('✅ Order item created', [
                         'order_id' => $order->id,
                         'item_name' => $itemName,
+                        'menu_item_id' => $menuItemId,
                         'quantity' => $itemQuantity,
                         'price' => $itemPrice,
                         'subtotal' => $itemPrice * $itemQuantity,
@@ -830,6 +837,40 @@ class ZydaOrderController extends Controller
         ]);
 
         return $order;
+    }
+
+    /**
+     * Map Zyda line-item labels to menu_items.name for the Gather Us restaurant.
+     * Matching is case-insensitive; whitespace is normalized.
+     */
+    protected function resolveMenuItemForZydaLineItem(string $zydaItemName, int $restaurantId): ?MenuItem
+    {
+        $normalized = mb_strtolower(preg_replace('/\s+/', ' ', trim($zydaItemName)), 'UTF-8');
+
+        $map = [
+            'gathering gather us - regular' => 'بوكس جمعات قاذر اس',
+            'mini croissant box - regular' => 'بوكس الميني كرواسون',
+        ];
+
+        if (! array_key_exists($normalized, $map)) {
+            return null;
+        }
+
+        $targetMenuName = $map[$normalized];
+        $menuItem = MenuItem::where('restaurant_id', $restaurantId)
+            ->where('name', $targetMenuName)
+            ->first();
+
+        if ($menuItem === null) {
+            Log::warning('Zyda menu mapping: no menu_items row for mapped Arabic name', [
+                'zyda_item_label' => $zydaItemName,
+                'normalized_label' => $normalized,
+                'expected_menu_name' => $targetMenuName,
+                'restaurant_id' => $restaurantId,
+            ]);
+        }
+
+        return $menuItem;
     }
 
     /**
