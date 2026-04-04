@@ -2,6 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import {
     ArrowLeft, User, Store, MapPin, Phone, Clock, DollarSign, Package, Truck,
     CheckCircle, AlertCircle, XCircle, Navigation, Calendar, CreditCard,
@@ -112,6 +113,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+/** رسوم التوصيل المعروضة في صفحة تفاصيل الطلب (ثابتة) */
+const ORDER_DETAILS_FIXED_DELIVERY_FEE_SAR = 18;
+
+const displayDeliveryFeeSar = ORDER_DETAILS_FIXED_DELIVERY_FEE_SAR;
+
+const displayOrderTotalSar = computed(() => {
+    const total = Number(props.order.total ?? 0);
+    const previousDelivery = Number(props.order.delivery_fee ?? 0);
+    return total - previousDelivery + ORDER_DETAILS_FIXED_DELIVERY_FEE_SAR;
+});
 
 // Debug: Log order data to check location
 console.log('Order data:', {
@@ -334,7 +346,7 @@ const formatCurrencyProfessional = (amount: number | string) => {
                                 <p class="text-sm font-medium text-gray-500">المبلغ الإجمالي</p>
                                 <div class="flex items-baseline gap-1">
                                     <sup class="text-xs font-semibold text-gray-600">SAR</sup>
-                                    <span class="text-2xl font-bold text-gray-900">{{ formatCurrencyProfessional(order.total) }}</span>
+                                    <span class="text-2xl font-bold text-gray-900">{{ formatCurrencyProfessional(displayOrderTotalSar) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -642,7 +654,7 @@ const formatCurrencyProfessional = (amount: number | string) => {
                                         <span class="text-gray-600">رسوم التوصيل</span>
                                         <span class="font-medium text-gray-900 flex items-baseline gap-0.5">
                                             <sup class="text-xs font-semibold text-gray-600">SAR</sup>
-                                            {{ formatCurrencyProfessional(order.delivery_fee) }}
+                                            {{ formatCurrencyProfessional(displayDeliveryFeeSar) }}
                                         </span>
                                     </div>
                                     <div class="flex justify-between items-center py-2">
@@ -657,7 +669,7 @@ const formatCurrencyProfessional = (amount: number | string) => {
                                             <span class="text-xl font-bold text-gray-900">المبلغ الإجمالي</span>
                                             <span class="text-2xl font-bold text-gray-700 flex items-baseline gap-1">
                                                 <sup class="text-xs font-semibold text-gray-600">SAR</sup>
-                                                {{ formatCurrencyProfessional(order.total) }}
+                                                {{ formatCurrencyProfessional(displayOrderTotalSar) }}
                                             </span>
                                         </div>
                                     </div>
