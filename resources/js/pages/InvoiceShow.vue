@@ -57,22 +57,29 @@ interface Props {
 
 const props = defineProps<Props>();
 
-/** عرض ثابت لرسوم التوصيل في صفحة الفاتورة */
+/** عرض ثابت لرسوم التوصيل؛ الإجمالي = مجموع بنود الطلب + هذا المبلغ */
 const INVOICE_FIXED_DELIVERY_FEE_SAR = 18;
 
 const displayDeliveryFeeSar = INVOICE_FIXED_DELIVERY_FEE_SAR;
-
-const displayInvoiceTotalSar = computed(() => {
-    const total = Number(props.invoice.total ?? 0);
-    const previousDelivery = Number(props.invoice.delivery_fee ?? 0);
-    return total - previousDelivery + INVOICE_FIXED_DELIVERY_FEE_SAR;
-});
 
 const invoiceLineItems = computed((): OrderItemRow[] => {
     const o = props.invoice.order;
     if (!o) return [];
     const raw = o.order_items ?? o.orderItems;
     return Array.isArray(raw) ? raw : [];
+});
+
+/** مجموع أعمدة المجموع لبنود الطلب؛ لو لا توجد بنود نستخدم subtotal المحفوظ في الفاتورة */
+const lineItemsSubtotalSar = computed(() => {
+    const items = invoiceLineItems.value;
+    if (items.length === 0) {
+        return Number(props.invoice.subtotal ?? 0);
+    }
+    return items.reduce((sum, item) => sum + Number(item.subtotal ?? 0), 0);
+});
+
+const displayInvoiceTotalSar = computed(() => {
+    return lineItemsSubtotalSar.value + INVOICE_FIXED_DELIVERY_FEE_SAR;
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -270,16 +277,12 @@ const printInvoice = () => {
                         <div class="rounded-lg border bg-gray-50 p-4 dark:bg-gray-800">
                             <div class="space-y-2">
                                 <div class="flex justify-between">
-                                    <span class="text-sm text-muted-foreground">المجموع الفرعي:</span>
-                                    <span class="text-sm font-medium">{{ formatCurrency(invoice.subtotal) }}</span>
+                                    <span class="text-sm text-muted-foreground">مجموع العناصر:</span>
+                                    <span class="text-sm font-medium">{{ formatCurrency(lineItemsSubtotalSar) }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-sm text-muted-foreground">رسوم التوصيل:</span>
                                     <span class="text-sm font-medium">{{ formatCurrency(displayDeliveryFeeSar) }}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-sm text-muted-foreground">الضريبة:</span>
-                                    <span class="text-sm font-medium">{{ formatCurrency(invoice.tax) }}</span>
                                 </div>
                                 <div class="border-t pt-2">
                                     <div class="flex justify-between">
