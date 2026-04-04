@@ -77,7 +77,7 @@ class InvoiceController extends Controller
      */
     public function show(string $id)
     {
-        $invoice = Invoice::with(['user', 'restaurant', 'order.orderItems'])->findOrFail($id);
+        $invoice = Invoice::with(['user', 'restaurant', 'order.orderItems.menuItem'])->findOrFail($id);
 
         return Inertia::render('InvoiceShow', [
             'invoice' => $invoice,

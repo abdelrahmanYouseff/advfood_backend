@@ -2,7 +2,23 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Printer, Download, FileText, User, Store, Calendar, DollarSign, Phone, Hash } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { ArrowLeft, Printer, FileText, User, Store, Calendar, DollarSign, Phone } from 'lucide-vue-next';
+
+interface OrderItemRow {
+    id: number;
+    item_name: string;
+    quantity: number;
+    price: number | string;
+    subtotal: number | string;
+    special_instructions?: string | null;
+    menu_item?: {
+        name?: string;
+        description?: string | null;
+        image?: string | null;
+        preparation_time?: number | null;
+    } | null;
+}
 
 interface Props {
     invoice: {
@@ -32,17 +48,32 @@ interface Props {
             delivery_address: string;
             delivery_phone: string;
             delivery_name: string;
-            orderItems: Array<{
-                item_name: string;
-                quantity: number;
-                price: number;
-                subtotal: number;
-            }>;
+            /** Laravel / Inertia: عادةً `order_items` */
+            order_items?: OrderItemRow[];
+            orderItems?: OrderItemRow[];
         };
     };
 }
 
 const props = defineProps<Props>();
+
+/** عرض ثابت لرسوم التوصيل في صفحة الفاتورة */
+const INVOICE_FIXED_DELIVERY_FEE_SAR = 18;
+
+const displayDeliveryFeeSar = INVOICE_FIXED_DELIVERY_FEE_SAR;
+
+const displayInvoiceTotalSar = computed(() => {
+    const total = Number(props.invoice.total ?? 0);
+    const previousDelivery = Number(props.invoice.delivery_fee ?? 0);
+    return total - previousDelivery + INVOICE_FIXED_DELIVERY_FEE_SAR;
+});
+
+const invoiceLineItems = computed((): OrderItemRow[] => {
+    const o = props.invoice.order;
+    if (!o) return [];
+    const raw = o.order_items ?? o.orderItems;
+    return Array.isArray(raw) ? raw : [];
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -79,11 +110,11 @@ const getStatusText = (status: string) => {
     return statusMap[status as keyof typeof statusMap] || status;
 };
 
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number | string) => {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'SAR',
-    }).format(amount);
+    }).format(Number(amount ?? 0));
 };
 
 const printInvoice = () => {
@@ -187,25 +218,48 @@ const printInvoice = () => {
                             </div>
                         </div>
 
-                        <!-- Order Items -->
+                        <!-- Order line items (customer purchases) -->
                         <div class="mb-6">
-                            <h3 class="mb-3 font-semibold">تفاصيل الطلب</h3>
-                            <div class="rounded-lg border">
-                                <table class="w-full">
+                            <h3 class="mb-3 font-semibold">عناصر الطلب (مشتريات العميل)</h3>
+                            <div v-if="invoiceLineItems.length === 0" class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                                لا توجد بنود مسجّلة لهذا الطلب.
+                            </div>
+                            <div v-else class="overflow-x-auto rounded-lg border">
+                                <table class="w-full min-w-[640px]">
                                     <thead class="border-b bg-gray-50 dark:bg-gray-800">
                                         <tr>
-                                            <th class="px-4 py-3 text-left text-sm font-medium">المنتج</th>
+                                            <th class="px-4 py-3 text-right text-sm font-medium">الصنف والتفاصيل</th>
                                             <th class="px-4 py-3 text-center text-sm font-medium">الكمية</th>
-                                            <th class="px-4 py-3 text-right text-sm font-medium">السعر</th>
-                                            <th class="px-4 py-3 text-right text-sm font-medium">المجموع</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium">سعر الوحدة</th>
+                                            <th class="px-4 py-3 text-left text-sm font-medium">المجموع</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y">
-                                        <tr v-for="item in invoice.order.orderItems" :key="item.item_name">
-                                            <td class="px-4 py-3 text-sm">{{ item.item_name }}</td>
-                                            <td class="px-4 py-3 text-center text-sm">{{ item.quantity }}</td>
-                                            <td class="px-4 py-3 text-right text-sm">{{ formatCurrency(item.price) }}</td>
-                                            <td class="px-4 py-3 text-right text-sm font-medium">{{ formatCurrency(item.subtotal) }}</td>
+                                        <tr v-for="item in invoiceLineItems" :key="item.id">
+                                            <td class="px-4 py-3 text-sm">
+                                                <div class="font-medium text-gray-900 dark:text-gray-100">{{ item.item_name }}</div>
+                                                <p
+                                                    v-if="item.menu_item?.description"
+                                                    class="mt-1 text-xs leading-relaxed text-muted-foreground"
+                                                >
+                                                    {{ item.menu_item.description }}
+                                                </p>
+                                                <p
+                                                    v-if="item.special_instructions"
+                                                    class="mt-1 text-xs text-amber-800 dark:text-amber-200"
+                                                >
+                                                    ملاحظة: {{ item.special_instructions }}
+                                                </p>
+                                                <p
+                                                    v-if="item.menu_item?.preparation_time != null && item.menu_item.preparation_time > 0"
+                                                    class="mt-0.5 text-xs text-muted-foreground"
+                                                >
+                                                    وقت التحضير: {{ item.menu_item.preparation_time }} دقيقة
+                                                </p>
+                                            </td>
+                                            <td class="px-4 py-3 text-center text-sm font-medium">{{ item.quantity }}</td>
+                                            <td class="px-4 py-3 text-left text-sm">{{ formatCurrency(item.price) }}</td>
+                                            <td class="px-4 py-3 text-left text-sm font-semibold">{{ formatCurrency(item.subtotal) }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -221,7 +275,7 @@ const printInvoice = () => {
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-sm text-muted-foreground">رسوم التوصيل:</span>
-                                    <span class="text-sm font-medium">{{ formatCurrency(invoice.delivery_fee) }}</span>
+                                    <span class="text-sm font-medium">{{ formatCurrency(displayDeliveryFeeSar) }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-sm text-muted-foreground">الضريبة:</span>
@@ -230,7 +284,7 @@ const printInvoice = () => {
                                 <div class="border-t pt-2">
                                     <div class="flex justify-between">
                                         <span class="font-semibold">المجموع الكلي:</span>
-                                        <span class="text-lg font-bold text-green-600">{{ formatCurrency(invoice.total) }}</span>
+                                        <span class="text-lg font-bold text-green-600">{{ formatCurrency(displayInvoiceTotalSar) }}</span>
                                     </div>
                                 </div>
                             </div>
