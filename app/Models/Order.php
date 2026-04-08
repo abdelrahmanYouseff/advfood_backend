@@ -114,6 +114,41 @@ class Order extends Model
     {
         parent::boot();
 
+        /**
+         * Centralized nearest-branch assignment for ALL order channels.
+         *
+         * - Only assigns when branch_id is empty and customer coordinates exist.
+         * - Does not override an already-assigned branch_id (manual or channel-specific).
+         * - If a branch is found, attempts to update shop_id using branch_restaurant_shop_ids mapping.
+         */
+        static::saving(function (self $order) {
+            if (!empty($order->branch_id)) {
+                return;
+            }
+
+            if (empty($order->customer_latitude) || empty($order->customer_longitude)) {
+                return;
+            }
+
+            $branch = \App\Services\BranchService::findNearestBranch(
+                (float) $order->customer_latitude,
+                (float) $order->customer_longitude
+            );
+
+            if (!$branch) {
+                return;
+            }
+
+            $order->branch_id = $branch->id;
+
+            if (!empty($order->restaurant_id)) {
+                $mappedShopId = \App\Models\BranchRestaurantShopId::getShopId($branch->id, $order->restaurant_id);
+                if (!empty($mappedShopId)) {
+                    $order->shop_id = $mappedShopId;
+                }
+            }
+        });
+
         // Create invoice automatically when order is created
         static::created(function ($order) {
             // 🔹 Any order that is already paid should immediately get an invoice
