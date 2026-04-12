@@ -202,7 +202,7 @@ class OrderController extends Controller
             'restaurant_id' => 'required|exists:restaurants,id',
             'delivery_name' => 'required|string|max:255',
             'delivery_phone' => 'required|string|max:20',
-            'delivery_address' => 'required|string|max:500',
+            'delivery_address' => 'required|string',
             'delivery_fee' => 'nullable|numeric|min:0',
             'tax' => 'nullable|numeric|min:0',
             'special_instructions' => 'nullable|string|max:1000',

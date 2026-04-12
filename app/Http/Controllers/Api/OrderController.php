@@ -69,7 +69,7 @@ class OrderController extends Controller
             'restaurant_id' => 'required|exists:restaurants,id',
             'subtotal' => 'required|numeric|min:0',
             'total' => 'required|numeric|min:0',
-            'delivery_address' => 'required|string|max:255',
+            'delivery_address' => 'required|string',
             'delivery_phone' => 'required|string|max:20',
             'delivery_name' => 'required|string|max:191',
             'payment_method' => 'required|in:cash,card,online',
