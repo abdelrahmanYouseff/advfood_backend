@@ -30,6 +30,7 @@ interface Props {
     recent_orders: Array<{
         id: number;
         order_number: string;
+        website_order_code?: string | null;
         status: string;
         shipping_status: string;
         total: number;
@@ -180,6 +181,18 @@ const getStatusText = (status: string) => {
         cancelled: 'ملغي',
     };
     return statusMap[status as keyof typeof statusMap] || status;
+};
+
+const getRecentOrderShippingBadgeText = (order: {
+    shipping_status: string;
+    website_order_code?: string | null;
+}) => {
+    const base = getStatusText(order.shipping_status);
+    const code = order.website_order_code?.trim();
+    if (!code) {
+        return base;
+    }
+    return `${base} · ${code}`;
 };
 
 const formatCurrency = (amount: number) => {
@@ -1077,7 +1090,7 @@ const deleteWhatsappMessage = async (messageId: number) => {
                                         <span>{{ formatCurrencyProfessional(order.total) }}</span>
                                     </p>
                                     <span :class="['inline-flex rounded-full px-2 py-1 text-xs font-medium shadow-sm', getStatusColor(order.shipping_status)]">
-                                        {{ getStatusText(order.shipping_status) }}
+                                        {{ getRecentOrderShippingBadgeText(order) }}
                                     </span>
                                 </div>
                             </div>

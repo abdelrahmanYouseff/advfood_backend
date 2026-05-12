@@ -16,6 +16,7 @@ interface OrderRestaurant {
 interface OrderData {
     id: number;
     order_number: string;
+    website_order_code?: string | null;
     status: string;
     shipping_status: string | null;
     shipping_provider?: string | null;
@@ -209,6 +210,17 @@ const getShippingStatusLabel = (status?: string | null) => {
     }
     const normalizedStatus = status.toLowerCase();
     return shippingStatusLabels[normalizedStatus] ?? status;
+};
+
+/** Shipping status label plus website reference when present (branch pickup / website orders). */
+const getOrderShippingStatusLabel = (order: OrderData, rawStatus?: string | null) => {
+    const resolved = rawStatus === '' || rawStatus === undefined || rawStatus === null ? 'New Order' : rawStatus;
+    const base = getShippingStatusLabel(resolved);
+    const code = order.website_order_code?.trim();
+    if (!code) {
+        return base;
+    }
+    return `${base} · ${code}`;
 };
 
 // Live driver info and driver/shipping status (fetched from shipping API)
@@ -1784,7 +1796,7 @@ onMounted(() => {
                                             getStatusColor(order.shipping_status || 'New Order')
                                         ]"
                                     >
-                                        {{ getShippingStatusLabel(order.shipping_status || 'New Order') }}
+                                        {{ getOrderShippingStatusLabel(order, order.shipping_status) }}
                                     </span>
                                 </div>
                             </div>
@@ -1894,7 +1906,7 @@ onMounted(() => {
                                                 getStatusColor(getDriverStatusForOrder(order) || 'New Order')
                                             ]"
                                         >
-                                            {{ getShippingStatusLabel(getDriverStatusForOrder(order) || 'New Order') }}
+                                            {{ getOrderShippingStatusLabel(order, getDriverStatusForOrder(order) || 'New Order') }}
                                         </span>
                                     </div>
 
@@ -2070,7 +2082,7 @@ onMounted(() => {
                                             getStatusColor(order.shipping_status || 'New Order')
                                         ]"
                                     >
-                                        {{ getShippingStatusLabel(order.shipping_status || 'New Order') }}
+                                        {{ getOrderShippingStatusLabel(order, order.shipping_status) }}
                                     </span>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
@@ -2246,7 +2258,7 @@ onMounted(() => {
                                                 getStatusColor(order.shipping_status || 'New Order')
                                             ]"
                                         >
-                                            {{ getShippingStatusLabel(order.shipping_status || 'New Order') }}
+                                            {{ getOrderShippingStatusLabel(order, order.shipping_status) }}
                                         </span>
                                     </td>
                                     <td class="px-3 py-2 align-middle">

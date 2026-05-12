@@ -31,6 +31,7 @@ interface OrderItem {
 interface Order {
     id: number;
     order_number: string;
+    website_order_code?: string | null;
     status: string;
     shop_id?: string;
     dsp_order_id?: string;
@@ -197,6 +198,15 @@ const getShippingStatusText = (status?: string) => {
     return statusMap[status] || status;
 };
 
+const getShippingStatusBadgeText = (status?: string) => {
+    const base = getShippingStatusText(status);
+    const code = props.order.website_order_code?.trim();
+    if (!code) {
+        return base;
+    }
+    return `${base} · ${code}`;
+};
+
 const getPaymentMethodText = (method: string) => {
     const methods: Record<string, string> = {
         cash: 'نقدي',
@@ -322,7 +332,7 @@ const formatCurrencyProfessional = (amount: number | string) => {
                         ]"
                     >
                         <Truck class="w-4 h-4 mr-1" />
-                        {{ getShippingStatusText(order.shipping_status) }}
+                        {{ getShippingStatusBadgeText(order.shipping_status) }}
                     </span>
                 </div>
             </div>
