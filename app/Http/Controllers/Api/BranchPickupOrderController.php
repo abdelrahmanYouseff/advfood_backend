@@ -22,6 +22,8 @@ class BranchPickupOrderController extends Controller
         $validator = Validator::make($request->all(), [
             'branch_code' => 'required|integer|in:1,2',
 
+            'website_order_code' => 'nullable|string|max:191',
+
             'user_id' => 'required|exists:users,id',
             'restaurant_id' => 'required|exists:restaurants,id',
             'subtotal' => 'required|numeric|min:0',
@@ -111,6 +113,7 @@ class BranchPickupOrderController extends Controller
             Log::info('Branch pickup order created via API', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
+                'website_order_code' => $order->website_order_code,
                 'branch_id' => $order->branch_id,
                 'branch_code' => $data['branch_code'],
             ]);
@@ -120,6 +123,7 @@ class BranchPickupOrderController extends Controller
                 'message' => 'Order created (branch pickup — no shipping company)',
                 'data' => $order,
                 'branch_code' => (int) $data['branch_code'],
+                'website_order_code' => $order->website_order_code,
             ], 201);
         } catch (\Exception $e) {
             Log::error('Branch pickup order API failed', [
