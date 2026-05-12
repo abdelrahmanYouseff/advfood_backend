@@ -155,6 +155,8 @@ const getStatusColor = (status: string) => {
         'Out for Delivery': 'bg-gray-500 text-white dark:bg-gray-400 dark:text-gray-900',
         'Delivered': 'bg-gray-600 text-white dark:bg-gray-300 dark:text-gray-900',
         'Cancelled': 'bg-gray-700 text-white dark:bg-gray-200 dark:text-gray-900',
+        'Branch Pickup':
+            'bg-orange-500 text-white dark:bg-orange-600 dark:text-white shadow-sm',
     };
     return colors[status as keyof typeof colors] || colors['New Order'];
 };
@@ -168,6 +170,7 @@ const getStatusText = (status: string) => {
         'Out for Delivery': 'خارج للتوصيل',
         'Delivered': 'تم التسليم',
         'Cancelled': 'ملغي',
+        'Branch Pickup': 'استلام من الفرع',
         pending: 'معلق',
         confirmed: 'مؤكد',
         preparing: 'قيد التحضير',

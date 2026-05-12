@@ -192,6 +192,7 @@ const getShippingStatusText = (status?: string) => {
         'Out for Delivery': 'خارج للتوصيل',
         'Delivered': 'تم التسليم',
         'Cancelled': 'ملغي',
+        'Branch Pickup': 'استلام من الفرع',
     };
     return statusMap[status] || status;
 };
@@ -313,9 +314,11 @@ const formatCurrencyProfessional = (amount: number | string) => {
                         v-if="order.shipping_status"
                         :class="[
                             'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium',
-                            isDelivered(order)
-                                ? 'bg-gray-300 bg-opacity-30 text-gray-200'
-                                : 'bg-white bg-opacity-20 text-white'
+                            order.shipping_status === 'Branch Pickup'
+                                ? 'bg-orange-500 text-white shadow-sm'
+                                : isDelivered(order)
+                                    ? 'bg-gray-300 bg-opacity-30 text-gray-200'
+                                    : 'bg-white bg-opacity-20 text-white'
                         ]"
                     >
                         <Truck class="w-4 h-4 mr-1" />

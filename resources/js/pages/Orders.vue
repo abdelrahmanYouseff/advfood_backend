@@ -167,6 +167,8 @@ const getStatusColor = (status: string) => {
         'Delivered': 'bg-gray-700 text-white dark:bg-gray-300 dark:text-gray-900',
         'Cancelled': 'bg-gray-900 text-white dark:bg-gray-200 dark:text-gray-900',
         'Accepted': 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100',
+        'Branch Pickup':
+            'bg-orange-500 text-white dark:bg-orange-600 dark:text-white shadow-sm',
     };
     return colors[status as keyof typeof colors] || colors['New Order'];
 };
@@ -198,6 +200,7 @@ const shippingStatusLabels: Record<string, string> = {
     'out for delivery': 'جاري التوصيل',
     'delivered': 'تم التسليم',
     'cancelled': 'ملغي',
+    'branch pickup': 'استلام من الفرع',
 };
 
 const getShippingStatusLabel = (status?: string | null) => {
