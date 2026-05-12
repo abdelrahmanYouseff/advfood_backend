@@ -659,6 +659,11 @@ class OrderController extends Controller
                 ->with('info', 'الطلب تم إرساله بالفعل إلى شركة الشحن (DSP Order ID: ' . $order->dsp_order_id . ')');
         }
 
+        if (!empty($order->is_branch_pickup)) {
+            return redirect()->back()
+                ->with('info', 'هذا طلب استلام من الفرع ولا يُرسل إلى شركة الشحن.');
+        }
+
         // Check if order has shop_id
         if (empty($order->shop_id)) {
             return redirect()->back()

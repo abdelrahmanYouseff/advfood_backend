@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\SimpleOrderController;
+use App\Http\Controllers\Api\BranchPickupOrderController;
 use App\Http\Controllers\Api\ZydaOrderController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\WhatsappMsgController;
@@ -234,6 +235,9 @@ Route::get('/order-items/{id}', [OrderItemController::class, 'show']);
 Route::put('/order-items/{id}', [OrderItemController::class, 'update']);
 Route::patch('/order-items/{id}', [OrderItemController::class, 'update']);
 Route::delete('/order-items/{id}', [OrderItemController::class, 'destroy']);
+
+// Branch pickup orders (استلام من الفرع — no DSP; branch_code 1=Mrouj, 2=Laban)
+Route::post('/branch-pickup-orders', [BranchPickupOrderController::class, 'store']);
 
 // Simple Order API (as per your requirements)
 Route::post('/simple-orders', [SimpleOrderController::class, 'store']);

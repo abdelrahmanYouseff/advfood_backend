@@ -39,6 +39,7 @@ class Order extends Model
         'special_instructions',
         'payment_method',
         'source',
+        'is_branch_pickup',
         'payment_status',
         'payment_order_reference',
         'sound',
@@ -53,6 +54,7 @@ class Order extends Model
         'tax' => 'decimal:2',
         'total' => 'decimal:2',
         'sound' => 'boolean',
+        'is_branch_pickup' => 'boolean',
         'estimated_delivery_time' => 'datetime',
         'delivered_at' => 'datetime',
         'scheduled_for' => 'datetime',
@@ -182,6 +184,18 @@ class Order extends Model
 
                 // We return early here; when payment_status becomes "paid",
                 // static::updated() hook will send the order to the shipping company.
+                return;
+            }
+
+            // Branch pickup channel: never send to shipping company (استلام من الفرع)
+            if (!empty($order->is_branch_pickup)) {
+                \Illuminate\Support\Facades\Log::info('⏸ Skipping shipping API — branch pickup order', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'branch_id' => $order->branch_id,
+                    'source' => $order->source ?? 'NULL',
+                ]);
+
                 return;
             }
 
@@ -355,8 +369,8 @@ class Order extends Model
                     $order->saveQuietly(); // Save without triggering events
                 }
 
-                // Only send to shipping if not already sent (no dsp_order_id)
-                if (empty($order->dsp_order_id) && !empty($order->shop_id)) {
+                // Only send to shipping if not already sent (no dsp_order_id); never for branch pickup
+                if (empty($order->is_branch_pickup) && empty($order->dsp_order_id) && !empty($order->shop_id)) {
                     $provider = $order->shipping_provider ?? \App\Models\AppSetting::get('default_shipping_provider', 'leajlak');
                     
                     \Illuminate\Support\Facades\Log::info('🚀 CONDITIONS MET - Calling ShippingService::createOrder', [
