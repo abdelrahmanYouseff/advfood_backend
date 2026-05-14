@@ -161,6 +161,8 @@ class MobileAppController extends Controller
                 'note' => 'nullable|string',
                 'total' => 'required|numeric|min:0',
                 'cart_items' => 'required|array',
+                // استلام من الفرع: بدون 18 ريال وبدون إرسال لشركة الشحن
+                'is_branch_pickup' => 'nullable|boolean',
             ]);
 
             // Resolve user ID - mobile orders must always be tied to a real user
@@ -203,19 +205,20 @@ class MobileAppController extends Controller
                 $request->street
             );
 
-            // Calculate subtotal (total without delivery fee and tax for now)
-            // Mobile app also gets a fixed delivery fee of 18 SAR
-            $subtotal = $request->total;
-            $deliveryFee = 18.0;
-            $tax = 0;
-            $finalTotal = $subtotal + $deliveryFee;
+            $isBranchPickup = $request->boolean('is_branch_pickup');
+
+            // total من التطبيق = مجموع السلة؛ التوصيل 18 ريال فقط لطلبات التوصيل (شركة الشحن)
+            $subtotal = (float) $request->total;
+            $tax = 0.0;
+            $deliveryFee = $isBranchPickup ? 0.0 : 18.0;
+            $finalTotal = round($subtotal + $deliveryFee + $tax, 2);
 
             // Generate unique order number
             $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 
-            // Get restaurant shop_id for shipping
-            $restaurant = Restaurant::find($request->restaurant_id);
-            $shopId = $restaurant?->shop_id ?? (string) $request->restaurant_id;
+            $shopId = $isBranchPickup
+                ? null
+                : ($restaurant?->shop_id ?? (string) $request->restaurant_id);
 
             // Create order in orders table
             $order = \App\Models\Order::create([
@@ -237,6 +240,8 @@ class MobileAppController extends Controller
                 'special_instructions' => $request->note,
                 'payment_method' => 'online',
                 'payment_status' => 'pending',
+                'is_branch_pickup' => $isBranchPickup,
+                'shipping_status' => $isBranchPickup ? 'Branch Pickup' : null,
             ]);
 
             // Create order items
@@ -255,7 +260,7 @@ class MobileAppController extends Controller
             $noonRequestData = [
                 "apiOperation" => "INITIATE",
                 "order" => [
-                    // Charge customer subtotal + fixed delivery fee
+                    // Charge customer: subtotal + delivery fee (18 SAR) when delivery; pickup = subtotal only
                     "amount" => $finalTotal,
                     "currency" => "SAR",
                     "reference" => "ORDER-" . $order->id . "-" . now()->timestamp,

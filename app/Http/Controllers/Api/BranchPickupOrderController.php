@@ -80,8 +80,10 @@ class BranchPickupOrderController extends Controller
             $orderData['source'] = 'branch_pickup_api';
             $orderData['payment_status'] = 'paid';
             $orderData['status'] = $orderData['status'] ?? 'pending';
-            $orderData['delivery_fee'] = $orderData['delivery_fee'] ?? 0;
+            // استلام من الفرع: لا رسوم توصيل (تجاهل أي قيمة مرسلة من العميل)
+            $orderData['delivery_fee'] = 0;
             $orderData['tax'] = $orderData['tax'] ?? 0;
+            $orderData['total'] = round((float) $orderData['subtotal'] + (float) $orderData['tax'], 2);
             $orderData['shipping_status'] = 'Branch Pickup';
 
             $orderData['order_number'] = $this->generateOrderNumber();

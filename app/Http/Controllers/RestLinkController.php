@@ -201,6 +201,7 @@ class RestLinkController extends Controller
                 'cart_items' => 'required|array',
                 'customer_latitude' => 'nullable|numeric',
                 'customer_longitude' => 'nullable|numeric',
+                'is_branch_pickup' => 'nullable|boolean',
             ]);
 
             // Get or create guest user
@@ -222,28 +223,28 @@ class RestLinkController extends Controller
                 $request->street
             );
 
-            // Calculate subtotal (total without delivery fee and tax for now)
-            // Frontend sends items total in "total" – we add a fixed delivery fee of 18 SAR
-            $subtotal = $request->total;
-            $deliveryFee = 18.0;
-            $tax = 0;
-            $finalTotal = $subtotal + $deliveryFee;
+            $isBranchPickup = $request->boolean('is_branch_pickup');
+
+            // Frontend يرسل في "total" مجموع السلة؛ نضيف 18 ريال فقط لطلبات التوصيل (شركة الشحن)
+            $subtotal = (float) $request->total;
+            $tax = 0.0;
+            $deliveryFee = $isBranchPickup ? 0.0 : 18.0;
+            $finalTotal = round($subtotal + $deliveryFee + $tax, 2);
 
             // Generate unique order number
             $orderNumber = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 
-            // Get restaurant shop_id for shipping
             $restaurant = \App\Models\Restaurant::find($request->restaurant_id);
-            $shopId = $restaurant?->shop_id ?? (string) $request->restaurant_id;
 
             // Log customer coordinates received from request
             Log::info('📍 Customer coordinates received in initiatePayment', [
                 'customer_latitude' => $request->customer_latitude ?? 'NULL',
                 'customer_longitude' => $request->customer_longitude ?? 'NULL',
                 'has_coordinates' => !empty($request->customer_latitude) && !empty($request->customer_longitude),
+                'is_branch_pickup' => $isBranchPickup,
             ]);
 
-            // Find nearest branch based on customer coordinates
+            // Find nearest branch based on customer coordinates (للعرض / branch_id فقط)
             $branch = null;
             if (!empty($request->customer_latitude) && !empty($request->customer_longitude)) {
                 $branch = \App\Services\BranchService::findNearestBranch(
@@ -252,9 +253,12 @@ class RestLinkController extends Controller
                 );
             }
 
-            // Get shop_id from branch_restaurant_shop_ids if branch is found
-            if ($branch) {
-                $shopId = \App\Models\BranchRestaurantShopId::getShopId($branch->id, $request->restaurant_id) ?? $shopId;
+            $shopId = null;
+            if (!$isBranchPickup) {
+                $shopId = $restaurant?->shop_id ?? (string) $request->restaurant_id;
+                if ($branch) {
+                    $shopId = \App\Models\BranchRestaurantShopId::getShopId($branch->id, $request->restaurant_id) ?? $shopId;
+                }
             }
 
             // Create order in orders table
@@ -278,6 +282,8 @@ class RestLinkController extends Controller
                 'special_instructions' => $request->note,
                 'payment_method' => 'online',
                 'payment_status' => 'pending',
+                'is_branch_pickup' => $isBranchPickup,
+                'shipping_status' => $isBranchPickup ? 'Branch Pickup' : null,
             ]);
 
             $this->recordOnlineCustomer([
