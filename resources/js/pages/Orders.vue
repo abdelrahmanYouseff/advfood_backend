@@ -319,7 +319,36 @@ const formatDate = (dateString: string) => {
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('en-GB', { numberingSystem: 'latn' });
+};
+
+/** English digits for counts and amounts in tables */
+const formatEnNumber = (value: number | null | undefined): string => {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return '0';
+    }
+    return new Intl.NumberFormat('en-US', { numberingSystem: 'latn' }).format(value);
+};
+
+/** When the order was received (created_at) — fixed date/time, English numerals */
+const formatOrderReceivedAt = (dateString: string | null | undefined): string => {
+    if (!dateString) {
+        return '—';
+    }
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+        return '—';
+    }
+    return new Intl.DateTimeFormat('en-GB', {
+        numberingSystem: 'latn',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).format(date);
 };
 
 const padTime = (value: number) => value.toString().padStart(2, '0');
@@ -1688,7 +1717,7 @@ onMounted(() => {
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600 dark:text-gray-400">الطلبات الجديدة</p>
-                            <p class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ props.statistics?.total_new_orders || 0 }}</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums" dir="ltr">{{ formatEnNumber(props.statistics?.total_new_orders ?? 0) }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">طلبات لم يتم قبولها بعد</p>
                         </div>
                         <div class="rounded-lg bg-gray-100 dark:bg-gray-700 p-3">
@@ -1702,7 +1731,7 @@ onMounted(() => {
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600 dark:text-gray-400">الطلبات المغلقة</p>
-                            <p class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ props.statistics?.total_closed_orders || 0 }}</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums" dir="ltr">{{ formatEnNumber(props.statistics?.total_closed_orders ?? 0) }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">طلبات تم تسليمها أو إلغاؤها</p>
                         </div>
                         <div class="rounded-lg bg-gray-100 dark:bg-gray-700 p-3">
@@ -1752,10 +1781,10 @@ onMounted(() => {
                 </div>
                 <div class="text-sm text-gray-500">
                     <template v-if="ordersLang === 'ar'">
-                    عرض {{ filteredOrders.length }} من {{ props.orders.length }} طلب
+                    عرض {{ formatEnNumber(filteredOrders.length) }} من {{ formatEnNumber(props.orders.length) }} طلب
                     </template>
                     <template v-else>
-                        Showing {{ filteredOrders.length }} of {{ props.orders.length }} orders
+                        Showing {{ formatEnNumber(filteredOrders.length) }} of {{ formatEnNumber(props.orders.length) }} orders
                     </template>
                 </div>
             </div>
@@ -1787,7 +1816,7 @@ onMounted(() => {
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-bold text-sm text-foreground truncate">{{ order.order_number }}</h3>
-                                <p class="text-xs text-muted-foreground">{{ formatDate(order.created_at) }}</p>
+                                <p dir="ltr" class="text-xs text-muted-foreground tabular-nums">{{ formatOrderReceivedAt(order.created_at) }}</p>
                                 <!-- Shipping Status -->
                                 <div class="mt-1 flex items-center gap-1.5">
                                     <span
@@ -2011,7 +2040,7 @@ onMounted(() => {
             <!-- Orders List: Table View -->
             <div v-else class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 mt-4 shadow-sm">
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[1000px] text-sm">
+                    <table class="w-full min-w-[1000px] text-sm tabular-nums">
                         <thead>
                             <tr class="border-b bg-gray-50 dark:bg-gray-800 text-xs text-gray-500">
                                 <th class="h-10 px-3 text-right font-semibold">
@@ -2039,7 +2068,7 @@ onMounted(() => {
                                     {{ t('الإجمالي', 'Total') }}
                                 </th>
                                 <th class="h-10 px-3 text-right font-semibold">
-                                    {{ t('التاريخ', 'Date') }}
+                                    {{ t('تاريخ استلام الطلب', 'Order received') }}
                                 </th>
                                 <th class="h-10 px-3 text-right font-semibold">
                                     {{ t('الإجراءات', 'Actions') }}
@@ -2053,7 +2082,7 @@ onMounted(() => {
                                 class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/50"
                             >
                                 <td class="px-3 py-2 align-middle">
-                                    <span class="font-semibold text-sm">
+                                    <span dir="ltr" class="font-semibold text-sm tabular-nums">
                                         {{ order.order_number }}
                                     </span>
                                 </td>
@@ -2101,17 +2130,17 @@ onMounted(() => {
                                     </span>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
-                                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100 inline-flex items-baseline">
+                                    <div class="text-sm font-bold text-gray-900 dark:text-gray-100 inline-flex items-baseline" dir="ltr">
                                         <sup class="text-[8px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
-                                        <span>{{ formatCurrencyProfessional(order.total) }}</span>
+                                        <span class="tabular-nums">{{ formatCurrencyProfessional(order.total) }}</span>
                                     </div>
-                                    <div v-if="order.items_count" class="text-[11px] text-muted-foreground">
-                                        {{ order.items_count }} items
+                                    <div v-if="order.items_count" class="text-[11px] text-muted-foreground tabular-nums" dir="ltr">
+                                        {{ formatEnNumber(order.items_count) }} items
                                     </div>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
-                                    <div class="text-xs text-muted-foreground">
-                                        {{ formatDate(order.created_at) }}
+                                    <div dir="ltr" class="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                                        {{ formatOrderReceivedAt(order.created_at) }}
                                     </div>
                                 </td>
                                 <td class="px-3 py-2 align-middle">
@@ -2188,17 +2217,17 @@ onMounted(() => {
                     </div>
                     <div class="rounded-full bg-gray-100 px-4 py-1 text-xs font-medium text-gray-700">
                         <span v-if="ordersLang === 'ar'">
-                            عدد الطلبات المغلقة: {{ closedOrders.length }}
+                            عدد الطلبات المغلقة: {{ formatEnNumber(closedOrders.length) }}
                         </span>
                         <span v-else>
-                            Closed orders: {{ closedOrders.length }}
+                            Closed orders: {{ formatEnNumber(closedOrders.length) }}
                         </span>
                     </div>
                 </div>
 
                 <div class="rounded-lg border bg-card">
                     <div class="overflow-x-auto">
-                        <table class="w-full min-w-[1000px] text-sm">
+                        <table class="w-full min-w-[1000px] text-sm tabular-nums">
                             <thead>
                                 <tr class="border-b bg-gray-50 dark:bg-gray-800 text-xs text-gray-500">
                                     <th class="h-10 px-3 text-right font-semibold">
@@ -2220,7 +2249,7 @@ onMounted(() => {
                                         {{ t('الإجمالي', 'Total') }}
                                     </th>
                                     <th class="h-10 px-3 text-right font-semibold">
-                                        {{ t('تاريخ الإغلاق', 'Closed at') }}
+                                        {{ t('تاريخ استلام الطلب', 'Order received') }}
                                     </th>
                                     <th class="h-10 px-3 text-right font-semibold">
                                         {{ t('الإجراءات', 'Actions') }}
@@ -2234,7 +2263,7 @@ onMounted(() => {
                                     class="border-b hover:bg-gray-50 dark:hover:bg-gray-700/50"
                                 >
                                     <td class="px-3 py-2 align-middle">
-                                        <span class="font-semibold text-sm">
+                                        <span dir="ltr" class="font-semibold text-sm tabular-nums">
                                             {{ order.order_number }}
                                         </span>
                                     </td>
@@ -2272,14 +2301,14 @@ onMounted(() => {
                                         </span>
                                     </td>
                                     <td class="px-3 py-2 align-middle">
-                                        <div class="text-sm font-bold text-gray-700 dark:text-gray-300 inline-flex items-baseline">
+                                        <div class="text-sm font-bold text-gray-700 dark:text-gray-300 inline-flex items-baseline" dir="ltr">
                                             <sup class="text-[8px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-0.5">SAR</sup>
-                                            <span>{{ formatCurrencyProfessional(order.total) }}</span>
+                                            <span class="tabular-nums">{{ formatCurrencyProfessional(order.total) }}</span>
                                         </div>
                                     </td>
                                     <td class="px-3 py-2 align-middle">
-                                        <div class="text-xs text-muted-foreground">
-                                            {{ order.delivered_at ? formatDate(order.delivered_at) : '—' }}
+                                        <div dir="ltr" class="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                                            {{ formatOrderReceivedAt(order.created_at) }}
                                         </div>
                                     </td>
                                     <td class="px-3 py-2 align-middle">
