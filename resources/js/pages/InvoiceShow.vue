@@ -57,10 +57,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-/** عرض ثابت لرسوم التوصيل؛ الإجمالي = مجموع بنود الطلب + هذا المبلغ */
-const INVOICE_FIXED_DELIVERY_FEE_SAR = 18;
-
-const displayDeliveryFeeSar = INVOICE_FIXED_DELIVERY_FEE_SAR;
+const displayDeliveryFeeSar = computed(() => Number(props.invoice.delivery_fee ?? 0));
 
 const invoiceLineItems = computed((): OrderItemRow[] => {
     const o = props.invoice.order;
@@ -79,7 +76,7 @@ const lineItemsSubtotalSar = computed(() => {
 });
 
 const displayInvoiceTotalSar = computed(() => {
-    return lineItemsSubtotalSar.value + INVOICE_FIXED_DELIVERY_FEE_SAR;
+    return lineItemsSubtotalSar.value + Number(props.invoice.delivery_fee ?? 0);
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -280,7 +277,7 @@ const printInvoice = () => {
                                     <span class="text-sm text-muted-foreground">مجموع العناصر:</span>
                                     <span class="text-sm font-medium">{{ formatCurrency(lineItemsSubtotalSar) }}</span>
                                 </div>
-                                <div class="flex justify-between">
+                                <div v-if="displayDeliveryFeeSar > 0" class="flex justify-between">
                                     <span class="text-sm text-muted-foreground">رسوم التوصيل:</span>
                                     <span class="text-sm font-medium">{{ formatCurrency(displayDeliveryFeeSar) }}</span>
                                 </div>

@@ -80,6 +80,7 @@ interface Order {
         name: string;
     };
     order_items: OrderItem[];
+    is_branch_pickup?: boolean;
 }
 
 interface ShippingOrder {
@@ -102,6 +103,7 @@ interface ShippingOrder {
     notes?: string;
     created_at: string;
     updated_at: string;
+    is_branch_pickup?: boolean;
 }
 
 interface Props {
@@ -115,16 +117,9 @@ interface Props {
 
 const props = defineProps<Props>();
 
-/** رسوم التوصيل المعروضة في صفحة تفاصيل الطلب (ثابتة) */
-const ORDER_DETAILS_FIXED_DELIVERY_FEE_SAR = 18;
+const displayDeliveryFeeSar = computed(() => Number(props.order.delivery_fee ?? 0));
 
-const displayDeliveryFeeSar = ORDER_DETAILS_FIXED_DELIVERY_FEE_SAR;
-
-const displayOrderTotalSar = computed(() => {
-    const total = Number(props.order.total ?? 0);
-    const previousDelivery = Number(props.order.delivery_fee ?? 0);
-    return total - previousDelivery + ORDER_DETAILS_FIXED_DELIVERY_FEE_SAR;
-});
+const displayOrderTotalSar = computed(() => Number(props.order.total ?? 0));
 
 // Debug: Log order data to check location
 console.log('Order data:', {
@@ -663,7 +658,7 @@ const formatCurrencyProfessional = (amount: number | string) => {
                                             {{ formatCurrencyProfessional(order.subtotal) }}
                                         </span>
                                     </div>
-                                    <div class="flex justify-between items-center py-2">
+                                    <div v-if="!order.is_branch_pickup" class="flex justify-between items-center py-2">
                                         <span class="text-gray-600">رسوم التوصيل</span>
                                         <span class="font-medium text-gray-900 flex items-baseline gap-0.5">
                                             <sup class="text-xs font-semibold text-gray-600">SAR</sup>
