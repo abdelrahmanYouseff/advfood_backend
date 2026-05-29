@@ -95,6 +95,55 @@ const getStatusLabel = (order: KitchenOrder) => {
     return order.shipping_status ?? order.status;
 };
 
+const getOrderStatusKey = (order: KitchenOrder) => {
+    const shipping = (order.shipping_status ?? '').toLowerCase();
+    if (shipping && statusLabelPairs[shipping]) {
+        return shipping;
+    }
+    return (order.status ?? '').toLowerCase();
+};
+
+const getCardHeaderClasses = (order: KitchenOrder) => {
+    if (isNewOrder(order)) {
+        return 'border-b-4 border-black bg-yellow-400 text-black';
+    }
+
+    const key = getOrderStatusKey(order);
+    const byStatus: Record<string, string> = {
+        pending: 'border-b-4 border-amber-500 bg-amber-50 text-gray-900',
+        'new order': 'border-b-4 border-amber-500 bg-amber-50 text-gray-900',
+        confirmed: 'border-b-4 border-sky-500 bg-sky-50 text-gray-900',
+        preparing: 'border-b-4 border-orange-500 bg-orange-50 text-gray-900',
+        ready: 'border-b-4 border-emerald-500 bg-emerald-50 text-gray-900',
+        delivering: 'border-b-4 border-violet-500 bg-violet-50 text-gray-900',
+        'out for delivery': 'border-b-4 border-violet-500 bg-violet-50 text-gray-900',
+    };
+
+    return byStatus[key] ?? 'border-b-4 border-gray-400 bg-white text-gray-900';
+};
+
+const getStatusBadgeClasses = (order: KitchenOrder) => {
+    if (isNewOrder(order)) {
+        return 'bg-black text-yellow-400';
+    }
+
+    const key = getOrderStatusKey(order);
+    const byStatus: Record<string, string> = {
+        pending: 'bg-amber-600 text-white',
+        'new order': 'bg-amber-600 text-white',
+        confirmed: 'bg-sky-600 text-white',
+        preparing: 'bg-orange-600 text-white',
+        ready: 'bg-emerald-600 text-white',
+        delivering: 'bg-violet-600 text-white',
+        'out for delivery': 'bg-violet-600 text-white',
+    };
+
+    return byStatus[key] ?? 'bg-gray-800 text-white';
+};
+
+const getCardMetaTextClass = (order: KitchenOrder) =>
+    isNewOrder(order) ? 'text-black/70' : 'text-gray-600';
+
 const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
@@ -377,35 +426,40 @@ onMounted(() => {
                     ]"
                 >
                     <!-- Card header -->
-                    <div
-                        :class="[
-                            'px-5 py-4',
-                            isNewOrder(order) ? 'bg-yellow-400 text-black' : 'bg-gray-900 text-white',
-                        ]"
-                    >
+                    <div class="px-5 py-4" :class="getCardHeaderClasses(order)">
                         <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <p class="text-sm font-semibold uppercase tracking-wide opacity-80">
+                            <div class="min-w-0">
+                                <p
+                                    class="text-sm font-bold uppercase tracking-wide"
+                                    :class="getCardMetaTextClass(order)"
+                                >
                                     {{ tBoth('طلب', 'Order') }}
                                 </p>
-                                <p class="text-3xl font-black tabular-nums" dir="ltr">
+                                <p class="text-3xl font-black tabular-nums text-gray-900" dir="ltr">
                                     #{{ order.order_number }}
                                 </p>
-                                <p v-if="order.website_order_code" class="mt-1 text-lg font-bold" dir="ltr">
+                                <p
+                                    v-if="order.website_order_code"
+                                    class="mt-1 text-lg font-bold text-gray-800"
+                                    dir="ltr"
+                                >
                                     {{ order.website_order_code }}
                                 </p>
                             </div>
-                            <div class="text-end">
-                                <p class="text-lg font-bold">{{ order.restaurant.name }}</p>
-                                <p class="mt-1 flex items-center justify-end gap-1 text-sm font-medium opacity-90">
+                            <div class="shrink-0 text-end">
+                                <p class="text-lg font-bold text-gray-900">{{ order.restaurant.name }}</p>
+                                <p
+                                    class="mt-1 flex items-center justify-end gap-1 text-sm font-semibold"
+                                    :class="getCardMetaTextClass(order)"
+                                >
                                     <Clock class="h-4 w-4 shrink-0" />
                                     {{ formatTimeAgo(order.created_at) }}
                                 </p>
                             </div>
                         </div>
                         <p
-                            class="mt-3 inline-block rounded-lg px-3 py-1 text-base font-bold leading-snug md:text-lg"
-                            :class="isNewOrder(order) ? 'bg-black text-yellow-400' : 'bg-white/20'"
+                            class="mt-3 inline-block rounded-lg px-3 py-1.5 text-base font-bold leading-snug shadow-sm md:text-lg"
+                            :class="getStatusBadgeClasses(order)"
                         >
                             {{ getStatusLabel(order) }}
                         </p>
