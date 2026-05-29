@@ -6,9 +6,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import {
     Store,
     ShoppingCart,
-    DollarSign,
     Clock,
-    TrendingUp,
     Package,
     Calendar,
     Save,
@@ -949,7 +947,7 @@ const deleteWhatsappMessage = async (messageId: number) => {
 
             <div v-if="activeTab === 'overview'" class="space-y-8">
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
@@ -977,27 +975,10 @@ const deleteWhatsappMessage = async (messageId: number) => {
                             </div>
                         </div>
                     </div>
-
-                    <div class="rounded-xl border bg-card p-6 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-muted-foreground">
-                                    {{ t('إجمالي الإيرادات', 'Total Revenue') }}
-                                </p>
-                                <p class="text-2xl font-bold inline-flex items-baseline">
-                                    <sup class="text-[10px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-1">SAR</sup>
-                                    <span>{{ formatCurrencyProfessional(stats.total_revenue) }}</span>
-                                </p>
-                            </div>
-                            <div class="rounded-lg bg-gray-800 p-3">
-                                <DollarSign class="h-6 w-6 text-white" />
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Additional Stats -->
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div class="rounded-xl border bg-card p-6 shadow-sm">
                         <div class="flex items-center justify-between">
                             <div>
@@ -1022,23 +1003,6 @@ const deleteWhatsappMessage = async (messageId: number) => {
                             </div>
                             <div class="rounded-lg bg-gray-800 p-3">
                                 <Calendar class="h-6 w-6 text-white" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border bg-card p-6 shadow-sm">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-muted-foreground">
-                                    {{ t('إيرادات اليوم', 'Today\'s Revenue') }}
-                                </p>
-                                <p class="text-2xl font-bold text-gray-700 inline-flex items-baseline">
-                                    <sup class="text-[10px] font-normal text-gray-500 dark:text-gray-400 leading-none mr-1">SAR</sup>
-                                    <span>{{ formatCurrencyProfessional(stats.today_revenue) }}</span>
-                                </p>
-                            </div>
-                            <div class="rounded-lg bg-gray-800 p-3">
-                                <TrendingUp class="h-6 w-6 text-white" />
                             </div>
                         </div>
                     </div>
