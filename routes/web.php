@@ -4,6 +4,7 @@ use App\Http\Controllers\AdController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\DeliveryTripController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LogController;
@@ -90,6 +91,7 @@ Route::post('/checkout/initiate-payment', [RestLinkController::class, 'initiateP
 
 Route::middleware(['checkauth', 'verified_or_branch'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('kitchen', [KitchenController::class, 'index'])->name('kitchen');
 
     // Users
     Route::resource('users', UserController::class);
