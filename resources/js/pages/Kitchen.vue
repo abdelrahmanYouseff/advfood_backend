@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { ArrowLeft, ChefHat, Clock, Volume2, VolumeX } from 'lucide-vue-next';
+import { ArrowLeft, ChefHat, Clock, Volume2, VolumeX, WifiOff } from 'lucide-vue-next';
 
 interface KitchenOrderItem {
     id: number;
@@ -56,6 +56,8 @@ const setKitchenLang = (lang: 'ar' | 'en') => {
 const processingOrderId = ref<number | null>(null);
 const notifiedOrderIds = ref<Set<number>>(new Set());
 const soundEnabled = ref(true);
+const connectionLost = ref(false);
+const isRefreshing = ref(false);
 
 const isNewOrder = (order: KitchenOrder) => {
     const shipping = (order.shipping_status ?? '').toLowerCase();
@@ -86,21 +88,17 @@ const statusLabelPairs: Record<string, [string, string]> = {
     'out for delivery': ['خارج للتوصيل', 'Out for delivery'],
 };
 
-const getStatusLabel = (order: KitchenOrder) => {
-    const shipping = (order.shipping_status ?? '').toLowerCase();
-    const pair = statusLabelPairs[shipping] ?? statusLabelPairs[(order.status ?? '').toLowerCase()];
-    if (pair) {
-        return tBoth(pair[0], pair[1]);
-    }
-    return order.shipping_status ?? order.status;
-};
-
 const getOrderStatusKey = (order: KitchenOrder) => {
     const shipping = (order.shipping_status ?? '').toLowerCase();
     if (shipping && statusLabelPairs[shipping]) {
         return shipping;
     }
     return (order.status ?? '').toLowerCase();
+};
+
+const getStatusLabelParts = (order: KitchenOrder): [string, string] | null => {
+    const key = getOrderStatusKey(order);
+    return statusLabelPairs[key] ?? null;
 };
 
 const getCardHeaderClasses = (order: KitchenOrder) => {
@@ -144,17 +142,17 @@ const getStatusBadgeClasses = (order: KitchenOrder) => {
 const getCardMetaTextClass = (order: KitchenOrder) =>
     isNewOrder(order) ? 'text-black/70' : 'text-gray-600';
 
-const formatTimeAgo = (dateString: string) => {
+const getTimeAgoParts = (dateString: string): { ar: string; en: string } => {
     const date = new Date(dateString);
     const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
     if (diffMinutes < 1) {
-        return tBoth('الآن', 'Just now');
+        return { ar: 'الآن', en: 'Just now' };
     }
     if (diffMinutes < 60) {
-        return tBoth(`منذ ${diffMinutes} د`, `${diffMinutes} min ago`);
+        return { ar: `منذ ${diffMinutes} د`, en: `${diffMinutes} min ago` };
     }
     const hours = Math.floor(diffMinutes / 60);
-    return tBoth(`منذ ${hours} س`, `${hours} hr ago`);
+    return { ar: `منذ ${hours} س`, en: `${hours} hr ago` };
 };
 
 type NextAction =
@@ -276,6 +274,67 @@ const toggleSound = () => {
     localStorage.setItem('kitchenSoundEnabled', soundEnabled.value.toString());
 };
 
+const processReloadedOrders = (page: { props: { orders?: KitchenOrder[] } }, previousIds: Set<number>) => {
+    const currentOrders = (page.props.orders ?? []) as KitchenOrder[];
+
+    const newlyAdded = currentOrders.filter((o) => !previousIds.has(o.id));
+    newlyAdded.forEach((order) => {
+        if (!notifiedOrderIds.value.has(order.id)) {
+            notifiedOrderIds.value.add(order.id);
+            playNewOrderAlert();
+        }
+    });
+
+    currentOrders.forEach((order) => {
+        if (shouldAlertForOrder(order) && order.sound && !notifiedOrderIds.value.has(order.id)) {
+            notifiedOrderIds.value.add(order.id);
+            playNewOrderAlert();
+        }
+    });
+};
+
+const pollOrders = () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        connectionLost.value = true;
+        return;
+    }
+
+    const previousIds = new Set(props.orders.map((o) => o.id));
+    router.reload({
+        only: ['orders'],
+        preserveScroll: true,
+        onSuccess: (page) => {
+            connectionLost.value = false;
+            processReloadedOrders(page, previousIds);
+        },
+        onError: () => {
+            connectionLost.value = true;
+        },
+    });
+};
+
+const refreshKitchen = () => {
+    if (isRefreshing.value) return;
+
+    isRefreshing.value = true;
+    const previousIds = new Set(props.orders.map((o) => o.id));
+
+    router.reload({
+        only: ['orders'],
+        preserveScroll: true,
+        onSuccess: (page) => {
+            connectionLost.value = false;
+            processReloadedOrders(page, previousIds);
+        },
+        onError: () => {
+            connectionLost.value = true;
+        },
+        onFinish: () => {
+            isRefreshing.value = false;
+        },
+    });
+};
+
 onMounted(() => {
     const saved = localStorage.getItem('kitchenSoundEnabled');
     if (saved !== null) {
@@ -310,34 +369,20 @@ onMounted(() => {
     document.addEventListener('click', unlockAudio, { once: true });
     document.addEventListener('touchstart', unlockAudio, { once: true });
 
-    const pollInterval = setInterval(() => {
-        const previousIds = new Set(props.orders.map((o) => o.id));
-        router.reload({
-            only: ['orders'],
-            preserveScroll: true,
-            onSuccess: (page) => {
-                const currentOrders = (page.props.orders ?? []) as KitchenOrder[];
-                const newlyAdded = currentOrders.filter((o) => !previousIds.has(o.id));
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        connectionLost.value = true;
+    }
 
-                newlyAdded.forEach((order) => {
-                    if (!notifiedOrderIds.value.has(order.id)) {
-                        notifiedOrderIds.value.add(order.id);
-                        playNewOrderAlert();
-                    }
-                });
+    const onOffline = () => {
+        connectionLost.value = true;
+    };
+    window.addEventListener('offline', onOffline);
 
-                currentOrders.forEach((order) => {
-                    if (shouldAlertForOrder(order) && order.sound && !notifiedOrderIds.value.has(order.id)) {
-                        notifiedOrderIds.value.add(order.id);
-                        playNewOrderAlert();
-                    }
-                });
-            },
-        });
-    }, 3000);
+    const pollInterval = setInterval(pollOrders, 3000);
 
     onUnmounted(() => {
         clearInterval(pollInterval);
+        window.removeEventListener('offline', onOffline);
         window.removeEventListener('sidebar-lang-changed', handler as EventListener);
     });
 });
@@ -411,6 +456,39 @@ onMounted(() => {
             </div>
         </header>
 
+        <!-- Connection lost -->
+        <div
+            v-if="connectionLost"
+            role="alert"
+            class="border-b-4 border-red-700 bg-red-50 px-4 py-5 shadow-md md:px-8"
+        >
+            <div class="mx-auto flex max-w-7xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
+                <div class="flex items-center gap-3 text-center sm:text-start">
+                    <WifiOff class="h-8 w-8 shrink-0 text-red-700" aria-hidden="true" />
+                    <p class="text-lg font-bold text-red-900 md:text-xl">
+                        {{
+                            tBoth(
+                                'انقطع الاتصال — تعذر تحديث الطلبات',
+                                'Connection lost — unable to refresh orders'
+                            )
+                        }}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    class="w-full shrink-0 rounded-xl bg-red-600 px-8 py-4 text-xl font-black text-white shadow-md transition hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                    :disabled="isRefreshing"
+                    @click="refreshKitchen"
+                >
+                    {{
+                        isRefreshing
+                            ? t('جاري التحديث...', 'Refreshing...')
+                            : tBoth('يرجى التحديث', 'Please refresh')
+                    }}
+                </button>
+            </div>
+        </div>
+
         <!-- Orders grid -->
         <main class="flex-1 p-4 md:p-8">
             <div
@@ -428,40 +506,53 @@ onMounted(() => {
                     <!-- Card header -->
                     <div class="px-5 py-4" :class="getCardHeaderClasses(order)">
                         <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <p
-                                    class="text-sm font-bold uppercase tracking-wide"
-                                    :class="getCardMetaTextClass(order)"
-                                >
-                                    {{ tBoth('طلب', 'Order') }}
-                                </p>
-                                <p class="text-3xl font-black tabular-nums text-gray-900" dir="ltr">
-                                    #{{ order.order_number }}
-                                </p>
-                                <p
-                                    v-if="order.website_order_code"
-                                    class="mt-1 text-lg font-bold text-gray-800"
-                                    dir="ltr"
-                                >
-                                    {{ order.website_order_code }}
-                                </p>
-                            </div>
-                            <div class="shrink-0 text-end">
-                                <p class="text-lg font-bold text-gray-900">{{ order.restaurant.name }}</p>
-                                <p
-                                    class="mt-1 flex items-center justify-end gap-1 text-sm font-semibold"
-                                    :class="getCardMetaTextClass(order)"
-                                >
-                                    <Clock class="h-4 w-4 shrink-0" />
-                                    {{ formatTimeAgo(order.created_at) }}
-                                </p>
-                            </div>
+                            <p
+                                class="text-sm font-bold uppercase tracking-wide"
+                                :class="getCardMetaTextClass(order)"
+                            >
+                                <span dir="rtl">طلب</span>
+                                <span aria-hidden="true"> · </span>
+                                <span dir="ltr">Order</span>
+                            </p>
+                            <p class="shrink-0 text-end text-lg font-bold text-gray-900">
+                                {{ order.restaurant.name }}
+                            </p>
                         </div>
+
+                        <p
+                            class="mt-2 block w-full break-all text-3xl font-black leading-tight tabular-nums text-gray-900"
+                            dir="ltr"
+                        >
+                            #{{ order.order_number }}
+                        </p>
+                        <p
+                            v-if="order.website_order_code"
+                            class="mt-1 block w-full break-all text-lg font-bold text-gray-800"
+                            dir="ltr"
+                        >
+                            {{ order.website_order_code }}
+                        </p>
+
+                        <p
+                            class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold"
+                            :class="getCardMetaTextClass(order)"
+                        >
+                            <Clock class="h-4 w-4 shrink-0" aria-hidden="true" />
+                            <span dir="rtl">{{ getTimeAgoParts(order.created_at).ar }}</span>
+                            <span aria-hidden="true" class="text-gray-400">·</span>
+                            <span dir="ltr">{{ getTimeAgoParts(order.created_at).en }}</span>
+                        </p>
+
                         <p
                             class="mt-3 inline-block rounded-lg px-3 py-1.5 text-base font-bold leading-snug shadow-sm md:text-lg"
                             :class="getStatusBadgeClasses(order)"
                         >
-                            {{ getStatusLabel(order) }}
+                            <template v-if="getStatusLabelParts(order)">
+                                <span dir="rtl">{{ getStatusLabelParts(order)![0] }}</span>
+                                <span aria-hidden="true"> · </span>
+                                <span dir="ltr">{{ getStatusLabelParts(order)![1] }}</span>
+                            </template>
+                            <template v-else>{{ order.shipping_status ?? order.status }}</template>
                         </p>
                     </div>
 
