@@ -98,8 +98,13 @@ class ShippingController extends Controller
 
     public function getStatus(string $dspOrderId)
     {
-        // Try to find order to determine provider
-        $order = Order::where('dsp_order_id', $dspOrderId)->first();
+        $order = Order::query()
+            ->where(function ($query) use ($dspOrderId) {
+                $query->where('dsp_order_id', $dspOrderId)
+                    ->orWhere('order_number', $dspOrderId);
+            })
+            ->first();
+
         $provider = $order ? ($order->shipping_provider ?? 'leajlak') : 'leajlak';
         
         $shippingService = ShippingServiceFactory::getService($provider);

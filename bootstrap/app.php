@@ -37,6 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping(3) // Release lock after 3 minutes if still running
             ->appendOutputTo(storage_path('logs/schedule.log'))
             ->emailOutputOnFailure(env('ADMIN_EMAIL', null));
+
+        $schedule->command('orders:refresh-shadda-status')
+            ->everyMinute()
+            ->withoutOverlapping(2)
+            ->appendOutputTo(storage_path('logs/shadda-status-sync.log'));
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

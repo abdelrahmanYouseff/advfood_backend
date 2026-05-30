@@ -837,6 +837,15 @@ class ShaddaShippingService implements ShippingServiceInterface
                 'shipping_provider' => 'shadda',
             ], fn($v) => !is_null($v));
 
+            $orderUpdate = array_merge(
+                $orderUpdate,
+                $this->resolveOrderFieldsFromShaddaStatus(
+                    $statusDesc,
+                    $statusCode,
+                    $responseData['completedDatetime'] ?? null
+                )
+            );
+
             if (!empty($clientOrderId)) {
                 DB::table('orders')->where('order_number', $clientOrderId)->update($orderUpdate);
             }
@@ -1105,6 +1114,48 @@ class ShaddaShippingService implements ShippingServiceInterface
         }
 
         return $statusMap[$statusCode] ?? 'Unknown';
+    }
+
+    /**
+     * Map terminal Shadda statuses to internal order fields (status, shipping_status, delivered_at).
+     *
+     * @return array<string, mixed>
+     */
+    protected function resolveOrderFieldsFromShaddaStatus(
+        ?string $statusDesc,
+        mixed $statusCode,
+        ?string $completedDatetime = null
+    ): array {
+        $code = is_numeric($statusCode) ? (int) $statusCode : null;
+        $desc = strtolower(trim((string) $statusDesc));
+
+        if ($code === 6 || $desc === 'completed') {
+            $deliveredAt = now();
+            if (! empty($completedDatetime)) {
+                try {
+                    $deliveredAt = \Illuminate\Support\Carbon::parse($completedDatetime);
+                } catch (\Throwable) {
+                    // Keep now() if Shadda datetime is unparsable
+                }
+            }
+
+            return [
+                'status' => 'delivered',
+                'shipping_status' => 'Delivered',
+                'delivered_at' => $deliveredAt,
+                'sound' => false,
+            ];
+        }
+
+        if ($code === 7 || in_array($desc, ['canceled', 'cancelled'], true)) {
+            return [
+                'status' => 'cancelled',
+                'shipping_status' => 'Cancelled',
+                'sound' => false,
+            ];
+        }
+
+        return [];
     }
 
     protected function buildUrl(string $endpointTemplate, array $params = []): string
