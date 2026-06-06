@@ -80,10 +80,9 @@ class TwilioWhatsAppService
             ];
         }
 
-        $branch = $order->relationLoaded('branch')
-            ? $order->branch
-            : ($order->branch_id ? Branch::find($order->branch_id) : null);
+        $order->loadMissing(['restaurant', 'branch']);
 
+        $branch = $order->branch ?? ($order->branch_id ? Branch::find($order->branch_id) : null);
         $phones = $branch?->whatsapp_alert_phones ?? [];
 
         if ($phones === []) {
@@ -100,10 +99,9 @@ class TwilioWhatsAppService
             ];
         }
 
-        $result = $this->sendTemplateToPhones(
-            $phones,
-            $this->buildKitchenOrderContentVariables($order)
-        );
+        $contentVariables = $this->buildKitchenOrderContentVariables($order);
+
+        $result = $this->sendTemplateToPhones($phones, $contentVariables);
 
         Log::info('Kitchen WhatsApp alert dispatch finished', [
             'order_id' => $order->id,
@@ -112,6 +110,7 @@ class TwilioWhatsAppService
             'phones_count' => count($phones),
             'sent_count' => count($result['sent'] ?? []),
             'failed_count' => count($result['failed'] ?? []),
+            'content_variables' => $contentVariables,
         ]);
 
         return $result;
@@ -150,9 +149,37 @@ class TwilioWhatsAppService
      */
     public function buildKitchenOrderContentVariables(Order $order): array
     {
+        $order->loadMissing(['restaurant', 'branch']);
+
         return [
-            '1' => (string) ($order->order_number ?? $order->id),
+            '1' => $this->formatRestaurantNameForTemplate($order->restaurant?->name),
+            '2' => (string) ($order->branch?->name ?? '—'),
+            '3' => (string) ($order->order_number ?? $order->id),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function buildTestKitchenOrderContentVariables(?string $branchName = null): array
+    {
+        return [
+            '1' => 'gatherus',
+            '2' => $branchName ?? 'Test Branch',
+            '3' => 'TEST-'.now()->format('His'),
+        ];
+    }
+
+    public function formatRestaurantNameForTemplate(?string $name): string
+    {
+        $normalized = strtolower(trim((string) $name));
+
+        return match ($normalized) {
+            'tant bakiza' => 'tant bakiza',
+            'gather us', 'gatherus' => 'gatherus',
+            'delawa' => 'delawa',
+            default => $name !== null && trim($name) !== '' ? trim($name) : 'unknown',
+        };
     }
 
     /**

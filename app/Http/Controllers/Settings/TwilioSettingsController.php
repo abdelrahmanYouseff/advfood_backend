@@ -51,7 +51,10 @@ class TwilioSettingsController extends Controller
             'phone' => ['required', 'string', 'max:50'],
         ]);
 
-        $result = $twilio->sendTemplateMessage($validated['phone']);
+        $result = $twilio->sendTemplateMessage(
+            $validated['phone'],
+            $twilio->buildTestKitchenOrderContentVariables()
+        );
 
         if (! $result['success']) {
             return back()->withErrors([

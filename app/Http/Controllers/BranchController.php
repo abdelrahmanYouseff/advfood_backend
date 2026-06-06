@@ -179,7 +179,10 @@ class BranchController extends Controller
             ]);
         }
 
-        $result = $twilio->sendTemplateToPhones($phones);
+        $result = $twilio->sendTemplateToPhones(
+            $phones,
+            $twilio->buildTestKitchenOrderContentVariables($branch->name)
+        );
 
         if (! $result['success']) {
             $firstError = $result['failed'][0]['error'] ?? $result['error'] ?? 'Failed to send test message.';
