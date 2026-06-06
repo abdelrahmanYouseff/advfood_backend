@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ShippingSettingsController;
+use App\Http\Controllers\Settings\TwilioSettingsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -25,4 +26,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('settings/shipping', [ShippingSettingsController::class, 'index'])->name('shipping-settings.index');
     Route::patch('settings/shipping', [ShippingSettingsController::class, 'update'])->name('shipping-settings.update');
+
+    Route::get('settings/twilio', [TwilioSettingsController::class, 'index'])->name('twilio-settings.index');
+    Route::patch('settings/twilio', [TwilioSettingsController::class, 'update'])->name('twilio-settings.update');
+    Route::post('settings/twilio/test-message', [TwilioSettingsController::class, 'sendTest'])
+        ->middleware('throttle:6,1')
+        ->name('twilio-settings.test-message');
 });

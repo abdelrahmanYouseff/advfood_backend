@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Services\TwilioWhatsAppService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -132,5 +134,63 @@ class BranchController extends Controller
             ? 'تم تفعيل الفرع بنجاح' 
             : 'تم تعطيل الفرع بنجاح'
         );
+    }
+
+    /**
+     * Update WhatsApp alert phone numbers for a branch.
+     */
+    public function updateWhatsappAlertPhones(Request $request, Branch $branch): RedirectResponse
+    {
+        $validated = $request->validate([
+            'whatsapp_alert_phones' => ['nullable', 'array'],
+            'whatsapp_alert_phones.*' => ['string', 'max:50'],
+        ]);
+
+        $phones = collect($validated['whatsapp_alert_phones'] ?? [])
+            ->map(fn ($phone) => trim((string) $phone))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $branch->update(['whatsapp_alert_phones' => $phones !== [] ? $phones : null]);
+
+        return back()->with('success', 'تم تحديث أرقام تنبيهات الواتساب بنجاح');
+    }
+
+    /**
+     * Send a test WhatsApp template message to a branch alert phone.
+     */
+    public function sendTestWhatsappMessage(Request $request, Branch $branch, TwilioWhatsAppService $twilio): RedirectResponse
+    {
+        $validated = $request->validate([
+            'phone' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $phones = $branch->whatsapp_alert_phones ?? [];
+
+        if (! empty($validated['phone'])) {
+            $phones = [trim($validated['phone'])];
+        }
+
+        if ($phones === []) {
+            return back()->withErrors([
+                'whatsapp_test' => 'أضف رقم واتساب واحد على الأقل قبل إرسال رسالة تجريبية.',
+            ]);
+        }
+
+        $result = $twilio->sendTemplateToPhones($phones);
+
+        if (! $result['success']) {
+            $firstError = $result['failed'][0]['error'] ?? $result['error'] ?? 'Failed to send test message.';
+
+            return back()->withErrors([
+                'whatsapp_test' => $firstError,
+            ]);
+        }
+
+        $count = count($result['sent']);
+
+        return back()->with('success', "تم إرسال {$count} رسالة تجريبية عبر الواتساب بنجاح");
     }
 }

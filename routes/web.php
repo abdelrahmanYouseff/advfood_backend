@@ -99,6 +99,8 @@ Route::middleware(['checkauth', 'verified_or_branch'])->group(function () {
     // Branches
     Route::resource('branches', BranchController::class);
     Route::post('branches/{branch}/toggle-status', [BranchController::class, 'toggleStatus'])->name('branches.toggle-status');
+    Route::patch('branches/{branch}/whatsapp-alert-phones', [BranchController::class, 'updateWhatsappAlertPhones'])->name('branches.whatsapp-alert-phones.update');
+    Route::post('branches/{branch}/whatsapp-test-message', [BranchController::class, 'sendTestWhatsappMessage'])->name('branches.whatsapp-test-message');
 
     // Restaurants
     Route::resource('restaurants', RestaurantController::class);

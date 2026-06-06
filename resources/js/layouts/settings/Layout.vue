@@ -22,6 +22,10 @@ const sidebarNavItems: NavItem[] = [
         title: 'Shipping Settings',
         href: '/settings/shipping',
     },
+    {
+        title: 'Twilio',
+        href: '/settings/twilio',
+    },
 ];
 
 const page = usePage();

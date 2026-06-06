@@ -18,6 +18,7 @@ class Branch extends Authenticatable
         'latitude',
         'longitude',
         'status',
+        'whatsapp_alert_phones',
         'dashboard_user_id',
     ];
 
@@ -29,6 +30,7 @@ class Branch extends Authenticatable
     protected $casts = [
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
+        'whatsapp_alert_phones' => 'array',
     ];
 
     /**

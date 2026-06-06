@@ -158,6 +158,7 @@ class Order extends Model
             // This ensures every paid order that appears in Orders page has an invoice
             if ($order->payment_status === 'paid') {
                 $order->createInvoice();
+                self::notifyKitchenWhatsAppAlert($order);
             }
 
             // Set shipping_provider if not already set
@@ -351,6 +352,8 @@ class Order extends Model
 
             // Check if payment_status was just changed to 'paid'
             if ($order->wasChanged('payment_status') && $order->payment_status === 'paid') {
+                self::notifyKitchenWhatsAppAlert($order);
+
                 \Illuminate\Support\Facades\Log::info('✅ PAYMENT_STATUS CHANGED TO PAID - Checking conditions for shipping', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
@@ -424,6 +427,23 @@ class Order extends Model
                 }
             }
         });
+    }
+
+    /**
+     * Send WhatsApp kitchen alert to the branch's configured numbers.
+     */
+    protected static function notifyKitchenWhatsAppAlert(self $order): void
+    {
+        try {
+            app(\App\Services\TwilioWhatsAppService::class)->notifyKitchenOrderCreated($order);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Kitchen WhatsApp alert failed', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'branch_id' => $order->branch_id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
