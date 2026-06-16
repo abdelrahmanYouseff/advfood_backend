@@ -58,6 +58,8 @@ interface Props {
         total_new_orders: number;
         total_closed_orders: number;
     };
+    is_branch_user?: boolean;
+    branches?: Array<{ id: number; name: string }>;
 }
 
 const props = defineProps<Props>();
@@ -1491,17 +1493,27 @@ const acceptOrder = async (orderId: number) => {
 
 // Create test order function
 const isCreatingTestOrder = ref(false);
+const selectedTestBranchId = ref<number | ''>(props.branches?.[0]?.id ?? '');
 
 const createTestOrder = () => {
     if (isCreatingTestOrder.value) return;
 
+    if (!props.is_branch_user && !selectedTestBranchId.value) {
+        alert(t('يرجى اختيار الفرع أولاً', 'Please select a branch first'));
+        return;
+    }
+
     isCreatingTestOrder.value = true;
-    router.post(route('orders.create-test'), {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            isCreatingTestOrder.value = false;
+    router.post(
+        route('orders.create-test'),
+        props.is_branch_user ? {} : { branch_id: selectedTestBranchId.value },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isCreatingTestOrder.value = false;
+            },
         },
-    });
+    );
 };
 
 // Load sound preference and set up notifications
@@ -1712,10 +1724,24 @@ onMounted(() => {
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="flex items-center gap-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <select
+                            v-if="!props.is_branch_user && (props.branches?.length ?? 0) > 0"
+                            v-model="selectedTestBranchId"
+                            class="rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 dark:border-orange-500 dark:bg-gray-900 dark:text-gray-100"
+                        >
+                            <option value="" disabled>{{ t('اختر الفرع', 'Select branch') }}</option>
+                            <option
+                                v-for="branch in props.branches"
+                                :key="branch.id"
+                                :value="branch.id"
+                            >
+                                {{ branch.name }}
+                            </option>
+                        </select>
                         <button
                             type="button"
-                            :disabled="isCreatingTestOrder"
+                            :disabled="isCreatingTestOrder || (!props.is_branch_user && !selectedTestBranchId)"
                             class="inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-orange-500 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-400 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/50"
                             @click="createTestOrder"
                         >

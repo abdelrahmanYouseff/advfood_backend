@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { ArrowLeft, ChefHat, Clock, Volume2, VolumeX, WifiOff } from 'lucide-vue-next';
 
 interface KitchenOrderItem {
@@ -59,6 +59,100 @@ const notifiedOrderIds = ref<Set<number>>(new Set());
 const soundEnabled = ref(true);
 const connectionLost = ref(false);
 const isRefreshing = ref(false);
+
+let sharedAudioContext: AudioContext | null = null;
+let continuousSoundInterval: ReturnType<typeof setInterval> | null = null;
+
+const isUnacceptedOrder = (order: KitchenOrder) => {
+    if (order.sound === false) {
+        return false;
+    }
+
+    const shipping = (order.shipping_status ?? '').toLowerCase();
+    const status = (order.status ?? '').toLowerCase();
+
+    return shipping === 'new order' || status === 'pending';
+};
+
+const getAudioContext = async (): Promise<AudioContext | null> => {
+    try {
+        const AudioCtx = window.AudioContext
+            || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+
+        if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
+            sharedAudioContext = new AudioCtx();
+        }
+
+        if (sharedAudioContext.state === 'suspended') {
+            await sharedAudioContext.resume();
+        }
+
+        return sharedAudioContext;
+    } catch {
+        return null;
+    }
+};
+
+const playNotificationSound = async () => {
+    if (!soundEnabled.value) return;
+
+    try {
+        const audioContext = await getAudioContext();
+        if (!audioContext) return;
+
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.2);
+        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.3);
+
+        gainNode.gain.setValueAtTime(0.6, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+    } catch {
+        // Browser may block audio until user interaction
+    }
+};
+
+const playNewOrderAlert = () => {
+    void playNotificationSound();
+    setTimeout(() => void playNotificationSound(), 300);
+    setTimeout(() => void playNotificationSound(), 600);
+};
+
+const startContinuousSound = () => {
+    if (!soundEnabled.value || continuousSoundInterval) return;
+
+    void playNotificationSound();
+    continuousSoundInterval = setInterval(() => {
+        void playNotificationSound();
+    }, 2000);
+};
+
+const stopContinuousSound = () => {
+    if (!continuousSoundInterval) return;
+
+    clearInterval(continuousSoundInterval);
+    continuousSoundInterval = null;
+};
+
+const syncSoundAlerts = (orders: KitchenOrder[]) => {
+    const ordersNeedingSound = orders.filter(isUnacceptedOrder);
+
+    if (ordersNeedingSound.length > 0 && soundEnabled.value) {
+        startContinuousSound();
+        return;
+    }
+
+    stopContinuousSound();
+};
 
 const isNewOrder = (order: KitchenOrder) => {
     const shipping = (order.shipping_status ?? '').toLowerCase();
@@ -212,39 +306,19 @@ const getActionLabel = (order: KitchenOrder) => {
     return tBoth(action.labelAr, action.labelEn);
 };
 
-const playNotificationSound = () => {
-    if (!soundEnabled.value) return;
+const processReloadedOrders = (page: { props: { orders?: KitchenOrder[] } }, previousIds: Set<number>) => {
+    const currentOrders = (page.props.orders ?? []) as KitchenOrder[];
 
-    try {
-        const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+    const newlyAdded = currentOrders.filter((order) => !previousIds.has(order.id));
+    newlyAdded.forEach((order) => {
+        if (!notifiedOrderIds.value.has(order.id)) {
+            notifiedOrderIds.value.add(order.id);
+            playNewOrderAlert();
+        }
+    });
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-
-        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1);
-        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.2);
-        oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.3);
-
-        gainNode.gain.setValueAtTime(0.6, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-    } catch {
-        // Browser may block audio until user interaction
-    }
+    syncSoundAlerts(currentOrders);
 };
-
-const playNewOrderAlert = () => {
-    playNotificationSound();
-    setTimeout(playNotificationSound, 350);
-    setTimeout(playNotificationSound, 700);
-};
-
-const shouldAlertForOrder = (order: KitchenOrder) => isNewOrder(order);
 
 const acceptOrder = (orderId: number) => {
     processingOrderId.value = orderId;
@@ -285,26 +359,14 @@ const handleAction = (order: KitchenOrder) => {
 
 const toggleSound = () => {
     soundEnabled.value = !soundEnabled.value;
+    localStorage.setItem('orderSoundEnabled', soundEnabled.value.toString());
     localStorage.setItem('kitchenSoundEnabled', soundEnabled.value.toString());
-};
 
-const processReloadedOrders = (page: { props: { orders?: KitchenOrder[] } }, previousIds: Set<number>) => {
-    const currentOrders = (page.props.orders ?? []) as KitchenOrder[];
-
-    const newlyAdded = currentOrders.filter((o) => !previousIds.has(o.id));
-    newlyAdded.forEach((order) => {
-        if (!notifiedOrderIds.value.has(order.id)) {
-            notifiedOrderIds.value.add(order.id);
-            playNewOrderAlert();
-        }
-    });
-
-    currentOrders.forEach((order) => {
-        if (shouldAlertForOrder(order) && order.sound && !notifiedOrderIds.value.has(order.id)) {
-            notifiedOrderIds.value.add(order.id);
-            playNewOrderAlert();
-        }
-    });
+    if (soundEnabled.value) {
+        syncSoundAlerts(props.orders);
+    } else {
+        stopContinuousSound();
+    }
 };
 
 const pollOrders = () => {
@@ -350,16 +412,35 @@ const refreshKitchen = () => {
 };
 
 onMounted(() => {
-    const saved = localStorage.getItem('kitchenSoundEnabled');
-    if (saved !== null) {
-        soundEnabled.value = saved === 'true';
+    const savedOrderSound = localStorage.getItem('orderSoundEnabled');
+    const savedKitchenSound = localStorage.getItem('kitchenSoundEnabled');
+    if (savedOrderSound !== null) {
+        soundEnabled.value = savedOrderSound === 'true';
+    } else if (savedKitchenSound !== null) {
+        soundEnabled.value = savedKitchenSound === 'true';
     }
 
-    props.orders.forEach((order) => {
-        if (shouldAlertForOrder(order)) {
-            notifiedOrderIds.value.add(order.id);
-        }
-    });
+    const unlockAudio = async () => {
+        await getAudioContext();
+        syncSoundAlerts(props.orders);
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+    };
+
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('keydown', unlockAudio, { once: true });
+
+    syncSoundAlerts(props.orders);
+
+    watch(
+        () => props.orders,
+        (orders) => {
+            syncSoundAlerts(orders);
+        },
+        { deep: true },
+    );
 
     const handler = (event: Event) => {
         const lang = (event as CustomEvent).detail;
@@ -368,20 +449,6 @@ onMounted(() => {
         }
     };
     window.addEventListener('sidebar-lang-changed', handler as EventListener);
-
-    const unlockAudio = async () => {
-        try {
-            const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-            await ctx.resume();
-            await ctx.close();
-        } catch {
-            // Browser may block until user gesture
-        }
-        document.removeEventListener('click', unlockAudio);
-        document.removeEventListener('touchstart', unlockAudio);
-    };
-    document.addEventListener('click', unlockAudio, { once: true });
-    document.addEventListener('touchstart', unlockAudio, { once: true });
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
         connectionLost.value = true;
@@ -396,6 +463,11 @@ onMounted(() => {
 
     onUnmounted(() => {
         clearInterval(pollInterval);
+        stopContinuousSound();
+        if (sharedAudioContext && sharedAudioContext.state !== 'closed') {
+            void sharedAudioContext.close();
+        }
+        sharedAudioContext = null;
         window.removeEventListener('offline', onOffline);
         window.removeEventListener('sidebar-lang-changed', handler as EventListener);
     });

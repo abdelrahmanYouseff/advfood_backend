@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\OrderItem;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -145,6 +146,10 @@ class OrderController extends Controller
                 'total_new_orders' => $totalNewOrders,
                 'total_closed_orders' => $totalClosedOrders,
             ],
+            'is_branch_user' => $isBranch,
+            'branches' => $isBranch
+                ? []
+                : Branch::where('status', 'active')->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -326,36 +331,41 @@ class OrderController extends Controller
     /**
      * Create a test order for kitchen / orders flow testing.
      */
-    public function createTestOrder()
+    public function createTestOrder(Request $request)
     {
         try {
-            $branch = Auth::guard('branches')->user();
+            $loggedInBranch = Auth::guard('branches')->user();
             $user = \App\Models\User::first();
 
             if (!$user) {
                 return redirect()->back()->with('error', 'يجب وجود مستخدم واحد على الأقل في قاعدة البيانات');
             }
 
-            $restaurant = null;
-            $shopId = null;
-            $branchId = null;
+            if ($loggedInBranch) {
+                $branch = $loggedInBranch;
+            } else {
+                $validated = $request->validate([
+                    'branch_id' => 'required|exists:branches,id',
+                ]);
+                $branch = Branch::where('status', 'active')->find($validated['branch_id']);
+
+                if (!$branch) {
+                    return redirect()->back()->with('error', 'الفرع المحدد غير نشط أو غير موجود');
+                }
+            }
+
+            $mapping = \App\Models\BranchRestaurantShopId::where('branch_id', $branch->id)->first();
+            $restaurant = $mapping
+                ? \App\Models\Restaurant::find($mapping->restaurant_id)
+                : \App\Models\Restaurant::first();
+            $branchId = $branch->id;
+            $shopId = $mapping?->shop_id;
             $customerLatitude = 24.7136;
             $customerLongitude = 46.6753;
 
-            if ($branch) {
-                $mapping = \App\Models\BranchRestaurantShopId::where('branch_id', $branch->id)->first();
-                $restaurant = $mapping
-                    ? \App\Models\Restaurant::find($mapping->restaurant_id)
-                    : \App\Models\Restaurant::first();
-                $branchId = $branch->id;
-                $shopId = $mapping?->shop_id;
-
-                if ($branch->latitude && $branch->longitude) {
-                    $customerLatitude = (float) $branch->latitude + 0.001;
-                    $customerLongitude = (float) $branch->longitude + 0.001;
-                }
-            } else {
-                $restaurant = \App\Models\Restaurant::first();
+            if ($branch->latitude && $branch->longitude) {
+                $customerLatitude = (float) $branch->latitude + 0.001;
+                $customerLongitude = (float) $branch->longitude + 0.001;
             }
 
             if (!$restaurant) {
@@ -408,7 +418,9 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'branch_id' => $branchId,
+                'branch_name' => $branch->name,
                 'restaurant_id' => $restaurant->id,
+                'created_by' => $loggedInBranch ? 'branch' : 'admin',
             ]);
 
             return redirect()->route('orders.index')->with('success', 'تم إنشاء طلب تجريبي بنجاح!');
