@@ -324,73 +324,96 @@ class OrderController extends Controller
     }
 
     /**
-     * Create a test order for testing announcements
+     * Create a test order for kitchen / orders flow testing.
      */
     public function createTestOrder()
     {
         try {
-            // Get first user and restaurant
+            $branch = Auth::guard('branches')->user();
             $user = \App\Models\User::first();
-            $restaurant = \App\Models\Restaurant::first();
 
-            if (!$user || !$restaurant) {
-                return redirect()->back()->with('error', 'يجب وجود مستخدم ومطعم واحد على الأقل في قاعدة البيانات');
+            if (!$user) {
+                return redirect()->back()->with('error', 'يجب وجود مستخدم واحد على الأقل في قاعدة البيانات');
             }
 
-            // Generate order number
-            $orderNumber = 'TEST-' . time();
+            $restaurant = null;
+            $shopId = null;
+            $branchId = null;
+            $customerLatitude = 24.7136;
+            $customerLongitude = 46.6753;
 
-            // Get shop_id from restaurant
-            $shopId = $restaurant->shop_id ?? (string) $restaurant->id;
+            if ($branch) {
+                $mapping = \App\Models\BranchRestaurantShopId::where('branch_id', $branch->id)->first();
+                $restaurant = $mapping
+                    ? \App\Models\Restaurant::find($mapping->restaurant_id)
+                    : \App\Models\Restaurant::first();
+                $branchId = $branch->id;
+                $shopId = $mapping?->shop_id;
 
-            // Generate random location coordinates within Riyadh area
-            // Riyadh center: 24.7136, 46.6753
-            // Add small random offset for variety (±0.05 degrees ≈ ±5.5 km)
-            $baseLat = 24.7136;
-            $baseLng = 46.6753;
-            $randomOffset = (rand(-50, 50) / 1000); // ±0.05 degrees
-            $customerLatitude = $baseLat + $randomOffset;
-            $customerLongitude = $baseLng + $randomOffset;
+                if ($branch->latitude && $branch->longitude) {
+                    $customerLatitude = (float) $branch->latitude + 0.001;
+                    $customerLongitude = (float) $branch->longitude + 0.001;
+                }
+            } else {
+                $restaurant = \App\Models\Restaurant::first();
+            }
 
-            // Create test order
+            if (!$restaurant) {
+                return redirect()->back()->with('error', 'يجب وجود مطعم واحد على الأقل في قاعدة البيانات');
+            }
+
+            $shopId = $shopId ?? $restaurant->shop_id ?? (string) $restaurant->id;
+
+            $menuItem = \App\Models\MenuItem::where('restaurant_id', $restaurant->id)->first();
+            if (!$menuItem) {
+                return redirect()->back()->with('error', 'يجب وجود منتج واحد على الأقل في المطعم لإنشاء طلب تجريبي');
+            }
+
+            $orderNumber = 'TEST-' . now()->format('YmdHis');
+
             $order = Order::create([
                 'order_number' => $orderNumber,
                 'user_id' => $user->id,
                 'restaurant_id' => $restaurant->id,
-                'shop_id' => $shopId, // Required for shipping
+                'branch_id' => $branchId,
+                'shop_id' => $shopId,
                 'status' => 'pending',
-                'source' => 'internal',
+                'source' => 'test',
                 'shipping_status' => 'New Order',
                 'subtotal' => 50.00,
                 'delivery_fee' => 10.00,
                 'tax' => 5.00,
                 'total' => 65.00,
-                'delivery_address' => 'مبنى 123، الطابق 2، شقة 5، شارع الملك فهد، الرياض',
-                'delivery_phone' => '0501234567',
-                'delivery_name' => 'عميل تجريبي',
+                'delivery_address' => 'Test address - 123 King Fahd Road, Riyadh',
+                'delivery_phone' => '0500000000',
+                'delivery_name' => 'Test Customer',
                 'customer_latitude' => $customerLatitude,
                 'customer_longitude' => $customerLongitude,
+                'special_instructions' => 'Test order - طلب تجريبي',
                 'payment_method' => 'online',
-                'payment_status' => 'paid', // Must be paid to show in orders list and trigger shipping
+                'payment_status' => 'paid',
                 'sound' => true,
             ]);
 
-            // Create a test order item
-            $menuItem = \App\Models\MenuItem::where('restaurant_id', $restaurant->id)->first();
-            if ($menuItem) {
-                \App\Models\OrderItem::create([
-                    'order_id' => $order->id,
-                    'menu_item_id' => $menuItem->id,
-                    'item_name' => $menuItem->name,
-                    'price' => 25.00,
-                    'quantity' => 2,
-                    'subtotal' => 50.00,
-                ]);
-            }
+            OrderItem::create([
+                'order_id' => $order->id,
+                'menu_item_id' => $menuItem->id,
+                'item_name' => $menuItem->name,
+                'price' => 25.00,
+                'quantity' => 2,
+                'subtotal' => 50.00,
+            ]);
+
+            Log::info('Test order created', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'branch_id' => $branchId,
+                'restaurant_id' => $restaurant->id,
+            ]);
 
             return redirect()->route('orders.index')->with('success', 'تم إنشاء طلب تجريبي بنجاح!');
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error creating test order: ' . $e->getMessage());
+            Log::error('Error creating test order: ' . $e->getMessage());
             return redirect()->back()->with('error', 'حدث خطأ: ' . $e->getMessage());
         }
     }
@@ -528,10 +551,13 @@ class OrderController extends Controller
     public function deleteTestOrders()
     {
         try {
-            // Find all test orders (order_number starts with 'TEST-' and source is 'internal')
-            $testOrders = Order::where('order_number', 'like', 'TEST-%')
-                ->where('source', 'internal')
-                ->get();
+            $testOrders = Order::where(function ($query) {
+                $query->where('source', 'test')
+                    ->orWhere(function ($legacyQuery) {
+                        $legacyQuery->where('order_number', 'like', 'TEST-%')
+                            ->where('source', 'internal');
+                    });
+            })->get();
             
             $count = $testOrders->count();
             
@@ -544,10 +570,13 @@ class OrderController extends Controller
                 $order->orderItems()->delete();
             }
             
-            // Delete all test orders
-            $deleted = Order::where('order_number', 'like', 'TEST-%')
-                ->where('source', 'internal')
-                ->delete();
+            $deleted = Order::where(function ($query) {
+                $query->where('source', 'test')
+                    ->orWhere(function ($legacyQuery) {
+                        $legacyQuery->where('order_number', 'like', 'TEST-%')
+                            ->where('source', 'internal');
+                    });
+            })->delete();
             
             Log::info('Test orders deleted', [
                 'count' => $deleted,

@@ -18,6 +18,7 @@ interface KitchenOrder {
     shipping_status: string | null;
     total: number;
     sound: boolean;
+    is_test?: boolean;
     created_at: string;
     special_instructions?: string | null;
     delivery_name?: string | null;
@@ -102,6 +103,10 @@ const getStatusLabelParts = (order: KitchenOrder): [string, string] | null => {
 };
 
 const getCardHeaderClasses = (order: KitchenOrder) => {
+    if (order.is_test) {
+        return 'border-b-4 border-red-700 bg-red-600 text-white';
+    }
+
     if (isNewOrder(order)) {
         return 'border-b-4 border-black bg-yellow-400 text-black';
     }
@@ -121,6 +126,10 @@ const getCardHeaderClasses = (order: KitchenOrder) => {
 };
 
 const getStatusBadgeClasses = (order: KitchenOrder) => {
+    if (order.is_test) {
+        return 'bg-white text-red-700';
+    }
+
     if (isNewOrder(order)) {
         return 'bg-black text-yellow-400';
     }
@@ -139,8 +148,13 @@ const getStatusBadgeClasses = (order: KitchenOrder) => {
     return byStatus[key] ?? 'bg-gray-800 text-white';
 };
 
-const getCardMetaTextClass = (order: KitchenOrder) =>
-    isNewOrder(order) ? 'text-black/70' : 'text-gray-600';
+const getCardMetaTextClass = (order: KitchenOrder) => {
+    if (order.is_test) {
+        return 'text-white/80';
+    }
+
+    return isNewOrder(order) ? 'text-black/70' : 'text-gray-600';
+};
 
 const getTimeAgoParts = (dateString: string): { ar: string; en: string } => {
     const date = new Date(dateString);
@@ -500,11 +514,22 @@ onMounted(() => {
                     :key="order.id"
                     :class="[
                         'flex flex-col overflow-hidden rounded-2xl border-4 bg-white shadow-lg transition',
-                        isNewOrder(order) ? 'animate-pulse border-yellow-400 ring-4 ring-yellow-300' : 'border-gray-200',
+                        order.is_test
+                            ? 'border-red-600 ring-4 ring-red-300'
+                            : isNewOrder(order)
+                              ? 'animate-pulse border-yellow-400 ring-4 ring-yellow-300'
+                              : 'border-gray-200',
                     ]"
                 >
                     <!-- Card header -->
                     <div class="px-5 py-4" :class="getCardHeaderClasses(order)">
+                        <p
+                            v-if="order.is_test"
+                            class="mb-3 inline-block rounded-xl border-4 border-white bg-white px-5 py-2 text-3xl font-black uppercase tracking-[0.2em] text-red-700 shadow-lg"
+                        >
+                            TEST
+                        </p>
+
                         <div class="flex items-start justify-between gap-3">
                             <p
                                 class="text-sm font-bold uppercase tracking-wide"
@@ -520,7 +545,8 @@ onMounted(() => {
                         </div>
 
                         <p
-                            class="mt-2 block w-full break-all text-3xl font-black leading-tight tabular-nums text-gray-900"
+                            class="mt-2 block w-full break-all text-3xl font-black leading-tight tabular-nums"
+                            :class="order.is_test ? 'text-white' : 'text-gray-900'"
                             dir="ltr"
                         >
                             #{{ order.order_number }}

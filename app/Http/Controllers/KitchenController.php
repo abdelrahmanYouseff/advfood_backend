@@ -51,6 +51,7 @@ class KitchenController extends Controller
                 'created_at' => $order->created_at?->toIso8601String(),
                 'special_instructions' => $order->special_instructions,
                 'delivery_name' => $order->delivery_name,
+                'is_test' => $order->isTestOrder(),
                 'restaurant' => [
                     'name' => $order->restaurant?->name ?? '—',
                 ],

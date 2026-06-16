@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2 } from 'lucide-vue-next';
+import { Plus, ShoppingCart, User, Store, DollarSign, Calendar, Filter, AlertCircle, CheckCircle2, Timer, Truck, UserCircle2, Link2, FlaskConical } from 'lucide-vue-next';
 
 interface OrderUser {
     name: string;
@@ -1490,6 +1490,20 @@ const acceptOrder = async (orderId: number) => {
 };
 
 // Create test order function
+const isCreatingTestOrder = ref(false);
+
+const createTestOrder = () => {
+    if (isCreatingTestOrder.value) return;
+
+    isCreatingTestOrder.value = true;
+    router.post(route('orders.create-test'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            isCreatingTestOrder.value = false;
+        },
+    });
+};
+
 // Load sound preference and set up notifications
 onMounted(() => {
     // Load sound preference from localStorage
@@ -1699,6 +1713,15 @@ onMounted(() => {
 
                     <!-- Action Buttons -->
                     <div class="flex items-center gap-3">
+                        <button
+                            type="button"
+                            :disabled="isCreatingTestOrder"
+                            class="inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-orange-500 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-400 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/50"
+                            @click="createTestOrder"
+                        >
+                            <FlaskConical class="h-4 w-4" />
+                            {{ isCreatingTestOrder ? t('جاري الإنشاء...', 'Creating...') : t('طلب تجريبي', 'Test Order') }}
+                        </button>
                         <Link
                             :href="route('orders.create')"
                             class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 transition"

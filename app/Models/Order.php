@@ -99,6 +99,11 @@ class Order extends Model
         return $this->belongsTo(Invoice::class);
     }
 
+    public function isTestOrder(): bool
+    {
+        return $this->source === 'test';
+    }
+
     public function deliveryTrips(): BelongsToMany
     {
         return $this->belongsToMany(DeliveryTrip::class, 'delivery_trip_orders')
@@ -154,6 +159,15 @@ class Order extends Model
 
         // Create invoice automatically when order is created
         static::created(function ($order) {
+            if ($order->isTestOrder()) {
+                \Illuminate\Support\Facades\Log::info('Test order created - skipping invoice, WhatsApp, and shipping', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                ]);
+
+                return;
+            }
+
             // 🔹 Any order that is already paid should immediately get an invoice
             // This ensures every paid order that appears in Orders page has an invoice
             if ($order->payment_status === 'paid') {
@@ -352,6 +366,10 @@ class Order extends Model
 
             // Check if payment_status was just changed to 'paid'
             if ($order->wasChanged('payment_status') && $order->payment_status === 'paid') {
+                if ($order->isTestOrder()) {
+                    return;
+                }
+
                 self::notifyKitchenWhatsAppAlert($order);
 
                 \Illuminate\Support\Facades\Log::info('✅ PAYMENT_STATUS CHANGED TO PAID - Checking conditions for shipping', [
