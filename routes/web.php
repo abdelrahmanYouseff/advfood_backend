@@ -143,6 +143,7 @@ Route::middleware(['checkauth', 'verified_or_branch', 'accountant_access'])->gro
 
     // Reports - التقارير المالية
     Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
+    Route::get('reports/export-excel', [ReportsController::class, 'exportExcel'])->name('reports.export-excel');
     Route::post('reports/invoices/{id}/toggle-collection', [ReportsController::class, 'toggleCollection'])->name('reports.toggle-collection');
 
     // Logs - عرض الـ logs
