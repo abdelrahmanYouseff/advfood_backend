@@ -182,7 +182,19 @@ class UserController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $user = User::findOrFail($id);
+
+        return Inertia::render('UserEdit', [
+            'user' => [
+                'id'           => $user->id,
+                'name'         => $user->name,
+                'email'        => $user->email,
+                'role'         => $user->role,
+                'phone_number' => $user->phone_number,
+                'address'      => $user->address,
+                'country'      => $user->country,
+            ],
+        ]);
     }
 
     /**
@@ -190,7 +202,35 @@ class UserController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $user = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'name'         => 'required|string|max:255',
+            'email'        => 'required|string|lowercase|email|max:255|unique:users,email,' . $id,
+            'role'         => 'required|in:admin,user,accountant',
+            'phone_number' => 'nullable|string|max:20',
+            'address'      => 'nullable|string|max:500',
+            'country'      => 'nullable|string|max:100',
+            'password'     => ['nullable', 'confirmed', Rules\Password::defaults()],
+        ]);
+
+        $updateData = [
+            'name'         => $validated['name'],
+            'email'        => $validated['email'],
+            'role'         => $validated['role'],
+            'phone_number' => $validated['phone_number'] ?? null,
+            'address'      => $validated['address'] ?? null,
+            'country'      => $validated['country'] ?? null,
+        ];
+
+        if (!empty($validated['password'])) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+
+        $user->update($updateData);
+
+        return redirect()->route('users.index')
+            ->with('success', 'تم تعديل المستخدم بنجاح.');
     }
 
     /**
