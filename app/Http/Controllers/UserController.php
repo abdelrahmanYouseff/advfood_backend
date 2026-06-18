@@ -74,7 +74,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role' => 'required|in:admin,user',
+            'role' => 'required|in:admin,user,accountant',
             'phone_number' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:500',
             'country' => 'nullable|string|max:100',
@@ -88,6 +88,7 @@ class UserController extends Controller
             'phone_number' => $validated['phone_number'],
             'address' => $validated['address'],
             'country' => $validated['country'],
+            'email_verified_at' => now(),
         ]);
 
         // Register user in points system and get customer ID

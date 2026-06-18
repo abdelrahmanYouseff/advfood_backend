@@ -21,7 +21,8 @@ import {
     Truck,
     UserCircle2,
     Package,
-    Building2
+    Building2,
+    BarChart3
 } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed, ref, watch } from 'vue';
@@ -80,11 +81,29 @@ const mainNavItems = computed(() => {
     // Check if user is acc@adv-line.sa (Invoice viewer only)
     const isInvoiceViewer = userEmail === 'acc@adv-line.sa';
 
+    // Check if user is accountant role
+    const isAccountant = user?.role === 'accountant';
+
     // Check if user is admin2@advfood.com
     const isAdmin2 = userEmail === 'admin2@advfood.com';
 
     // Check if user is admin@advfood.com
     const isAdmin = userEmail === 'admin@advfood.com';
+
+    if (isAccountant) {
+        return [
+            {
+                title: t('الفواتير', 'Invoices'),
+                href: '/invoices',
+                icon: FileText,
+            },
+            {
+                title: t('التقارير', 'Reports'),
+                href: '/reports',
+                icon: BarChart3,
+            },
+        ];
+    }
 
     if (isInvoiceViewer) {
         // Only invoices menu for acc@adv-line.sa
@@ -130,6 +149,11 @@ const mainNavItems = computed(() => {
                 title: t('العملاء', 'Customers'),
                 href: '/online-customers',
                 icon: UserCircle2,
+            },
+            {
+                title: t('التقارير', 'Reports'),
+                href: '/reports',
+                icon: BarChart3,
             },
         ];
     }
@@ -188,6 +212,11 @@ const mainNavItems = computed(() => {
                 href: '/ads',
                 icon: Megaphone,
             },
+            {
+                title: t('التقارير', 'Reports'),
+                href: '/reports',
+                icon: BarChart3,
+            },
         ];
     }
 
@@ -244,15 +273,20 @@ const mainNavItems = computed(() => {
             href: '/ads',
             icon: Megaphone,
         },
+        {
+            title: t('التقارير', 'Reports'),
+            href: '/reports',
+            icon: BarChart3,
+        },
     ];
 });
 
 const footerNavItems = computed(() => {
     const user = page.props.auth?.user;
     const userEmail = user?.email;
-    
-    // Hide settings for acc@adv-line.sa
-    if (userEmail === 'acc@adv-line.sa') {
+
+    // Hide settings for accountant role and acc@adv-line.sa
+    if (user?.role === 'accountant' || userEmail === 'acc@adv-line.sa') {
         return [];
     }
     

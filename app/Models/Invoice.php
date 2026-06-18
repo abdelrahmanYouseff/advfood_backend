@@ -24,6 +24,9 @@ class Invoice extends Model
         'due_date',
         'paid_at',
         'notes',
+        'is_collected',
+        'collected_at',
+        'collected_by',
     ];
 
     protected $casts = [
@@ -33,6 +36,8 @@ class Invoice extends Model
         'total' => 'decimal:2',
         'due_date' => 'datetime',
         'paid_at' => 'datetime',
+        'collected_at' => 'datetime',
+        'is_collected' => 'boolean',
     ];
 
     public function order(): BelongsTo

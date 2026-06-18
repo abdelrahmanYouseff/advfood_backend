@@ -178,6 +178,7 @@ const submit = () => {
                                         <option value="">Select role</option>
                                         <option value="user">User</option>
                                         <option value="admin">Admin</option>
+                                        <option value="accountant">Accountant</option>
                                     </select>
                                     <InputError :message="form.errors.role" />
                                 </div>

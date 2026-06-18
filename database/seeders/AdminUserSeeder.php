@@ -35,5 +35,16 @@ class AdminUserSeeder extends Seeder
                 'role' => 'user',
             ]
         );
+
+        // Accountant user
+        User::updateOrCreate(
+            ['email' => 'accountant@advfood.com'],
+            [
+                'name' => 'محاسب',
+                'email_verified_at' => now(),
+                'password' => Hash::make('password123'),
+                'role' => 'accountant',
+            ]
+        );
     }
 }

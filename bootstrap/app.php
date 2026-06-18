@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'checkauth' => \App\Http\Middleware\CheckAuth::class,
             'verified_or_branch' => \App\Http\Middleware\EnsureEmailOrBranchVerified::class,
+            'accountant_access' => \App\Http\Middleware\CheckAccountantAccess::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {

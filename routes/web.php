@@ -19,6 +19,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ZydaSyncController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TestNoonController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ShippingController;
 use Inertia\Inertia;
 
@@ -89,7 +90,7 @@ Route::get('/checkout/payment', [RestLinkController::class, 'payment'])->name('c
 Route::post('/checkout/save-order', [RestLinkController::class, 'saveOrder'])->name('checkout.save-order');
 Route::post('/checkout/initiate-payment', [RestLinkController::class, 'initiatePayment'])->name('checkout.initiate-payment');
 
-Route::middleware(['checkauth', 'verified_or_branch'])->group(function () {
+Route::middleware(['checkauth', 'verified_or_branch', 'accountant_access'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('kitchen', [KitchenController::class, 'index'])->name('kitchen');
 
@@ -139,6 +140,10 @@ Route::middleware(['checkauth', 'verified_or_branch'])->group(function () {
     Route::patch('delivery-trips/{deliveryTrip}/start', [DeliveryTripController::class, 'start'])->name('delivery-trips.start');
     Route::patch('delivery-trips/{deliveryTrip}/complete', [DeliveryTripController::class, 'complete'])->name('delivery-trips.complete');
     Route::patch('delivery-trips/{deliveryTrip}/orders/{order}/update-status', [DeliveryTripController::class, 'updateOrderStatus'])->name('delivery-trips.update-order-status');
+
+    // Reports - التقارير المالية
+    Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
+    Route::post('reports/invoices/{id}/toggle-collection', [ReportsController::class, 'toggleCollection'])->name('reports.toggle-collection');
 
     // Logs - عرض الـ logs
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
