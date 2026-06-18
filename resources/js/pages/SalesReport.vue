@@ -156,7 +156,6 @@ const statusColor = (s: string) =>
                                 <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                     <div class="flex items-center gap-1.5"><Store class="h-3.5 w-3.5" /> اسم المطعم</div>
                                 </th>
-                                <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">الحالة</th>
                                 <th class="px-5 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                     <div class="flex items-center gap-1.5"><CreditCard class="h-3.5 w-3.5" /> طريقة الدفع</div>
                                 </th>
@@ -171,7 +170,7 @@ const statusColor = (s: string) =>
                         </thead>
                         <tbody>
                             <tr v-if="invoices.length === 0">
-                                <td colspan="9" class="py-20 text-center text-sm text-gray-400 dark:text-gray-500">
+                                <td colspan="8" class="py-20 text-center text-sm text-gray-400 dark:text-gray-500">
                                     لا توجد معاملات مالية مكتملة حتى الآن
                                 </td>
                             </tr>
@@ -208,17 +207,6 @@ const statusColor = (s: string) =>
 
                                 <!-- المطعم -->
                                 <td class="px-5 py-3.5 text-gray-700 dark:text-gray-200">{{ invoice.restaurant }}</td>
-
-                                <!-- الحالة -->
-                                <td class="px-5 py-3.5">
-                                    <span :class="['inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors duration-200',
-                                        invoice.is_collected
-                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
-                                            : 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700']">
-                                        <span class="h-1.5 w-1.5 rounded-full" :class="invoice.is_collected ? 'bg-emerald-500' : 'bg-amber-500'" />
-                                        {{ invoice.is_collected ? 'محصّلة' : 'غير محصّلة' }}
-                                    </span>
-                                </td>
 
                                 <!-- طريقة الدفع -->
                                 <td class="px-5 py-3.5">
