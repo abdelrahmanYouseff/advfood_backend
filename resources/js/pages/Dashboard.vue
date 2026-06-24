@@ -13,7 +13,9 @@ import {
     Trash2,
     RefreshCcw,
     Copy,
-    Check
+    Check,
+    UtensilsCrossed,
+    TrendingUp,
 } from 'lucide-vue-next';
 
 interface Props {
@@ -45,6 +47,11 @@ interface Props {
         id: number;
         name: string;
         orders_count: number;
+    }>;
+    top_products: Array<{
+        item_name: string;
+        total_quantity: number;
+        total_orders: number;
     }>;
     zyda_orders: {
         data: Array<ZydaOrder>;
@@ -1005,6 +1012,93 @@ const deleteWhatsappMessage = async (messageId: number) => {
                                 <Calendar class="h-6 w-6 text-white" />
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Top Products -->
+                <div class="rounded-xl border bg-card p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-2">
+                            <div class="rounded-lg bg-gray-800 p-2">
+                                <UtensilsCrossed class="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold">
+                                    {{ t('أكثر المنتجات طلباً', 'Most Ordered Products') }}
+                                </h3>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ t('إجمالي الكميات من الطلبات المدفوعة', 'Total quantities from paid orders') }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                            <TrendingUp class="h-3.5 w-3.5" />
+                            {{ t('أعلى 10', 'Top 10') }}
+                        </div>
+                    </div>
+
+                    <div v-if="top_products.length === 0" class="py-10 text-center text-sm text-muted-foreground">
+                        {{ t('لا توجد بيانات منتجات بعد.', 'No product data yet.') }}
+                    </div>
+
+                    <div v-else class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-100">
+                                    <th class="pb-3 text-right text-xs font-semibold text-muted-foreground">#</th>
+                                    <th class="pb-3 text-right text-xs font-semibold text-muted-foreground">
+                                        {{ t('اسم المنتج', 'Product Name') }}
+                                    </th>
+                                    <th class="pb-3 text-center text-xs font-semibold text-muted-foreground">
+                                        {{ t('إجمالي الكمية', 'Total Qty') }}
+                                    </th>
+                                    <th class="pb-3 text-center text-xs font-semibold text-muted-foreground">
+                                        {{ t('عدد الطلبات', 'Orders') }}
+                                    </th>
+                                    <th class="pb-3 text-right text-xs font-semibold text-muted-foreground">
+                                        {{ t('النسبة', 'Share') }}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50">
+                                <tr
+                                    v-for="(product, index) in top_products"
+                                    :key="product.item_name"
+                                    class="group transition-colors hover:bg-gray-50"
+                                >
+                                    <td class="py-3 pr-2 text-right">
+                                        <span class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+                                            :class="index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-600' : index === 2 ? 'bg-orange-100 text-orange-600' : 'bg-gray-50 text-gray-400'">
+                                            {{ index + 1 }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 pr-2">
+                                        <span class="font-medium text-gray-800 dark:text-gray-100">{{ product.item_name }}</span>
+                                    </td>
+                                    <td class="py-3 text-center">
+                                        <span class="inline-flex items-center gap-1 rounded-full bg-gray-900 px-2.5 py-0.5 text-xs font-bold text-white">
+                                            {{ product.total_quantity }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 text-center text-sm text-gray-500">
+                                        {{ product.total_orders }}
+                                    </td>
+                                    <td class="py-3 text-right">
+                                        <div class="flex items-center justify-end gap-2">
+                                            <div class="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100">
+                                                <div
+                                                    class="h-full rounded-full bg-gray-800 transition-all duration-500"
+                                                    :style="{ width: Math.round((product.total_quantity / top_products[0].total_quantity) * 100) + '%' }"
+                                                />
+                                            </div>
+                                            <span class="w-8 text-right text-xs text-muted-foreground">
+                                                {{ Math.round((product.total_quantity / top_products[0].total_quantity) * 100) }}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

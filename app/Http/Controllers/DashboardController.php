@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Restaurant;
 use App\Models\Invoice;
 use App\Models\ZydaOrder;
 use App\Models\WhatsappMsg;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -60,6 +62,22 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        $top_products = OrderItem::select(
+                'item_name',
+                DB::raw('SUM(quantity) as total_quantity'),
+                DB::raw('COUNT(DISTINCT order_id) as total_orders')
+            )
+            ->whereHas('order', function ($q) use ($isBranch, $branchId) {
+                $q->where('payment_status', 'paid');
+                if ($isBranch && $branchId) {
+                    $q->where('branch_id', $branchId);
+                }
+            })
+            ->groupBy('item_name')
+            ->orderBy('total_quantity', 'desc')
+            ->take(10)
+            ->get();
+
         $top_restaurants = Restaurant::withCount(['orders' => function ($query) use ($isBranch, $branchId) {
                 $query->where('payment_status', 'paid');
                 if ($isBranch && $branchId) {
@@ -108,6 +126,7 @@ class DashboardController extends Controller
             'stats' => $stats,
             'recent_orders' => $recent_orders,
             'top_restaurants' => $top_restaurants,
+            'top_products' => $top_products,
             'zyda_orders' => $zyda_orders,
             'zyda_summary' => $zyda_summary,
             'whatsapp_messages' => $whatsapp_messages,
