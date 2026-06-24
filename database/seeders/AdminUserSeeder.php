@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class AdminUserSeeder extends Seeder
-{   
+{
     /**
      * Run the database seeds.
      */
@@ -25,7 +25,7 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        // Invoice viewer user (acc@adv-line.sa)
+        // Invoice viewer user (acc@asssdv-line.sa)
         User::updateOrCreate(
             ['email' => 'acc@adv-line.sa'],
             [
