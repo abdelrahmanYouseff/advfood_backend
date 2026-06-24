@@ -125,7 +125,7 @@ class ZydaOrderController extends Controller
 
             // If order exists AND has been converted to Order, skip (fully processed)
             if ($existingOrder && !empty($existingOrder->order_id)) {
-                Log::info('ℹ️ Zyda order already fully processed, skipping', [
+                Log::info('ℹ️ Zyda order already fully processed (zyda_orders row found), skipping', [
                     'zyda_order_key' => $normalizedKey,
                     'phone' => $validated['phone'],
                     'order_id' => $existingOrder->order_id,
@@ -136,6 +136,40 @@ class ZydaOrderController extends Controller
                     'operation' => 'skipped',
                     'message' => 'Order already fully processed',
                 ]);
+            }
+
+            // Secondary guard: fallback for when the zyda_orders row was already deleted
+            // (e.g. before this fix was deployed on the server).
+            // Match on phone + total_amount + source=zyda within the last 90 days.
+            // Using both phone AND amount makes this specific enough to avoid blocking
+            // legitimate repeat orders from the same customer.
+            $incomingTotal = isset($validated['total_amount']) ? (float) $validated['total_amount'] : null;
+            if ($incomingTotal !== null && $incomingTotal > 0) {
+                $duplicateOrder = DB::table('orders')
+                    ->where('source', 'zyda')
+                    ->where('delivery_phone', $validated['phone'])
+                    ->where('total', $incomingTotal)
+                    ->where('payment_status', 'paid')
+                    ->where('created_at', '>=', now()->subDays(90))
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                if ($duplicateOrder) {
+                    Log::info('ℹ️ Duplicate Zyda order detected via orders table (phone+amount match), skipping', [
+                        'zyda_order_key' => $normalizedKey,
+                        'phone' => $validated['phone'],
+                        'total_amount' => $incomingTotal,
+                        'existing_order_number' => $duplicateOrder->order_number,
+                        'existing_order_id' => $duplicateOrder->id,
+                        'existing_order_created_at' => $duplicateOrder->created_at,
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'operation' => 'skipped',
+                        'message' => 'Order already exists: ' . $duplicateOrder->order_number,
+                    ]);
+                }
             }
 
             // If order exists but NOT fully processed (no order_id or no location), continue processing
@@ -1374,28 +1408,27 @@ class ZydaOrderController extends Controller
     }
 
     /**
-     * Clean up processed Zyda order from database tables
-     * Deletes records from:
-     * 1. zyda_orders table
-     * 2. whatsapp_msg table (matching deliver_order with zyda_order_key)
+     * Clean up processed Zyda order — removes related WhatsApp messages only.
+     *
+     * We intentionally keep the zyda_orders row (with order_id set) so that any
+     * future re-submissions of the same zyda_order_key are detected as "already
+     * fully processed" in store() and are immediately skipped.  Deleting the row
+     * was the root cause of duplicate order creation.
      */
     protected function cleanupProcessedZydaOrder(ZydaOrder $zydaOrder): void
     {
         try {
-            // Normalize zyda_order_key (remove leading '#' and whitespace)
             $zydaOrderKey = ltrim((string) $zydaOrder->zyda_order_key, "# \t\n\r\0\x0B");
 
-            Log::info('🗑️ Starting cleanup of processed Zyda order', [
+            Log::info('🗑️ Cleanup: removing WhatsApp messages for processed Zyda order (keeping zyda_orders row)', [
                 'zyda_order_id' => $zydaOrder->id,
                 'zyda_order_key' => $zydaOrderKey,
-                'phone' => $zydaOrder->phone,
                 'order_id' => $zydaOrder->order_id,
             ]);
 
-            // Delete from whatsapp_msg table where deliver_order matches zyda_order_key
+            // Remove matching WhatsApp messages
             $deletedWhatsappCount = DB::table('whatsapp_msg')
                 ->where(function ($query) use ($zydaOrderKey) {
-                    // Match exact key or key with '#' prefix
                     $query->where('deliver_order', $zydaOrderKey)
                           ->orWhere('deliver_order', '#' . $zydaOrderKey)
                           ->orWhere('deliver_order', 'like', $zydaOrderKey . '%')
@@ -1403,33 +1436,19 @@ class ZydaOrderController extends Controller
                 })
                 ->delete();
 
-            Log::info('✅ Deleted WhatsApp messages for processed order', [
-                'zyda_order_key' => $zydaOrderKey,
-                'deleted_count' => $deletedWhatsappCount,
-            ]);
-
-            // Delete from zyda_orders table
-            $zydaOrder->delete();
-
-            Log::info('✅ Deleted Zyda order from database', [
-                'zyda_order_id' => $zydaOrder->id,
-                'zyda_order_key' => $zydaOrderKey,
-                'order_id' => $zydaOrder->order_id,
-            ]);
-
-            Log::info('🎉 Cleanup completed successfully', [
+            Log::info('✅ Cleanup done — WhatsApp messages removed, zyda_orders row kept for duplicate guard', [
                 'zyda_order_key' => $zydaOrderKey,
                 'whatsapp_messages_deleted' => $deletedWhatsappCount,
-                'zyda_order_deleted' => true,
+                'zyda_order_id_kept' => $zydaOrder->id,
+                'order_id' => $zydaOrder->order_id,
             ]);
         } catch (\Exception $e) {
-            Log::error('❌ Error cleaning up processed Zyda order', [
+            Log::error('❌ Error during Zyda order cleanup', [
                 'zyda_order_id' => $zydaOrder->id ?? null,
                 'zyda_order_key' => $zydaOrder->zyda_order_key ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            // Don't re-throw - cleanup failure shouldn't break the main flow
         }
     }
 
