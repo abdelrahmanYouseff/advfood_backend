@@ -42,6 +42,8 @@ interface OrderData {
             quantity: number;
             price: string;
             subtotal: string;
+            special_instructions?: string;
+            item_options?: Array<{ name: string; quantity: number }> | null;
         }>;
 }
 

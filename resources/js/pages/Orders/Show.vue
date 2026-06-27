@@ -9,6 +9,11 @@ import {
     Receipt, Star, Mail, Hash, Timer, Utensils, Building2
 } from 'lucide-vue-next';
 
+interface ItemOption {
+    name: string;
+    quantity: number;
+}
+
 interface OrderItem {
     id: number;
     menu_item_id: number;
@@ -17,6 +22,7 @@ interface OrderItem {
     price: string;
     subtotal: string;
     special_instructions?: string;
+    item_options?: ItemOption[] | null;
     menu_item: {
         name: string;
         description: string;
@@ -494,6 +500,23 @@ const formatCurrencyProfessional = (amount: number | string) => {
                                                             <AlertCircle class="w-4 h-4 inline mr-1" />
                                                             {{ item.special_instructions }}
                                                         </p>
+                                                    </div>
+
+                                                    <!-- Item Options / Variants -->
+                                                    <div v-if="item.item_options && item.item_options.length > 0" class="mt-3">
+                                                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">الأصناف المختارة</p>
+                                                        <div class="flex flex-wrap gap-2">
+                                                            <span
+                                                                v-for="(opt, idx) in item.item_options"
+                                                                :key="idx"
+                                                                class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm"
+                                                            >
+                                                                {{ opt.name }}
+                                                                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-gray-800 text-[10px] font-bold text-white">
+                                                                    {{ opt.quantity }}
+                                                                </span>
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="text-right">
