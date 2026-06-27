@@ -215,10 +215,13 @@ class OrderController extends Controller
             // Optional Google Maps / location link to extract coordinates for shipping
             'location_link' => 'nullable|string|max:2048',
             'items' => 'required|array|min:1',
-            'items.*.menu_item_id' => 'required|exists:menu_items,id',
-            'items.*.item_name' => 'required|string|max:255',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
+            'items.*.menu_item_id'          => 'required|exists:menu_items,id',
+            'items.*.item_name'             => 'required|string|max:255',
+            'items.*.quantity'              => 'required|integer|min:1',
+            'items.*.price'                 => 'required|numeric|min:0',
+            'items.*.item_options'          => 'sometimes|nullable|array',
+            'items.*.item_options.*.name'   => 'required_with:items.*.item_options|string|max:255',
+            'items.*.item_options.*.quantity' => 'required_with:items.*.item_options|integer|min:1',
             // Scheduling / execution time (اختياري)
             'execution_type' => 'nullable|in:now,scheduled',
             'scheduled_for' => 'nullable|required_if:execution_type,scheduled|date|after:now',
@@ -233,10 +236,11 @@ class OrderController extends Controller
 
             return [
                 'menu_item_id' => (int) $item['menu_item_id'],
-                'item_name' => $item['item_name'],
-                'quantity' => $quantity,
-                'price' => $price,
-                'subtotal' => round($price * $quantity, 2),
+                'item_name'    => $item['item_name'],
+                'quantity'     => $quantity,
+                'price'        => $price,
+                'subtotal'     => round($price * $quantity, 2),
+                'item_options' => $item['item_options'] ?? null,
             ];
         });
 
@@ -315,10 +319,11 @@ class OrderController extends Controller
             $itemsCollection->map(function ($item) {
                 return [
                     'menu_item_id' => $item['menu_item_id'],
-                    'item_name' => $item['item_name'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'subtotal' => $item['subtotal'],
+                    'item_name'    => $item['item_name'],
+                    'quantity'     => $item['quantity'],
+                    'price'        => $item['price'],
+                    'subtotal'     => $item['subtotal'],
+                    'item_options' => $item['item_options'] ?? null,
                 ];
             })->toArray()
         );

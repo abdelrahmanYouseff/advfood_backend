@@ -92,6 +92,9 @@ class OrderController extends Controller
             'items.*.quantity' => 'required_with:items|integer|min:1',
             'items.*.price' => 'required_with:items|numeric|min:0',
             'items.*.special_instructions' => 'sometimes|string|max:500',
+            'items.*.item_options'         => 'sometimes|nullable|array',
+            'items.*.item_options.*.name'  => 'required_with:items.*.item_options|string|max:255',
+            'items.*.item_options.*.quantity' => 'required_with:items.*.item_options|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -162,12 +165,13 @@ class OrderController extends Controller
                     }
 
                     $order->orderItems()->create([
-                        'menu_item_id' => $item['menu_item_id'],
-                        'item_name' => $menuItem->name,
-                        'quantity' => $item['quantity'],
-                        'price' => $item['price'],
-                        'subtotal' => $item['price'] * $item['quantity'],
+                        'menu_item_id'         => $item['menu_item_id'],
+                        'item_name'            => $menuItem->name,
+                        'quantity'             => $item['quantity'],
+                        'price'                => $item['price'],
+                        'subtotal'             => $item['price'] * $item['quantity'],
                         'special_instructions' => $item['special_instructions'] ?? null,
+                        'item_options'         => $item['item_options'] ?? null,
                     ]);
                 }
             }
@@ -333,14 +337,15 @@ class OrderController extends Controller
                         'unit_price' => $item->price,
                         'subtotal' => $item->subtotal,
                         'special_instructions' => $item->special_instructions,
+                        'item_options'         => $item->item_options ?? [],
                         'menu_item_details' => [
-                            'name' => $item->menuItem->name,
-                            'description' => $item->menuItem->description,
-                            'original_price' => $item->menuItem->price,
-                            'image' => $item->menuItem->image,
+                            'name'             => $item->menuItem->name,
+                            'description'      => $item->menuItem->description,
+                            'original_price'   => $item->menuItem->price,
+                            'image'            => $item->menuItem->image,
                             'preparation_time' => $item->menuItem->preparation_time,
-                            'ingredients' => $item->menuItem->ingredients,
-                            'allergens' => $item->menuItem->allergens,
+                            'ingredients'      => $item->menuItem->ingredients,
+                            'allergens'        => $item->menuItem->allergens,
                         ]
                     ];
                 }),
@@ -569,14 +574,15 @@ class OrderController extends Controller
                         'unit_price' => $item->price,
                         'subtotal' => $item->subtotal,
                         'special_instructions' => $item->special_instructions,
+                        'item_options'         => $item->item_options ?? [],
                         'menu_item_details' => [
-                            'name' => $item->menuItem->name,
-                            'description' => $item->menuItem->description,
-                            'original_price' => $item->menuItem->price,
-                            'image' => $item->menuItem->image,
+                            'name'             => $item->menuItem->name,
+                            'description'      => $item->menuItem->description,
+                            'original_price'   => $item->menuItem->price,
+                            'image'            => $item->menuItem->image,
                             'preparation_time' => $item->menuItem->preparation_time,
-                            'ingredients' => $item->menuItem->ingredients,
-                            'allergens' => $item->menuItem->allergens,
+                            'ingredients'      => $item->menuItem->ingredients,
+                            'allergens'        => $item->menuItem->allergens,
                         ]
                     ];
                 }),

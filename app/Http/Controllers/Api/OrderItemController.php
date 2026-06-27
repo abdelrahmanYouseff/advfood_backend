@@ -49,11 +49,14 @@ class OrderItemController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'order_id' => 'required|exists:orders,id',
-            'menu_item_id' => 'required|exists:menu_items,id',
-            'quantity' => 'required|integer|min:1',
-            'price' => 'required|numeric|min:0',
-            'special_instructions' => 'sometimes|string|max:500',
+            'order_id'                  => 'required|exists:orders,id',
+            'menu_item_id'              => 'required|exists:menu_items,id',
+            'quantity'                  => 'required|integer|min:1',
+            'price'                     => 'required|numeric|min:0',
+            'special_instructions'      => 'sometimes|string|max:500',
+            'item_options'              => 'sometimes|nullable|array',
+            'item_options.*.name'       => 'required_with:item_options|string|max:255',
+            'item_options.*.quantity'   => 'required_with:item_options|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -87,13 +90,14 @@ class OrderItemController extends Controller
 
             // Create order item
             $orderItem = OrderItem::create([
-                'order_id' => $data['order_id'],
-                'menu_item_id' => $data['menu_item_id'],
-                'item_name' => $menuItem->name,
-                'quantity' => $data['quantity'],
-                'price' => $data['price'],
-                'subtotal' => $data['price'] * $data['quantity'],
+                'order_id'             => $data['order_id'],
+                'menu_item_id'         => $data['menu_item_id'],
+                'item_name'            => $menuItem->name,
+                'quantity'             => $data['quantity'],
+                'price'                => $data['price'],
+                'subtotal'             => $data['price'] * $data['quantity'],
                 'special_instructions' => $data['special_instructions'] ?? null,
+                'item_options'         => $data['item_options'] ?? null,
             ]);
 
             // Recalculate order totals
@@ -164,9 +168,12 @@ class OrderItemController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'quantity' => 'sometimes|integer|min:1',
-            'price' => 'sometimes|numeric|min:0',
-            'special_instructions' => 'sometimes|string|max:500',
+            'quantity'                => 'sometimes|integer|min:1',
+            'price'                   => 'sometimes|numeric|min:0',
+            'special_instructions'    => 'sometimes|string|max:500',
+            'item_options'            => 'sometimes|nullable|array',
+            'item_options.*.name'     => 'required_with:item_options|string|max:255',
+            'item_options.*.quantity' => 'required_with:item_options|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -268,10 +275,13 @@ class OrderItemController extends Controller
         $validator = Validator::make($request->all(), [
             'order_id' => 'required|exists:orders,id',
             'items' => 'required|array|min:1',
-            'items.*.menu_item_id' => 'required|exists:menu_items,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
-            'items.*.special_instructions' => 'sometimes|string|max:500',
+            'items.*.menu_item_id'          => 'required|exists:menu_items,id',
+            'items.*.quantity'              => 'required|integer|min:1',
+            'items.*.price'                 => 'required|numeric|min:0',
+            'items.*.special_instructions'  => 'sometimes|string|max:500',
+            'items.*.item_options'          => 'sometimes|nullable|array',
+            'items.*.item_options.*.name'   => 'required_with:items.*.item_options|string|max:255',
+            'items.*.item_options.*.quantity' => 'required_with:items.*.item_options|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -300,13 +310,14 @@ class OrderItemController extends Controller
                     $menuItem = MenuItem::find($itemData['menu_item_id']);
 
                     $orderItem = OrderItem::create([
-                        'order_id' => $data['order_id'],
-                        'menu_item_id' => $itemData['menu_item_id'],
-                        'item_name' => $menuItem->name,
-                        'quantity' => $itemData['quantity'],
-                        'price' => $itemData['price'],
-                        'subtotal' => $itemData['price'] * $itemData['quantity'],
+                        'order_id'             => $data['order_id'],
+                        'menu_item_id'         => $itemData['menu_item_id'],
+                        'item_name'            => $menuItem->name,
+                        'quantity'             => $itemData['quantity'],
+                        'price'                => $itemData['price'],
+                        'subtotal'             => $itemData['price'] * $itemData['quantity'],
                         'special_instructions' => $itemData['special_instructions'] ?? null,
+                        'item_options'         => $itemData['item_options'] ?? null,
                     ]);
 
                     $orderItem->load('menuItem');
