@@ -231,9 +231,12 @@ class OrderController extends Controller
         $restaurant = \App\Models\Restaurant::findOrFail($validated['restaurant_id']);
         $shopId = $restaurant->shop_id ?? '210'; // Default: Gather Us
 
-        $itemsCollection = collect($validated['items'])->map(function ($item) {
+        $rawItems = $request->input('items', []);
+
+        $itemsCollection = collect($validated['items'])->map(function ($item, $index) use ($rawItems) {
             $quantity = (int) $item['quantity'];
             $price = (float) $item['price'];
+            $rawItem = is_array($rawItems[$index] ?? null) ? $rawItems[$index] : $item;
 
             return [
                 'menu_item_id' => (int) $item['menu_item_id'],
@@ -241,7 +244,7 @@ class OrderController extends Controller
                 'quantity'     => $quantity,
                 'price'        => $price,
                 'subtotal'     => round($price * $quantity, 2),
-                'item_options' => OrderItemOptions::fromPayload($item),
+                'item_options' => OrderItemOptions::fromPayload($rawItem),
             ];
         });
 
@@ -324,7 +327,7 @@ class OrderController extends Controller
                     'quantity'     => $item['quantity'],
                     'price'        => $item['price'],
                     'subtotal'     => $item['subtotal'],
-                    'item_options' => OrderItemOptions::fromPayload($item),
+                    'item_options' => $item['item_options'],
                 ];
             })->toArray()
         );

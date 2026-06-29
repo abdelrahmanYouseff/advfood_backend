@@ -98,7 +98,7 @@ class OrderItemController extends Controller
                 'price'                => $data['price'],
                 'subtotal'             => $data['price'] * $data['quantity'],
                 'special_instructions' => $data['special_instructions'] ?? null,
-                'item_options'         => OrderItemOptions::fromPayload($data),
+                'item_options'         => OrderItemOptions::fromPayload($request->all()),
             ]);
 
             // Recalculate order totals
@@ -295,6 +295,7 @@ class OrderItemController extends Controller
 
         try {
             $data = $validator->validated();
+            $rawItems = $request->input('items', []);
 
             $order = Order::find($data['order_id']);
             if (in_array($order->status, ['delivered', 'cancelled'])) {
@@ -306,9 +307,10 @@ class OrderItemController extends Controller
 
             $createdItems = [];
 
-            DB::transaction(function () use ($data, &$createdItems) {
-                foreach ($data['items'] as $itemData) {
+            DB::transaction(function () use ($data, $rawItems, &$createdItems) {
+                foreach ($data['items'] as $index => $itemData) {
                     $menuItem = MenuItem::find($itemData['menu_item_id']);
+                    $rawItem = is_array($rawItems[$index] ?? null) ? $rawItems[$index] : $itemData;
 
                     $orderItem = OrderItem::create([
                         'order_id'             => $data['order_id'],
@@ -318,7 +320,7 @@ class OrderItemController extends Controller
                         'price'                => $itemData['price'],
                         'subtotal'             => $itemData['price'] * $itemData['quantity'],
                         'special_instructions' => $itemData['special_instructions'] ?? null,
-                        'item_options'         => OrderItemOptions::fromPayload($itemData),
+                        'item_options'         => OrderItemOptions::fromPayload($rawItem),
                     ]);
 
                     $orderItem->load('menuItem');

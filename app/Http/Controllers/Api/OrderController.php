@@ -158,12 +158,16 @@ class OrderController extends Controller
 
             // Create order items if provided
             if (!empty($items)) {
-                foreach ($items as $item) {
+                $rawItems = $request->input('items', []);
+
+                foreach ($items as $index => $item) {
                     // Get menu item details
                     $menuItem = MenuItem::find($item['menu_item_id']);
                     if (!$menuItem) {
                         throw new \Exception("Menu item with ID {$item['menu_item_id']} not found");
                     }
+
+                    $rawItem = is_array($rawItems[$index] ?? null) ? $rawItems[$index] : $item;
 
                     $order->orderItems()->create([
                         'menu_item_id'         => $item['menu_item_id'],
@@ -172,7 +176,7 @@ class OrderController extends Controller
                         'price'                => $item['price'],
                         'subtotal'             => $item['price'] * $item['quantity'],
                         'special_instructions' => $item['special_instructions'] ?? null,
-                        'item_options'         => OrderItemOptions::fromPayload($item),
+                        'item_options'         => OrderItemOptions::fromPayload($rawItem),
                     ]);
                 }
             }

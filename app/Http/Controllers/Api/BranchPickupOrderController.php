@@ -77,6 +77,7 @@ class BranchPickupOrderController extends Controller
             unset($orderData['items'], $orderData['branch_code']);
 
             $items = $data['items'] ?? [];
+            $rawItems = $request->input('items', []);
 
             $orderData['branch_id'] = $branchId;
             $orderData['shop_id'] = null;
@@ -93,14 +94,16 @@ class BranchPickupOrderController extends Controller
 
             $orderData['order_number'] = $this->generateOrderNumber();
 
-            $order = DB::transaction(function () use ($orderData, $items) {
+            $order = DB::transaction(function () use ($orderData, $items, $rawItems) {
                 $order = Order::create($orderData);
 
-                foreach ($items as $item) {
+                foreach ($items as $index => $item) {
                     $menuItem = MenuItem::find($item['menu_item_id']);
                     if (!$menuItem) {
                         throw new \RuntimeException("Menu item {$item['menu_item_id']} not found");
                     }
+
+                    $rawItem = is_array($rawItems[$index] ?? null) ? $rawItems[$index] : $item;
 
                     $order->orderItems()->create([
                         'menu_item_id'         => $item['menu_item_id'],
@@ -109,7 +112,7 @@ class BranchPickupOrderController extends Controller
                         'price'                => $item['price'],
                         'subtotal'             => $item['price'] * $item['quantity'],
                         'special_instructions' => $item['special_instructions'] ?? null,
-                        'item_options'         => OrderItemOptions::fromPayload($item),
+                        'item_options'         => OrderItemOptions::fromPayload($rawItem),
                     ]);
                 }
 
