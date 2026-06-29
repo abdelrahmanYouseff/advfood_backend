@@ -267,13 +267,51 @@ const getRestaurantImage = (restaurantName: string): string | null => {
 // Format currency professionally (English, small SAR above amount)
 const formatCurrencyProfessional = (amount: number | string) => {
     const numeric = Number(amount ?? 0);
-    // Format the number without the currency symbol
     const formattedAmount = new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(numeric);
     return formattedAmount;
 };
+
+const normalizeItemOptions = (raw: unknown): ItemOption[] => {
+    if (!raw) return [];
+
+    let options = raw;
+    if (typeof options === 'string') {
+        try {
+            options = JSON.parse(options);
+        } catch {
+            return [];
+        }
+    }
+
+    if (!Array.isArray(options)) return [];
+
+    return options
+        .map((opt) => {
+            if (typeof opt === 'string') {
+                const name = opt.trim();
+                return name ? { name, quantity: 1 } : null;
+            }
+            if (!opt || typeof opt !== 'object') return null;
+
+            const record = opt as Record<string, unknown>;
+            const name = String(record.name ?? record.item_name ?? record.title ?? record.label ?? '').trim();
+            if (!name) return null;
+
+            const quantity = Number(record.quantity ?? record.qty ?? record.count ?? 1);
+
+            return {
+                name,
+                quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+            };
+        })
+        .filter((opt): opt is ItemOption => opt !== null);
+};
+
+const itemOptionsTotal = (options: ItemOption[]) =>
+    options.reduce((sum, opt) => sum + opt.quantity, 0);
 </script>
 
 <template>
@@ -502,21 +540,41 @@ const formatCurrencyProfessional = (amount: number | string) => {
                                                         </p>
                                                     </div>
 
-                                                    <!-- Item Options / Variants -->
-                                                    <div v-if="item.item_options && item.item_options.length > 0" class="mt-3">
-                                                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">الأصناف المختارة</p>
-                                                        <div class="flex flex-wrap gap-2">
-                                                            <span
-                                                                v-for="(opt, idx) in item.item_options"
-                                                                :key="idx"
-                                                                class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm"
-                                                            >
-                                                                {{ opt.name }}
-                                                                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-gray-800 text-[10px] font-bold text-white">
-                                                                    {{ opt.quantity }}
-                                                                </span>
+                                                    <!-- الأصناف المختارة داخل المنتج -->
+                                                    <div
+                                                        v-if="normalizeItemOptions(item.item_options).length > 0"
+                                                        class="mt-4 rounded-lg border border-gray-200 bg-white overflow-hidden"
+                                                    >
+                                                        <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-2">
+                                                            <p class="text-xs font-semibold text-gray-700">الأصناف المختارة</p>
+                                                            <span class="rounded-full bg-gray-800 px-2 py-0.5 text-[10px] font-bold text-white">
+                                                                {{ itemOptionsTotal(normalizeItemOptions(item.item_options)) }} قطعة
                                                             </span>
                                                         </div>
+                                                        <table class="w-full text-sm">
+                                                            <thead>
+                                                                <tr class="border-b border-gray-100 text-xs text-gray-500">
+                                                                    <th class="px-3 py-2 text-right font-medium w-10">#</th>
+                                                                    <th class="px-3 py-2 text-right font-medium">اسم الصنف</th>
+                                                                    <th class="px-3 py-2 text-center font-medium w-20">الكمية</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr
+                                                                    v-for="(opt, idx) in normalizeItemOptions(item.item_options)"
+                                                                    :key="`${item.id}-opt-${idx}`"
+                                                                    class="border-b border-gray-50 last:border-0"
+                                                                >
+                                                                    <td class="px-3 py-2 text-right text-xs text-gray-400">{{ idx + 1 }}</td>
+                                                                    <td class="px-3 py-2 text-right font-medium text-gray-800">{{ opt.name }}</td>
+                                                                    <td class="px-3 py-2 text-center">
+                                                                        <span class="inline-flex min-w-7 items-center justify-center rounded-full bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">
+                                                                            {{ opt.quantity }}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
                                                     </div>
                                                 </div>
                                                 <div class="text-right">

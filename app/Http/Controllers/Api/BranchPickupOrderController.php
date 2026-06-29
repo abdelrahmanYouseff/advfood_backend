@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Services\BranchPickupBranchResolver;
+use App\Support\OrderItemOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -46,6 +47,10 @@ class BranchPickupOrderController extends Controller
             'items.*.quantity' => 'required_with:items|integer|min:1',
             'items.*.price' => 'required_with:items|numeric|min:0',
             'items.*.special_instructions' => 'sometimes|string|max:500',
+            'items.*.item_options'              => 'sometimes|nullable|array',
+            'items.*.item_options.*.name'       => 'required_with:items.*.item_options|string|max:255',
+            'items.*.item_options.*.quantity'   => 'required_with:items.*.item_options|integer|min:1',
+            'items.*.options'                   => 'sometimes|nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -98,12 +103,13 @@ class BranchPickupOrderController extends Controller
                     }
 
                     $order->orderItems()->create([
-                        'menu_item_id' => $item['menu_item_id'],
-                        'item_name' => $menuItem->name,
-                        'quantity' => $item['quantity'],
-                        'price' => $item['price'],
-                        'subtotal' => $item['price'] * $item['quantity'],
+                        'menu_item_id'         => $item['menu_item_id'],
+                        'item_name'            => $menuItem->name,
+                        'quantity'             => $item['quantity'],
+                        'price'                => $item['price'],
+                        'subtotal'             => $item['price'] * $item['quantity'],
                         'special_instructions' => $item['special_instructions'] ?? null,
+                        'item_options'         => OrderItemOptions::fromPayload($item),
                     ]);
                 }
 

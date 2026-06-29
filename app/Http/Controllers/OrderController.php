@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\OrderItem;
 use App\Models\Branch;
+use App\Support\OrderItemOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -240,7 +241,7 @@ class OrderController extends Controller
                 'quantity'     => $quantity,
                 'price'        => $price,
                 'subtotal'     => round($price * $quantity, 2),
-                'item_options' => $item['item_options'] ?? null,
+                'item_options' => OrderItemOptions::fromPayload($item),
             ];
         });
 
@@ -323,7 +324,7 @@ class OrderController extends Controller
                     'quantity'     => $item['quantity'],
                     'price'        => $item['price'],
                     'subtotal'     => $item['subtotal'],
-                    'item_options' => $item['item_options'] ?? null,
+                    'item_options' => OrderItemOptions::fromPayload($item),
                 ];
             })->toArray()
         );

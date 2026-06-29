@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Restaurant;
 use App\Models\MenuItem;
 use App\Services\ShippingService;
+use App\Support\OrderItemOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -171,7 +172,7 @@ class OrderController extends Controller
                         'price'                => $item['price'],
                         'subtotal'             => $item['price'] * $item['quantity'],
                         'special_instructions' => $item['special_instructions'] ?? null,
-                        'item_options'         => $item['item_options'] ?? null,
+                        'item_options'         => OrderItemOptions::fromPayload($item),
                     ]);
                 }
             }

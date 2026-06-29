@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\OnlineCustomer;
 use App\Models\Restaurant;
+use App\Support\OrderItemOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -327,12 +328,13 @@ class RestLinkController extends Controller
             // Create order items
             foreach ($request->cart_items as $item) {
                 \App\Models\OrderItem::create([
-                    'order_id' => $order->id,
+                    'order_id'     => $order->id,
                     'menu_item_id' => $item['id'] ?? null,
-                    'item_name' => $item['name'] ?? 'منتج',
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'subtotal' => $item['price'] * $item['quantity'],
+                    'item_name'    => $item['name'] ?? 'منتج',
+                    'quantity'     => $item['quantity'],
+                    'price'        => $item['price'],
+                    'subtotal'     => $item['price'] * $item['quantity'],
+                    'item_options' => OrderItemOptions::fromPayload($item),
                 ]);
             }
 

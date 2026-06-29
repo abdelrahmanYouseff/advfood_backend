@@ -25,7 +25,7 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        // Invoice viewer user (acc@asssdv-line.sa)
+        // Invoice vieweer user (acc@asssdv-line.sa)
         User::updateOrCreate(
             ['email' => 'acc@adv-line.sa'],
             [

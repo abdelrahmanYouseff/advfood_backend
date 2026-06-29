@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\MenuItem;
+use App\Support\OrderItemOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -97,7 +98,7 @@ class OrderItemController extends Controller
                 'price'                => $data['price'],
                 'subtotal'             => $data['price'] * $data['quantity'],
                 'special_instructions' => $data['special_instructions'] ?? null,
-                'item_options'         => $data['item_options'] ?? null,
+                'item_options'         => OrderItemOptions::fromPayload($data),
             ]);
 
             // Recalculate order totals
@@ -317,7 +318,7 @@ class OrderItemController extends Controller
                         'price'                => $itemData['price'],
                         'subtotal'             => $itemData['price'] * $itemData['quantity'],
                         'special_instructions' => $itemData['special_instructions'] ?? null,
-                        'item_options'         => $itemData['item_options'] ?? null,
+                        'item_options'         => OrderItemOptions::fromPayload($itemData),
                     ]);
 
                     $orderItem->load('menuItem');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Services\PointsService;
+use App\Support\OrderItemOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Restaurant;
@@ -247,12 +248,13 @@ class MobileAppController extends Controller
             // Create order items
             foreach ($request->cart_items as $item) {
                 \App\Models\OrderItem::create([
-                    'order_id' => $order->id,
+                    'order_id'     => $order->id,
                     'menu_item_id' => $item['id'] ?? null,
-                    'item_name' => $item['name'] ?? 'منتج',
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'subtotal' => $item['price'] * $item['quantity'],
+                    'item_name'    => $item['name'] ?? 'منتج',
+                    'quantity'     => $item['quantity'],
+                    'price'        => $item['price'],
+                    'subtotal'     => $item['price'] * $item['quantity'],
+                    'item_options' => OrderItemOptions::fromPayload($item),
                 ]);
             }
 
