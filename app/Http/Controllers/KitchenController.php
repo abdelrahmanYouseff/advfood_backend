@@ -48,8 +48,8 @@ class KitchenController extends Controller
             $status = strtolower($order->status ?? '');
             $shippingStatus = strtolower($order->shipping_status ?? '');
 
-            return in_array($status, ['delivered', 'cancelled'], true)
-                || in_array($shippingStatus, ['delivered', 'cancelled'], true)
+            return in_array($status, ['delivering', 'delivered', 'cancelled'], true)
+                || in_array($shippingStatus, ['waiting for delivery', 'out for delivery', 'delivered', 'cancelled'], true)
                 || ! is_null($order->delivered_at);
         });
 
