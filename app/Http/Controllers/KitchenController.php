@@ -13,6 +13,20 @@ class KitchenController extends Controller
      */
     public function index()
     {
+        $publicImageUrl = static function (?string $path): ?string {
+            if (! is_string($path) || trim($path) === '') {
+                return null;
+            }
+
+            $path = trim($path);
+
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, '/')) {
+                return $path;
+            }
+
+            return asset('storage/' . ltrim($path, '/'));
+        };
+
         $branch = Auth::guard('branches')->user();
         $isBranch = $branch !== null;
         $branchId = $branch?->id;
@@ -39,7 +53,7 @@ class KitchenController extends Controller
                 || ! is_null($order->delivered_at);
         });
 
-        $kitchenOrders = $openOrders->map(function ($order) {
+        $kitchenOrders = $openOrders->map(function ($order) use ($publicImageUrl) {
             return [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
@@ -54,8 +68,9 @@ class KitchenController extends Controller
                 'is_test' => $order->isTestOrder(),
                 'restaurant' => [
                     'name' => $order->restaurant?->name ?? '—',
+                    'logo' => $publicImageUrl($order->restaurant?->logo),
                 ],
-                'order_items' => $order->orderItems->map(function ($item) {
+                'order_items' => $order->orderItems->map(function ($item) use ($publicImageUrl) {
                     $menuItem = $item->menuItem;
                     $itemNameEn = $item->getAttribute('item_name_en')
                         ?? $menuItem?->getAttribute('name_en')
@@ -66,6 +81,7 @@ class KitchenController extends Controller
                         'id' => $item->id,
                         'item_name' => $item->item_name,
                         'item_name_en' => is_string($itemNameEn) && trim($itemNameEn) !== '' ? trim($itemNameEn) : null,
+                        'image' => $publicImageUrl($menuItem?->image),
                         'quantity' => $item->quantity,
                         'special_instructions' => $item->special_instructions,
                     ];

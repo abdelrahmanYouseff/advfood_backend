@@ -7,6 +7,7 @@ interface KitchenOrderItem {
     id: number;
     item_name: string;
     item_name_en?: string | null;
+    image?: string | null;
     quantity: number;
     special_instructions?: string | null;
 }
@@ -23,7 +24,10 @@ interface KitchenOrder {
     created_at: string;
     special_instructions?: string | null;
     delivery_name?: string | null;
-    restaurant: { name: string };
+    restaurant: {
+        name: string;
+        logo?: string | null;
+    };
     order_items: KitchenOrderItem[];
 }
 
@@ -710,9 +714,17 @@ onMounted(() => {
                             >
                                 <span :dir="kitchenLang === 'ar' ? 'rtl' : 'ltr'">{{ t('طلب', 'Order') }}</span>
                             </p>
-                            <p class="shrink-0 text-end text-lg font-bold text-gray-900">
-                                {{ order.restaurant.name }}
-                            </p>
+                            <div class="shrink-0">
+                                <img
+                                    v-if="order.restaurant.logo"
+                                    :src="order.restaurant.logo"
+                                    :alt="order.restaurant.name"
+                                    class="h-16 w-16 rounded-2xl border-2 border-white/70 bg-white object-cover p-1 shadow-sm"
+                                />
+                                <p v-else class="text-end text-lg font-bold text-gray-900">
+                                    {{ order.restaurant.name }}
+                                </p>
+                            </div>
                         </div>
 
                         <p
@@ -758,15 +770,23 @@ onMounted(() => {
                                 class="rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
                             >
                                 <div class="flex items-start justify-between gap-2">
-                                    <div class="min-w-0">
-                                        <span class="block text-2xl font-bold text-gray-900">{{ item.item_name }}</span>
-                                        <p
-                                            v-if="kitchenLang === 'en' && getEnglishItemName(item)"
-                                            class="mt-1 text-base font-medium text-gray-500"
-                                            dir="ltr"
-                                        >
-                                            {{ getEnglishItemName(item) }}
-                                        </p>
+                                    <div class="flex min-w-0 items-start gap-3">
+                                        <img
+                                            v-if="item.image"
+                                            :src="item.image"
+                                            :alt="item.item_name"
+                                            class="h-18 w-18 shrink-0 rounded-2xl border border-gray-200 bg-white object-cover"
+                                        />
+                                        <div class="min-w-0">
+                                            <span class="block text-2xl font-bold text-gray-900">{{ item.item_name }}</span>
+                                            <p
+                                                v-if="kitchenLang === 'en' && getEnglishItemName(item)"
+                                                class="mt-1 text-base font-medium text-gray-500"
+                                                dir="ltr"
+                                            >
+                                                {{ getEnglishItemName(item) }}
+                                            </p>
+                                        </div>
                                     </div>
                                     <span
                                         class="shrink-0 rounded-full bg-gray-900 px-4 py-1 text-xl font-black text-white"
