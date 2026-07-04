@@ -17,7 +17,7 @@ class KitchenController extends Controller
         $isBranch = $branch !== null;
         $branchId = $branch?->id;
 
-        $orderQuery = Order::with(['restaurant', 'orderItems'])
+        $orderQuery = Order::with(['restaurant', 'orderItems.menuItem'])
             ->where('payment_status', 'paid')
             ->where(function ($query) {
                 $query->whereNull('scheduled_for')
@@ -55,12 +55,21 @@ class KitchenController extends Controller
                 'restaurant' => [
                     'name' => $order->restaurant?->name ?? '—',
                 ],
-                'order_items' => $order->orderItems->map(fn ($item) => [
-                    'id' => $item->id,
-                    'item_name' => $item->item_name,
-                    'quantity' => $item->quantity,
-                    'special_instructions' => $item->special_instructions,
-                ])->values(),
+                'order_items' => $order->orderItems->map(function ($item) {
+                    $menuItem = $item->menuItem;
+                    $itemNameEn = $item->getAttribute('item_name_en')
+                        ?? $menuItem?->getAttribute('name_en')
+                        ?? $menuItem?->getAttribute('english_name')
+                        ?? $menuItem?->getAttribute('name_english');
+
+                    return [
+                        'id' => $item->id,
+                        'item_name' => $item->item_name,
+                        'item_name_en' => is_string($itemNameEn) && trim($itemNameEn) !== '' ? trim($itemNameEn) : null,
+                        'quantity' => $item->quantity,
+                        'special_instructions' => $item->special_instructions,
+                    ];
+                })->values(),
             ];
         })->values();
 

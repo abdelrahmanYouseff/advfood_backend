@@ -6,6 +6,7 @@ import { ArrowLeft, ChefHat, Clock, Volume2, VolumeX, WifiOff } from 'lucide-vue
 interface KitchenOrderItem {
     id: number;
     item_name: string;
+    item_name_en?: string | null;
     quantity: number;
     special_instructions?: string | null;
 }
@@ -42,9 +43,6 @@ if (typeof window !== 'undefined') {
 }
 
 const t = (ar: string, en: string) => (kitchenLang.value === 'ar' ? ar : en);
-
-/** Primary labels show both languages for mixed kitchen teams. */
-const tBoth = (ar: string, en: string) => `${ar} · ${en}`;
 
 const setKitchenLang = (lang: 'ar' | 'en') => {
     kitchenLang.value = lang;
@@ -196,6 +194,15 @@ const getStatusLabelParts = (order: KitchenOrder): [string, string] | null => {
     return statusLabelPairs[key] ?? null;
 };
 
+const getStatusLabel = (order: KitchenOrder) => {
+    const labels = getStatusLabelParts(order);
+    if (!labels) {
+        return order.shipping_status ?? order.status;
+    }
+
+    return t(labels[0], labels[1]);
+};
+
 const getCardHeaderClasses = (order: KitchenOrder) => {
     if (order.is_test) {
         return 'border-b-4 border-red-700 bg-red-600 text-white';
@@ -263,6 +270,11 @@ const getTimeAgoParts = (dateString: string): { ar: string; en: string } => {
     return { ar: `منذ ${hours} س`, en: `${hours} hr ago` };
 };
 
+const getTimeAgoLabel = (dateString: string) => {
+    const time = getTimeAgoParts(dateString);
+    return t(time.ar, time.en);
+};
+
 type NextAction =
     | { type: 'accept'; labelAr: string; labelEn: string }
     | { type: 'status'; status: string; labelAr: string; labelEn: string }
@@ -303,7 +315,96 @@ const getActionButtonClass = (order: KitchenOrder) => {
 const getActionLabel = (order: KitchenOrder) => {
     const action = getNextAction(order);
     if (!action) return null;
-    return tBoth(action.labelAr, action.labelEn);
+    return t(action.labelAr, action.labelEn);
+};
+
+const containsArabic = (value: string) => /[\u0600-\u06FF]/.test(value);
+
+const titleCaseWord = (value: string) =>
+    value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+
+const romanizeArabicWord = (word: string) => {
+    if (!containsArabic(word)) {
+        return titleCaseWord(word);
+    }
+
+    if (word.startsWith('ال') && word.length > 2) {
+        return `Al-${romanizeArabicWord(word.slice(2))}`;
+    }
+
+    const map: Record<string, string> = {
+        ا: 'a',
+        أ: 'a',
+        إ: 'e',
+        آ: 'a',
+        ب: 'b',
+        ت: 't',
+        ث: 'th',
+        ج: 'j',
+        ح: 'h',
+        خ: 'kh',
+        د: 'd',
+        ذ: 'dh',
+        ر: 'r',
+        ز: 'z',
+        س: 's',
+        ش: 'sh',
+        ص: 's',
+        ض: 'd',
+        ط: 't',
+        ظ: 'z',
+        ع: 'a',
+        غ: 'gh',
+        ف: 'f',
+        ق: 'q',
+        ك: 'k',
+        ل: 'l',
+        م: 'm',
+        ن: 'n',
+        ه: 'h',
+        و: 'ou',
+        ي: 'i',
+        ى: 'a',
+        ة: 'a',
+        ء: '',
+        ئ: 'i',
+        ؤ: 'ou',
+        ' ': ' ',
+        '-': '-',
+    };
+
+    let romanized = Array.from(word)
+        .map((char) => map[char] ?? char)
+        .join('')
+        .replace(/aa+/g, 'a')
+        .replace(/ii+/g, 'i')
+        .replace(/ouou+/g, 'ou')
+        .replace(/([^aeiou])\1+/gi, '$1');
+
+    const clusterMatch = romanized.match(/^(sh|kh|th|dh|gh|[bcdfghjklmnpqrstvwxyz])([bcdfghjklmnpqrstvwxyz])(.*)$/i);
+    if (clusterMatch) {
+        romanized = `${clusterMatch[1]}a${clusterMatch[2]}${clusterMatch[3]}`;
+    }
+
+    return titleCaseWord(romanized);
+};
+
+const romanizeArabicName = (value: string) =>
+    value
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(romanizeArabicWord)
+        .join(' ');
+
+const getEnglishItemName = (item: KitchenOrderItem) => {
+    const englishName = item.item_name_en?.trim();
+    if (englishName) {
+        return englishName.toLowerCase() === item.item_name.trim().toLowerCase()
+            ? null
+            : englishName;
+    }
+
+    return containsArabic(item.item_name) ? romanizeArabicName(item.item_name.trim()) : null;
 };
 
 const processReloadedOrders = (page: { props: { orders?: KitchenOrder[] } }, previousIds: Set<number>) => {
@@ -489,15 +590,15 @@ onMounted(() => {
                     <ChefHat class="h-10 w-10 shrink-0 text-black" aria-hidden="true" />
                     <div>
                         <h1 class="text-2xl font-bold text-black md:text-3xl">
-                            {{ tBoth('المطبخ', 'Kitchen') }}
+                            {{ t('المطبخ', 'Kitchen') }}
                         </h1>
                         <p class="text-sm font-medium text-black/80">
-                            {{ tBoth(`${orders.length} طلب نشط`, `${orders.length} active orders`) }}
+                            {{ t(`${orders.length} طلب نشط`, `${orders.length} active orders`) }}
                             <span
                                 v-if="newOrdersCount > 0"
                                 class="ms-2 rounded-full bg-black px-3 py-0.5 text-yellow-400"
                             >
-                                {{ tBoth(`${newOrdersCount} جديد`, `${newOrdersCount} new`) }}
+                                {{ t(`${newOrdersCount} جديد`, `${newOrdersCount} new`) }}
                             </span>
                         </p>
                     </div>
@@ -529,14 +630,14 @@ onMounted(() => {
                     >
                         <Volume2 v-if="soundEnabled" class="h-6 w-6 shrink-0" />
                         <VolumeX v-else class="h-6 w-6 shrink-0" />
-                        {{ soundEnabled ? tBoth('الصوت مفعل', 'Sound on') : tBoth('الصوت معطل', 'Sound off') }}
+                        {{ soundEnabled ? t('الصوت مفعل', 'Sound on') : t('الصوت معطل', 'Sound off') }}
                     </button>
                     <Link
                         :href="route('orders.index')"
                         class="flex items-center gap-2 rounded-xl border-2 border-black bg-black px-5 py-3 text-base font-bold text-yellow-400 transition hover:bg-gray-900"
                     >
                         <ArrowLeft class="h-6 w-6 shrink-0" :class="kitchenLang === 'ar' ? '' : 'rotate-180'" />
-                        {{ tBoth('خروج', 'Exit') }}
+                        {{ t('خروج', 'Exit') }}
                     </Link>
                 </div>
             </div>
@@ -553,7 +654,7 @@ onMounted(() => {
                     <WifiOff class="h-8 w-8 shrink-0 text-red-700" aria-hidden="true" />
                     <p class="text-lg font-bold text-red-900 md:text-xl">
                         {{
-                            tBoth(
+                            t(
                                 'انقطع الاتصال — تعذر تحديث الطلبات',
                                 'Connection lost — unable to refresh orders'
                             )
@@ -569,7 +670,7 @@ onMounted(() => {
                     {{
                         isRefreshing
                             ? t('جاري التحديث...', 'Refreshing...')
-                            : tBoth('يرجى التحديث', 'Please refresh')
+                            : t('يرجى التحديث', 'Please refresh')
                     }}
                 </button>
             </div>
@@ -607,9 +708,7 @@ onMounted(() => {
                                 class="text-sm font-bold uppercase tracking-wide"
                                 :class="getCardMetaTextClass(order)"
                             >
-                                <span dir="rtl">طلب</span>
-                                <span aria-hidden="true"> · </span>
-                                <span dir="ltr">Order</span>
+                                <span :dir="kitchenLang === 'ar' ? 'rtl' : 'ltr'">{{ t('طلب', 'Order') }}</span>
                             </p>
                             <p class="shrink-0 text-end text-lg font-bold text-gray-900">
                                 {{ order.restaurant.name }}
@@ -636,21 +735,14 @@ onMounted(() => {
                             :class="getCardMetaTextClass(order)"
                         >
                             <Clock class="h-4 w-4 shrink-0" aria-hidden="true" />
-                            <span dir="rtl">{{ getTimeAgoParts(order.created_at).ar }}</span>
-                            <span aria-hidden="true" class="text-gray-400">·</span>
-                            <span dir="ltr">{{ getTimeAgoParts(order.created_at).en }}</span>
+                            <span :dir="kitchenLang === 'ar' ? 'rtl' : 'ltr'">{{ getTimeAgoLabel(order.created_at) }}</span>
                         </p>
 
                         <p
                             class="mt-3 inline-block rounded-lg px-3 py-1.5 text-base font-bold leading-snug shadow-sm md:text-lg"
                             :class="getStatusBadgeClasses(order)"
                         >
-                            <template v-if="getStatusLabelParts(order)">
-                                <span dir="rtl">{{ getStatusLabelParts(order)![0] }}</span>
-                                <span aria-hidden="true"> · </span>
-                                <span dir="ltr">{{ getStatusLabelParts(order)![1] }}</span>
-                            </template>
-                            <template v-else>{{ order.shipping_status ?? order.status }}</template>
+                            {{ getStatusLabel(order) }}
                         </p>
                     </div>
 
@@ -665,8 +757,17 @@ onMounted(() => {
                                 :key="item.id"
                                 class="rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
                             >
-                                <div class="flex items-baseline justify-between gap-2">
-                                    <span class="text-2xl font-bold text-gray-900">{{ item.item_name }}</span>
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <span class="block text-2xl font-bold text-gray-900">{{ item.item_name }}</span>
+                                        <p
+                                            v-if="kitchenLang === 'en' && getEnglishItemName(item)"
+                                            class="mt-1 text-base font-medium text-gray-500"
+                                            dir="ltr"
+                                        >
+                                            {{ getEnglishItemName(item) }}
+                                        </p>
+                                    </div>
                                     <span
                                         class="shrink-0 rounded-full bg-gray-900 px-4 py-1 text-xl font-black text-white"
                                         dir="ltr"
@@ -686,7 +787,7 @@ onMounted(() => {
                             v-if="order.special_instructions"
                             class="mt-4 rounded-xl border-2 border-orange-300 bg-orange-50 px-4 py-3 text-lg font-bold text-orange-800"
                         >
-                            {{ tBoth('ملاحظة', 'Note') }}: {{ order.special_instructions }}
+                            {{ t('ملاحظة', 'Note') }}: {{ order.special_instructions }}
                         </p>
                     </div>
 
@@ -706,7 +807,7 @@ onMounted(() => {
                             <span v-else>{{ getActionLabel(order) }}</span>
                         </button>
                         <p v-else class="py-3 text-center text-lg font-semibold text-gray-500">
-                            {{ tBoth('بانتظار التوصيل', 'Waiting for delivery') }}
+                            {{ t('بانتظار التوصيل', 'Waiting for delivery') }}
                         </p>
                     </div>
                 </article>
@@ -715,10 +816,10 @@ onMounted(() => {
             <div v-else class="mx-auto flex max-w-lg flex-col items-center justify-center py-24 text-center">
                 <ChefHat class="h-24 w-24 text-gray-300" />
                 <h2 class="mt-6 text-2xl font-bold text-gray-700 md:text-3xl">
-                    {{ tBoth('لا توجد طلبات نشطة', 'No active orders') }}
+                    {{ t('لا توجد طلبات نشطة', 'No active orders') }}
                 </h2>
                 <p class="mt-2 text-lg text-gray-500 md:text-xl">
-                    {{ tBoth('ستظهر الطلبات الجديدة هنا تلقائياً', 'New orders will appear here automatically') }}
+                    {{ t('ستظهر الطلبات الجديدة هنا تلقائياً', 'New orders will appear here automatically') }}
                 </p>
             </div>
         </main>

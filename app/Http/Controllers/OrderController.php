@@ -462,8 +462,16 @@ class OrderController extends Controller
         $itemsSubtotal = $order->orderItems->sum('subtotal');
         $itemsCount = $order->orderItems->sum('quantity');
 
+        $orderPayload = $order->toArray();
+        $orderPayload['order_items'] = collect($order->orderItems)->map(function ($item) {
+            $row = $item->toArray();
+            $row['item_options'] = $item->item_options;
+
+            return $row;
+        })->values()->all();
+
         return Inertia::render('Orders/Show', [
-            'order' => $order,
+            'order' => $orderPayload,
             'shippingOrder' => $shippingOrder,
             'calculations' => [
                 'items_subtotal' => $itemsSubtotal,

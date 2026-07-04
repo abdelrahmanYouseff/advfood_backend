@@ -23,6 +23,7 @@ interface OrderItem {
     subtotal: string;
     special_instructions?: string;
     item_options?: ItemOption[] | null;
+    item_option?: unknown;
     menu_item: {
         name: string;
         description: string;
@@ -275,39 +276,92 @@ const formatCurrencyProfessional = (amount: number | string) => {
 };
 
 const normalizeItemOptions = (raw: unknown): ItemOption[] => {
-    if (!raw) return [];
+    if (raw === null || raw === undefined || raw === '') return [];
 
-    let options = raw;
+    let options: unknown = raw;
     if (typeof options === 'string') {
         try {
             options = JSON.parse(options);
+            if (typeof options === 'string') {
+                options = JSON.parse(options);
+            }
         } catch {
             return [];
         }
     }
 
-    if (!Array.isArray(options)) return [];
+    if (!options || typeof options !== 'object') return [];
 
-    return options
-        .map((opt) => {
-            if (typeof opt === 'string') {
-                const name = opt.trim();
-                return name ? { name, quantity: 1 } : null;
+    const record = options as Record<string, unknown>;
+    for (const key of ['items', 'options', 'selections', 'selected_items', 'selectedItems', 'box_items', 'boxItems']) {
+        if (Array.isArray(record[key])) {
+            options = record[key];
+            break;
+        }
+    }
+
+    const parseEntry = (opt: unknown): ItemOption | null => {
+        if (typeof opt === 'string') {
+            const name = opt.trim();
+            return name ? { name, quantity: 1 } : null;
+        }
+
+        if (!opt || typeof opt !== 'object') return null;
+
+        const entry = opt as Record<string, unknown>;
+        const nestedItem = entry.item && typeof entry.item === 'object' ? (entry.item as Record<string, unknown>) : null;
+        const product = entry.product && typeof entry.product === 'object' ? (entry.product as Record<string, unknown>) : null;
+
+        const name = String(
+            entry.name
+            ?? entry.item_name
+            ?? entry.product_name
+            ?? entry.productName
+            ?? entry.title
+            ?? entry.label
+            ?? entry.arabic_name
+            ?? entry.arabicName
+            ?? entry.name_ar
+            ?? entry.nameAr
+            ?? nestedItem?.name
+            ?? nestedItem?.item_name
+            ?? product?.name
+            ?? product?.name_ar
+            ?? ''
+        ).trim();
+
+        if (!name) return null;
+
+        const quantity = Number(entry.quantity ?? entry.qty ?? entry.count ?? entry.amount ?? nestedItem?.quantity ?? nestedItem?.qty ?? 1);
+
+        return {
+            name,
+            quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+        };
+    };
+
+    if (Array.isArray(options)) {
+        return options.map(parseEntry).filter((opt): opt is ItemOption => opt !== null);
+    }
+
+    return Object.entries(record)
+        .map(([key, value]) => {
+            if (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value)))) {
+                const name = key.trim();
+                if (!name || /^\d+$/.test(name)) return null;
+                return { name, quantity: Math.max(1, Number(value)) };
             }
-            if (!opt || typeof opt !== 'object') return null;
 
-            const record = opt as Record<string, unknown>;
-            const name = String(record.name ?? record.item_name ?? record.title ?? record.label ?? '').trim();
-            if (!name) return null;
-
-            const quantity = Number(record.quantity ?? record.qty ?? record.count ?? 1);
-
-            return {
-                name,
-                quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
-            };
+            return parseEntry(value);
         })
         .filter((opt): opt is ItemOption => opt !== null);
+};
+
+const resolveItemOptions = (item: OrderItem): ItemOption[] => {
+    const fromColumn = normalizeItemOptions(item.item_options);
+    if (fromColumn.length > 0) return fromColumn;
+
+    return normalizeItemOptions(item.item_option);
 };
 
 const itemOptionsTotal = (options: ItemOption[]) =>
@@ -517,41 +571,37 @@ const itemOptionsTotal = (options: ItemOption[]) =>
                                                         {{ item.menu_item?.description }}
                                                     </p>
 
-                                                    <!-- الأصناف المختارة داخل المنتج -->
+                                                    <!-- تفاصيل الأصناف المختارة -->
                                                     <div
-                                                        v-if="normalizeItemOptions(item.item_options).length > 0"
-                                                        class="mt-3 rounded-lg border border-gray-200 bg-white overflow-hidden"
+                                                        v-if="resolveItemOptions(item).length > 0"
+                                                        class="mt-3 overflow-hidden rounded-xl border border-amber-200/80 bg-gradient-to-b from-amber-50/80 to-white"
                                                     >
-                                                        <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-2">
-                                                            <p class="text-xs font-semibold text-gray-700">الأصناف المختارة</p>
-                                                            <span class="rounded-full bg-gray-800 px-2 py-0.5 text-[10px] font-bold text-white">
-                                                                {{ itemOptionsTotal(normalizeItemOptions(item.item_options)) }} قطعة
+                                                        <div class="flex items-center justify-between border-b border-amber-100 px-4 py-2.5">
+                                                            <div class="flex items-center gap-2">
+                                                                <Package class="h-4 w-4 text-amber-700" />
+                                                                <p class="text-sm font-semibold text-amber-900">تفاصيل المحتويات</p>
+                                                            </div>
+                                                            <span class="rounded-full bg-amber-700 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                                                                {{ itemOptionsTotal(resolveItemOptions(item)) }} قطعة
                                                             </span>
                                                         </div>
-                                                        <table class="w-full text-sm">
-                                                            <thead>
-                                                                <tr class="border-b border-gray-100 text-xs text-gray-500">
-                                                                    <th class="px-3 py-2 text-right font-medium w-10">#</th>
-                                                                    <th class="px-3 py-2 text-right font-medium">اسم الصنف</th>
-                                                                    <th class="px-3 py-2 text-center font-medium w-20">الكمية</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                <tr
-                                                                    v-for="(opt, idx) in normalizeItemOptions(item.item_options)"
-                                                                    :key="`${item.id}-opt-${idx}`"
-                                                                    class="border-b border-gray-50 last:border-0"
-                                                                >
-                                                                    <td class="px-3 py-2 text-right text-xs text-gray-400">{{ idx + 1 }}</td>
-                                                                    <td class="px-3 py-2 text-right font-medium text-gray-800">{{ opt.name }}</td>
-                                                                    <td class="px-3 py-2 text-center">
-                                                                        <span class="inline-flex min-w-7 items-center justify-center rounded-full bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">
-                                                                            {{ opt.quantity }}
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
+                                                        <div class="divide-y divide-amber-100/80">
+                                                            <div
+                                                                v-for="(opt, idx) in resolveItemOptions(item)"
+                                                                :key="`${item.id}-opt-${idx}`"
+                                                                class="flex items-center justify-between gap-3 px-4 py-2.5"
+                                                            >
+                                                                <div class="flex min-w-0 items-center gap-3">
+                                                                    <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-800">
+                                                                        {{ idx + 1 }}
+                                                                    </span>
+                                                                    <span class="truncate text-sm font-medium text-gray-800">{{ opt.name }}</span>
+                                                                </div>
+                                                                <span class="shrink-0 rounded-lg bg-gray-900 px-2.5 py-1 text-xs font-bold text-white">
+                                                                    × {{ opt.quantity }}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
                                                     <div class="flex items-center space-x-6 mt-3">

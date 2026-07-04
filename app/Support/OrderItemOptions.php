@@ -38,8 +38,37 @@ class OrderItemOptions
             $raw = is_array($decoded) ? $decoded : null;
         }
 
+        return self::normalize($raw);
+    }
+
+    /**
+     * Normalize stored JSON / mixed shapes for API responses and the dashboard.
+     *
+     * @return array<int, array{name: string, quantity: int}>|null
+     */
+    public static function normalize(mixed $raw): ?array
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (is_string($decoded)) {
+                $decoded = json_decode($decoded, true);
+            }
+            $raw = is_array($decoded) ? $decoded : null;
+        }
+
         if (! is_array($raw) || $raw === []) {
             return null;
+        }
+
+        foreach (['items', 'options', 'selections', 'selected_items', 'selectedItems', 'box_items', 'boxItems'] as $wrapper) {
+            if (isset($raw[$wrapper]) && is_array($raw[$wrapper])) {
+                $raw = $raw[$wrapper];
+                break;
+            }
         }
 
         $normalized = self::normalizeList($raw);
@@ -114,6 +143,8 @@ class OrderItemOptions
     {
         $nestedItem = is_array($opt['item'] ?? null) ? $opt['item'] : null;
 
+        $product = is_array($opt['product'] ?? null) ? $opt['product'] : null;
+
         $name = $opt['name']
             ?? $opt['item_name']
             ?? $opt['product_name']
@@ -122,9 +153,14 @@ class OrderItemOptions
             ?? $opt['label']
             ?? $opt['arabic_name']
             ?? $opt['arabicName']
+            ?? $opt['name_ar']
+            ?? $opt['nameAr']
             ?? ($nestedItem['name'] ?? null)
             ?? ($nestedItem['item_name'] ?? null)
-            ?? ($nestedItem['product_name'] ?? null);
+            ?? ($nestedItem['product_name'] ?? null)
+            ?? ($product['name'] ?? null)
+            ?? ($product['name_ar'] ?? null)
+            ?? ($product['arabic_name'] ?? null);
 
         if ($name === null || trim((string) $name) === '') {
             return null;
