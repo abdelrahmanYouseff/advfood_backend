@@ -176,18 +176,104 @@ Route::get('/images/tant-bakiza-logo.png', function() {
     abort(404, 'Image not found');
 })->name('images.tant-bakiza');
 
-// Route to serve Delawa multi-page menu PDF (public route)
-// Fully Kiosk: Web Content Settings → View Remote/Local PDF Files → Use PDF.js
+// Route to serve Delawa multi-page menu as a touch slider (Fully Kiosk friendly)
 Route::get('/menu/delawa', function () {
-    $path = public_path('menu-multiple-page.pdf');
+    $dir = public_path('multi-page-menu');
+    $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+    $files = collect(is_dir($dir) ? scandir($dir) : [])
+        ->filter(function ($name) use ($dir, $allowed) {
+            if ($name === '.' || $name === '..') {
+                return false;
+            }
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            return in_array($ext, $allowed, true) && is_file($dir . DIRECTORY_SEPARATOR . $name);
+        })
+        ->sortBy(function ($name) {
+            // Order by the number in "1 (N).png"
+            if (preg_match('/\((\d+)\)/', $name, $m)) {
+                return (int) $m[1];
+            }
+            return PHP_INT_MAX;
+        })
+        ->values();
 
-    if (!file_exists($path)) {
-        abort(404, 'Menu PDF not found');
+    if ($files->isEmpty()) {
+        abort(404, 'Menu images not found');
     }
 
-    return response()->file($path, [
-        'Content-Type' => 'application/pdf',
-        'Content-Disposition' => 'inline; filename="menu-multiple-page.pdf"',
+    $slides = $files->map(function ($name) {
+        $url = asset('multi-page-menu/' . rawurlencode($name));
+        return '<div class="swiper-slide"><img src="' . e($url) . '" alt="Menu page" loading="eager"></div>';
+    })->implode("\n");
+
+    $html = <<<HTML
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>قائمة الطعام - ديلاوا</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body, .swiper {
+            width: 100%;
+            height: 100%;
+            background: #662b37;
+            overflow: hidden;
+            touch-action: none;
+        }
+        .swiper-slide {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #662b37;
+        }
+        .swiper-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        .swiper-pagination-bullet {
+            background: #fff;
+            opacity: 0.45;
+        }
+        .swiper-pagination-bullet-active {
+            opacity: 1;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="swiper">
+        <div class="swiper-wrapper">
+{$slides}
+        </div>
+        <div class="swiper-pagination"></div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script>
+        new Swiper('.swiper', {
+            direction: 'horizontal',
+            loop: true,
+            speed: 350,
+            grabCursor: true,
+            resistanceRatio: 0.65,
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+            },
+        });
+    </script>
+</body>
+</html>
+HTML;
+
+    return response($html, 200, [
+        'Content-Type' => 'text/html; charset=UTF-8',
         'Cache-Control' => 'public, max-age=3600',
     ]);
 })->name('menu.delawa');
