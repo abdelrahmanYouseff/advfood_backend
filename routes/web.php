@@ -176,48 +176,18 @@ Route::get('/images/tant-bakiza-logo.png', function() {
     abort(404, 'Image not found');
 })->name('images.tant-bakiza');
 
-// Route to serve Delawa menu image (public route)
-Route::get('/menu/delawa', function() {
-    $imageUrl = asset('delawa-12062026.jpg');
-    
-    return response()->make('
-<!DOCTYPE html>
-<html lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta property="og:title" content="قائمة الطعام - ديلاوا">
-    <meta property="og:image" content="' . $imageUrl . '">
-    <title>قائمة الطعام - ديلاوا</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #662b37;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        img {
-            width: 100vw;
-            height: 100vh;
-            object-fit: contain;
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <img src="' . $imageUrl . '" alt="قائمة الطعام - ديلاوا">
-</body>
-</html>
-    ', 200, [
-        'Content-Type' => 'text/html; charset=UTF-8',
+// Route to serve Delawa multi-page menu PDF (public route)
+// Fully Kiosk: Web Content Settings → View Remote/Local PDF Files → Use PDF.js
+Route::get('/menu/delawa', function () {
+    $path = public_path('menu-multiple-page.pdf');
+
+    if (!file_exists($path)) {
+        abort(404, 'Menu PDF not found');
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => 'inline; filename="menu-multiple-page.pdf"',
         'Cache-Control' => 'public, max-age=3600',
     ]);
 })->name('menu.delawa');
